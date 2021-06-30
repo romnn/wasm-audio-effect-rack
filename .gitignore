@@ -1,0 +1,9 @@
+target/
+build/
+**/*.rs.bk
+Cargo.lock
+bin/
+/pkg
+/binaryen
+/wabt
+wasm-pack.log

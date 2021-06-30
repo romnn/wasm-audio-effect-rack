@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+        "moduleResolution": "node",
+        "module": "none",
+        "noEmit": false,
+        "outDir": "public/generated"
+    },
+    "include": [
+        "src/workers",
+        "types"
+    ]
+}

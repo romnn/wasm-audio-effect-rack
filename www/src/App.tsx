@@ -1,20 +1,15 @@
 import React from "react";
 import BPMDetection from "./nodes/bpm-detection";
-import logo from "./logo.svg";
+import Fractal from "./Fractal1";
 import "./App.css";
 
-type AppState = {
-  // wasm?: typeof import("wasm-audio-effect-rack");
-};
-
+type AppState = {};
 type AppProps = {};
 
 export default class App extends React.Component<AppProps, AppState> {
   constructor(props: AppProps) {
     super(props);
-    this.state = {
-      wasm: undefined,
-    };
+    this.state = {};
   }
 
   play = () => {
@@ -28,7 +23,6 @@ export default class App extends React.Component<AppProps, AppState> {
       ctx,
       "bpm-detection-node-processor",
       undefined,
-      // { sampleRate: ctx.sampleRate },
       {
         onInitialized: (inst: BPMDetection) => {
           // bpmDetector.onBPMChanged = (bpm: number) => {
@@ -48,6 +42,7 @@ export default class App extends React.Component<AppProps, AppState> {
     return (
       <div className="App">
         <p onClick={this.play}>Welcome</p>
+        <Fractal></Fractal>
       </div>
     );
   };

@@ -1,69 +1,32 @@
-<div align="center">
+## WASM Effect Rack
 
-  <h1><code>wasm-pack-template</code></h1>
+This is very much a work in progress and only worked on for special occasions.
 
-  <strong>A template for kick starting a Rust and WebAssembly project using <a href="https://github.com/rustwasm/wasm-pack">wasm-pack</a>.</strong>
+It might be very cool one day though...
 
-  <p>
-    <a href="https://travis-ci.org/rustwasm/wasm-pack-template"><img src="https://img.shields.io/travis/rustwasm/wasm-pack-template.svg?style=flat-square" alt="Build Status" /></a>
-  </p>
+#### TODO
 
-  <h3>
-    <a href="https://rustwasm.github.io/docs/wasm-pack/tutorials/npm-browser-packages/index.html">Tutorial</a>
-    <span> | </span>
-    <a href="https://discordapp.com/channels/442252698964721669/443151097398296587">Chat</a>
-  </h3>
+- adriana
+  - use another temporary circular buffer for the width and for the color that is modified in the render loop based on the speed
+  - only update the width targets once in a while and then gradually increase towards them based on the speed
+  - include the groups bouding box
+  - scale the camera to properly include all the text
 
-  <sub>Built with 🦀🕸 by <a href="https://rustwasm.github.io/">The Rust and WebAssembly Working Group</a></sub>
-</div>
+- what i need for the party
+  - fog machine
+  - maybe a projector if gera is not there
+  - dj controller audio monitor setup
+  - 
 
-## About
+- add text based visualization with some warping and some parameters ready to be animated
+- refactor the frontend visualization code to share a common interface for connecting with audio analysis results
+- implement a generic websocket handler that can receive any GRPC control message s
+- extend the router to render a controller page that interacts with a backend using grpc web and or websockets
+- test out some audio analysis techniques using python for fast prototyping and send it to the frontend via websockets and grpc for python
+- implement reading of audio signals in rust and check how good compatibility is in general
+- read the arturia midi board to check what can be done with the web audio midi api
+- implement remote control via p2p such that the recorder and the controller do not have to be in the same network even
+- since we will be using rust and a lot of protobuf, we might as well just add support for building with bazel?
 
-[**📚 Read this template tutorial! 📚**][template-docs]
 
-This template is designed for compiling Rust libraries into WebAssembly and
-publishing the resulting package to NPM.
-
-Be sure to check out [other `wasm-pack` tutorials online][tutorials] for other
-templates and usages of `wasm-pack`.
-
-[tutorials]: https://rustwasm.github.io/docs/wasm-pack/tutorials/index.html
-[template-docs]: https://rustwasm.github.io/docs/wasm-pack/tutorials/npm-browser-packages/index.html
-
-## 🚴 Usage
-
-### 🐑 Use `cargo generate` to Clone this Template
-
-[Learn more about `cargo generate` here.](https://github.com/ashleygwilliams/cargo-generate)
-
-```
-cargo generate --git https://github.com/rustwasm/wasm-pack-template.git --name my-project
-cd my-project
-```
-
-### 🛠️ Build with `wasm-pack build`
-
-```
-wasm-pack build
-```
-
-### 🔬 Test in Headless Browsers with `wasm-pack test`
-
-```
-wasm-pack test --headless --firefox
-```
-
-### 🎁 Publish to NPM with `wasm-pack publish`
-
-```
-wasm-pack publish
-```
-
-## 🔋 Batteries Included
-
-* [`wasm-bindgen`](https://github.com/rustwasm/wasm-bindgen) for communicating
-  between WebAssembly and JavaScript.
-* [`console_error_panic_hook`](https://github.com/rustwasm/console_error_panic_hook)
-  for logging panic messages to the developer console.
-* [`wee_alloc`](https://github.com/rustwasm/wee_alloc), an allocator optimized
-  for small code size.
+#### Done

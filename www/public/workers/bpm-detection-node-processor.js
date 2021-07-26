@@ -1,5 +1,5 @@
 import "/TextEncoder.js";
-import init, {WasmBPMDetector} from "/wasm/bpm-detection/bpm_detection.js";
+// import init, {WasmBPMDetector} from "/wasm/bpm-detection/bpm_detection.js";
 
 const nChannels = 2;
 const sampleRateParam = 'sampleRate';
@@ -9,35 +9,15 @@ const minIntervalSecParam = 'minIntervalSec';
 class BPMDetectionNodeProcessor extends AudioWorkletProcessor {
 
   parameterDescriptors = [
-    // {
-    //   name : sampleRate,
-    //   defaultValue: 440,
-    //   automationRate: "a-rate",
-    // },
-    // {
-    //   name : windowSizeParam,
-    //   defaultValue: 512,
-    //   automationRate: "a-rate",
-    // },
     {
       name : minIntervalSecParam,
       defaultValue: 0.5,
       automationRate: "a-rate",
     },
-    // ...Array(MAX_DIMENSION_COUNT)
-    //   .fill(null)
-    //   .map((_, i) => ({
-    //     name:
-    //     defaultValue: 0.0,
-    //     minValue: 0.0,
-    //     maxValue: 1.0,
-    //     automationRate: 'a-rate',
-    //   })),
   ];
 
   constructor() {
     super();
-
     // we cannot know the sampleRate etc.
     // we instantiate the wasm module when we receive the init message
     this.detector = null;
@@ -47,14 +27,14 @@ class BPMDetectionNodeProcessor extends AudioWorkletProcessor {
         Object.assign({}, ...this.parameterDescriptors.map(
                               (desc) => ({[desc.name] : desc.defaultValue})));
     this.isShutdown = false;
-    this.isInitialized = false;
+    // this.isInitialized = false;
 
     this.port.onmessage = (ev) => {
       if (ev.data.type == "SHUTDOWN") {
         this.isShutdown = true;
         return;
-      } else if (ev.data.type == "LOAD_WASM") {
-        this.initWasmModule(ev.data.data);
+        // } else if (ev.data.type == "LOAD_WASM") {
+        //   this.initWasmModule(ev.data.data);
       } else {
         return this.handleMessage(ev);
       }
@@ -70,40 +50,28 @@ class BPMDetectionNodeProcessor extends AudioWorkletProcessor {
   }
 
   init() {
-    console.log("init bpm detection", this.params);
+    // console.log("init bpm detection", this.params);
     // this.samples = new Array(nChannels *
     // this.params[windowSizeParam]).fill(0);
-    this.detector = WasmBPMDetector.new(this.params[sampleRateParam],
-                                        this.params[windowSizeParam]);
-    this.port.postMessage({type : "INIT_COMPLETE"});
-    this.isInitialized = true;
+    // this.detector = WasmBPMDetector.new(this.params[sampleRateParam],
+    //                                     this.params[windowSizeParam]);
+    // this.port.postMessage({type : "INIT_COMPLETE"});
+    // this.isInitialized = true;
   }
 
-  async initWasmModule(data) {
-    console.log("loading wasm module");
-    // we compile and instantiate the wasm module into this.wasmMod
-    // const debug = (id, ...args) => console.log(id}]: ${args.join(' ')};
-    const importObject = {
-      env : {},
-    };
-
-    // const compiledModule = await WebAssembly.compile(data.arrayBuffer);
-    try {
-      this.wasmMod = await init(WebAssembly.compile(data));
-      // this.wasmMod = init(await WebAssembly.compile(data));
-      // const compiledModule = await WebAssembly.compile(data);
-      // console.log(compiledModule);
-      // this.wasmMod = await WebAssembly.instantiate(compiledModule,
-      // importObject);
-      console.log(this.wasmMod);
-
-      this.port.postMessage({type : "LOAD_WASM_COMPLETE"});
-    } catch (e) {
-      this.isShutdown = true;
-      console.log(e);
-      throw "could not load wasm module";
-    }
-  }
+  // async initWasmModule(data) {
+  //   console.log("loading wasm module");
+  //   const importObject = {
+  //     env : {},
+  //   };
+  //   try {
+  //     this.port.postMessage({type : "LOAD_WASM_COMPLETE"});
+  //   } catch (e) {
+  //     this.isShutdown = true;
+  //     console.log(e);
+  //     throw "could not load wasm module";
+  //   }
+  // }
 
   process(inputs, outputs, params) {
     if (this.isShutdown) {
@@ -112,9 +80,9 @@ class BPMDetectionNodeProcessor extends AudioWorkletProcessor {
     }
     // wait for initialization
     // TODO: add more logic with pauses etc.
-    if (!this.isInitialized) {
-      return true;
-    }
+    // if (!this.isInitialized) {
+    //   return true;
+    // }
 
     // for now, just use the first input
     inputs = inputs[0];
@@ -187,58 +155,17 @@ class BPMDetectionNodeProcessor extends AudioWorkletProcessor {
     //     this.port.postMessage({type : "BPM_UPDATE", data : {bpm : result}});
     //   }
     // }
-    if (this.detector) {
-      const result =
-          this.detector.detect_bpm(this.totalSamples, channels, samples);
-      if (result !== 0)
-        this.port.postMessage({type : "BPM_UPDATE", data : {bpm : result}});
-    }
+
+    // if (this.detector) {
+    //   const result =
+    //       this.detector.detect_bpm(this.totalSamples, channels, samples);
+    //   if (result !== 0)
+    //     this.port.postMessage({type : "BPM_UPDATE", data : {bpm : result}});
+    // }
 
     this.totalSamples += inputs[0].length;
 
     // tell the audio system to keep going
-    return true;
-
-    // Write the mixes for each sample in the frame into the Wasm memory.
-    // Mixes are a flattened 3D array of the form
-    // mixes[dimensionIx][interOrIntraIndex][sampleIx]
-    console.log(inputs, inputs.length)
-    for (let dimensionIx = 0; dimensionIx < this.dimensionCount;
-         dimensionIx++) {
-      // const intraDimensionalMixVals = params[`dimension_${dimensionIx}_mix`];
-      // const interDimensionalMixVals =
-      //     dimensionIx > 0
-      //         ? params[`dimension_${dimensionIx - 1}x${dimensionIx}_mix`]
-      //         : null;
-
-      // const dstIntraValBaseIx =
-      //     this.mixesArrayOffset + dimensionIx * FRAME_SIZE * 2;
-      if (intraDimensionalMixVals.length === 1) {
-        this.float32WasmMemory.fill(intraDimensionalMixVals[0],
-                                    dstIntraValBaseIx,
-                                    dstIntraValBaseIx + FRAME_SIZE);
-      } else if (intraDimensionalMixVals.length === FRAME_SIZE) {
-        this.float32WasmMemory.set(intraDimensionalMixVals, dstIntraValBaseIx);
-      } else {
-        throw new Error('Unexpected size of mix intra dim mix buffer: ',
-                        intraDimensionalMixVals.length);
-      }
-
-      if (interDimensionalMixVals !== null) {
-        const dstInterValBaseIx = dstIntraValBaseIx + FRAME_SIZE;
-        if (interDimensionalMixVals.length === 1) {
-          this.float32WasmMemory.fill(interDimensionalMixVals[0],
-                                      dstInterValBaseIx,
-                                      dstInterValBaseIx + FRAME_SIZE);
-        } else if (interDimensionalMixVals.length === FRAME_SIZE) {
-          this.float32WasmMemory.set(interDimensionalMixVals,
-                                     dstInterValBaseIx);
-        } else {
-          throw new Error('Unexpected size of mix inter dim mix buffer: ',
-                          interDimensionalMixVals.length);
-        }
-      }
-    }
     return true;
   }
 }

@@ -4,7 +4,7 @@ use common::filters::{bandpass_filter, convolve, cutoff_from_frequency};
 use common::sorting::SortArray;
 use common::synth::quantize_samples;
 use ndarray::prelude::*;
-use ndarray::{RemoveAxis, Slice};
+use ndarray::{concatenate, RemoveAxis, Slice};
 use std::cmp;
 use wasm_bindgen::prelude::*;
 
@@ -26,15 +26,17 @@ macro_rules! console_log {
     ($($t:tt)*) => (console_log_one(&format_args!($($t)*).to_string()))
 }
 
+type Peak = i16;
+type Buffer = Array<f64, Dim<[usize; 1]>>;
+
 #[wasm_bindgen]
 pub struct WasmBPMDetector {
-    sample_rate: usize,
-    lowpass_cutoff_freq_hz: f64,
-    highpass_cutoff_freq_hz: f64,
-    band: f64,
+    pub sample_rate: usize,
+    pub lowpass_cutoff_freq_hz: f64,
+    pub highpass_cutoff_freq_hz: f64,
+    pub band: f64,
+    buffer: Buffer,
 }
-
-type Peak = i16;
 
 /// # Numerical Methods for Arrays
 // impl<A, S, D> ArrayBase<S, D>
@@ -91,6 +93,7 @@ impl WasmBPMDetector {
             lowpass_cutoff_freq_hz: 150.0,
             highpass_cutoff_freq_hz: 100.0,
             band: 0.01,
+            buffer: Buffer::zeros(0),
         }
     }
 
@@ -170,7 +173,7 @@ impl WasmBPMDetector {
         //     panic!("Insufficient samples passed to detect_bpm(). Expected an array containing {} elements but got {}", self.fft_size, audio_samples.len());
         // }
 
-        // console_log!("samples: {:?}", samples);
+        // console_log!("samples: {:?}", samples.len());
         let num_samples = samples.len();
         let samples = Array::from_iter(samples)
             .into_shape([num_samples / (channels as usize), channels as usize])
@@ -183,7 +186,40 @@ impl WasmBPMDetector {
         let samples = samples.map_axis(Axis(1), |row| {
             row.iter().fold(0.0 as f64, |acc, v| acc.max(*v))
         });
-        self.sample_rate = 128;
+
+        // add them to the big buffer
+        self.buffer = concatenate(Axis(0), &[self.buffer.view(), samples.view()]).unwrap();
+        // console_log!("buffer size: {:?}", self.buffer.len());
+
+        let target_buffer_size = 22050; // .5 sec
+        let target_buffer_size = (0.1 * 44100.0) as usize; // .1 sec
+        if self.buffer.len() >= target_buffer_size {
+            // get the first target buffer
+            let target_buffer = self
+                .buffer
+                .slice_axis(Axis(0), Slice::from(-(target_buffer_size as isize)..));
+
+            // compute the bpm from it
+            let filter = bandpass_filter(
+                cutoff_from_frequency(self.highpass_cutoff_freq_hz, self.sample_rate),
+                cutoff_from_frequency(self.lowpass_cutoff_freq_hz, self.sample_rate),
+                self.band,
+            );
+            let filtered_samples = Array::from_iter(quantize_samples::<Peak>(&convolve(
+                &filter,
+                target_buffer.as_slice().unwrap(),
+            )));
+            // console_log!("filtered: {:?}", filtered_samples);
+            let peaks = self.detect_peaks(filtered_samples);
+            console_log!("found {:?} peaks", peaks.len());
+
+            // then remove them from the buffer
+            self.buffer = target_buffer.to_owned();
+            // .buffer
+            // .slice_axis(Axis(0), Slice::from(-target_buffer_size));
+        }
+
+        // self.sample_rate = 128;
         // console_log!("sample rate: {:?}", self.sample_rate);
 
         // let samples = samples.max_axis(Axis(1)).unwrap();
@@ -212,19 +248,8 @@ impl WasmBPMDetector {
         // const CLARITY_THRESHOLD: f32 = 0.6;
 
         // filter the signal with a low and high pass filter
-        if (num_sample % (100 * 128) == 0) {
-            let filter = bandpass_filter(
-                cutoff_from_frequency(self.highpass_cutoff_freq_hz, self.sample_rate),
-                cutoff_from_frequency(self.lowpass_cutoff_freq_hz, self.sample_rate),
-                self.band,
-            );
-            let filtered_samples = Array::from_iter(quantize_samples::<Peak>(&convolve(
-                &filter,
-                samples.as_slice().unwrap(),
-            )));
-            // console_log!("filtered: {:?}", filtered_samples);
-            let peaks = self.detect_peaks(filtered_samples);
-        }
+        // if (num_sample % (100 * 128) == 0) {
+        // }
 
         // var peaks = getPeaks([buffer.getChannelData(0), buffer.getChannelData(1)]);
         // var groups = getIntervals(peaks);

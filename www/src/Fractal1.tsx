@@ -1,17 +1,20 @@
 import React from "react";
 import * as THREE from "three";
-import Stats from "stats.js";
+import Stats from "./stats";
 import dat from "dat.gui";
 import spriteTexture from "./george_face.png";
-import typefaceFont from "./fonts/MotoyaLMaru_W3 mono.json";
 import BPMDetection from "./nodes/bpm-detection";
+import { hslToRGB, mod } from "./nodes/utils";
+import {
+  RouteComponentProps,
+} from "react-router-dom";
+
 
 const second = 1000;
 const minute = 60 * second;
 const clock = new THREE.Clock();
 let delta = 0;
-let maxFPS = 1 / 15;
-maxFPS = 1 / 60;
+let maxFPS = 1 / 35;
 const targetFPS = 1 / 60;
 const limitFPS = true;
 
@@ -26,8 +29,7 @@ interface FractalOrbitConstraints {
   dMax?: number;
   eMin?: number;
   eMax?: number;
-  spriteSizeMin?: number;
-  spriteSizeMax?: number;
+  spriteSize?: number;
 }
 
 interface FractalOrbitParameters {
@@ -78,43 +80,19 @@ interface FractalState {
   // windowHalfY: number;
 }
 
-export class AppStats {
-  stats: Stats;
-  container: HTMLElement;
-
-  constructor(container?: HTMLElement) {
-    this.stats = new Stats();
-    this.stats.showPanel(0);
-    this.container = container ?? document.body;
-    this.container.appendChild(this.stats.dom);
-  }
-
-  update(): void {
-    this.stats.update();
-  }
-
-  start(): void {
-    this.stats.begin();
-  }
-
-  end(): void {
-    this.stats.end();
-  }
-}
-
 export class FractalParameters implements FractalProps {
   private isReactive = false;
 
   visible = true;
-  showFps = false;
+  enableDebug = true;
   //im default value: 1500,
   scaleFactor = 1500;
   //im default value: 200
   cameraBound = 400;
-  numPointsPerSubset = 20000;
+  numPointsPerSubset = 2000;
   numSubsets = 7;
   //im default value: 5
-  numLevels = 9;
+  numLevels = 4;
   //im default value: 400,
   levelDepth = 800;
   //im default value: 1
@@ -123,8 +101,9 @@ export class FractalParameters implements FractalProps {
   // need hue value for each subset
   // hueValues: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7];
   hueValues: number[] = [];
-  spriteSizeMin = Math.ceil((3 * window.innerWidth) / this.scaleFactor) * 0.4;
-  spriteSizeMax = Math.ceil((3 * window.innerWidth) / this.scaleFactor) * 1.2;
+  spriteSize = (3 * window.innerWidth) / this.scaleFactor;
+  // spriteSizeMin = Math.ceil((3 * window.innerWidth) / this.scaleFactor) * 0.4;
+  // spriteSizeMax = Math.ceil((3 * window.innerWidth) / this.scaleFactor) * 1.2;
   // im added chaos mode boolean
   chaosEnabled = true;
 
@@ -146,7 +125,7 @@ export class FractalParameters implements FractalProps {
   c = 0;
   d = 0;
   e = 0;
-  speed = 2;
+  speed = 5;
   rotationSpeed = 0.001;
 
   react = () => {
@@ -181,6 +160,7 @@ export class FractalControls<T> {
   container: HTMLElement;
   gui: dat.GUI;
   ctrl: T;
+  onChange?: () => void;
 
   update = () => {
     this.gui.updateDisplay();
@@ -211,7 +191,7 @@ export class FractalControls<T> {
     ].forEach((p) => orbitParameterMenu.add(this.ctrl, p, -30, 30, 1));
 
     let appearanceMenu = this.gui.addFolder("appearance");
-    // appearanceMenu.open();
+    appearanceMenu.open();
     ["defBrightness", "defSaturation"].forEach((p) =>
       appearanceMenu.add(this.ctrl, p, 0, 1.0, 0.05)
     );
@@ -224,18 +204,14 @@ export class FractalControls<T> {
       fractalParameterMenu.add(this.ctrl, p)
     );
 
-    // const wireframeListener = this.gui.add(controls, "wireframe").listen();
-    // const cubeColorListener = this.gui.addColor(controls, "color").listen();
     this.gui.add(this.ctrl, "react");
-    this.gui.close();
-
-    // wireframeListener.onChange(
-    //   (enabled: boolean) => (app.cube.material.wireframe = enabled)
-    // );
-    // cubeColorListener.onChange((color: string) =>
-    //   app.cube.material.emissive.setHex(parseInt(color.replace("#", "0x"), 16))
-    // );
-    // speedListener;
+    this.gui
+      .add(this.ctrl, "enableDebug")
+      .listen()
+      .onChange(() => {
+        if (this.onChange) this.onChange();
+      });
+    // this.gui.close();
 
     this.container = document.createElement("div");
     this.container.style.position = "fixed";
@@ -248,15 +224,22 @@ export class FractalControls<T> {
 }
 
 interface OrbitPositions {
+  colors: Float32Array;
   positions: Float32Array;
   normalized: Float32Array;
 }
 
+interface INavProps {
+  debug?: string;
+}
+
+type FractalPropsAndParams = FractalProps & RouteComponentProps<INavProps>;
+
 export default class Fractal extends React.Component<
-  FractalProps,
+  FractalPropsAndParams,
   FractalState
 > {
-  private stats?: AppStats;
+  private stats?: Stats;
   private params = new FractalParameters();
   private controls?: FractalControls<FractalParameters>;
 
@@ -267,7 +250,6 @@ export default class Fractal extends React.Component<
   private composer?: any;
 
   private textureLoader = new THREE.TextureLoader();
-  private fontLoader = new THREE.FontLoader();
 
   private orbit: FractalOrbit = {
     xMin: 0,
@@ -280,7 +262,6 @@ export default class Fractal extends React.Component<
   // private subsets: OrbitSubsetPoint[][] = [];
   private needsUpdate: boolean[] = [];
   private subsetPositions: OrbitPositions[] = [];
-  private text?: THREE.Mesh<THREE.TextGeometry>;
   private particles: {
     points: THREE.Points;
     level: number;
@@ -307,7 +288,7 @@ export default class Fractal extends React.Component<
   //   return subsets;
   // };
 
-  constructor(props: FractalProps) {
+  constructor(props: FractalPropsAndParams) {
     super(props);
     this.state = {
       // mouseX: 0,
@@ -318,6 +299,7 @@ export default class Fractal extends React.Component<
     this.needsUpdate = new Array(this.params.numSubsets).fill(false);
     this.subsetPositions = new Array(this.params.numSubsets).fill(0).map(() => {
       return {
+        colors: new Float32Array(3 * this.params.numPointsPerSubset).fill(0.0),
         positions: new Float32Array(3 * this.params.numPointsPerSubset).fill(
           0.0
         ),
@@ -362,19 +344,42 @@ export default class Fractal extends React.Component<
     const speedup = maxFPS / Math.min(maxFPS, targetFPS);
     // console.log("speedup", speedup);
 
-    if (this.text) this.text.rotation.x += 0.1;
-
     // this.params.speed += this.randomNum(-1, 1) * 0.1;
     this.params.rotationSpeed += this.randomNum(-1, 1) * 0.00001;
     this.particles.forEach(({ points, material, level, subset }) => {
       // console.log(points.position.z);
       points.position.z += this.params.speed * speedup;
       points.rotation.z += this.params.rotationSpeed * speedup;
-      let currentColor = { h: 0, s: 0, l: 0 };
-      material.color.getHSL(currentColor);
-      let hue = currentColor.h;
+      // let currentColor = { h: 0, s: 0, l: 0 };
+      // material.color.getHSL(currentColor);
+      // let hue = currentColor.h;
+      
+      // update the colors
+      let colors = this.subsetPositions[subset].colors;
+      for (let i = 0; i < colors.length; i = i + 3) {
+        // let [r, g, b] = hslToRGB(colors[i], colors[i], colors[i]);
+        let [r, g, b] = hslToRGB(
+          mod(subset * 30, 360),
+          this.params.defSaturation,
+          this.params.defBrightness
+        );
+        colors[i] = r;
+        colors[i+1] = g;
+        colors[i+2] = b;
+      }
+      points.geometry.setAttribute(
+        "color",
+        new THREE.Float32BufferAttribute(
+          colors,
+          // this.subsetPositions[subset].colors,
+          3
+        )
+      );
+      points.geometry.attributes.color.needsUpdate = true;
+      points.geometry.attributes.color.needsUpdate = true;
+
       if (points.position.z > this.camera.position.z) {
-        hue = this.params.hueValues[subset];
+        // hue = this.params.hueValues[subset];
         points.geometry.setAttribute(
           "position",
           new THREE.Float32BufferAttribute(
@@ -382,6 +387,7 @@ export default class Fractal extends React.Component<
             3
           )
         );
+        
         points.position.z = -(
           (this.params.numLevels - 1) *
           this.params.levelDepth
@@ -396,11 +402,11 @@ export default class Fractal extends React.Component<
         // node.needsUpdate = false;
         // }
       }
-      material.color.setHSL(
-        hue,
-        this.params.defSaturation,
-        this.params.defBrightness
-      );
+      // material.color.setHSL(
+      //   hue,
+      //   this.params.defSaturation,
+      //   this.params.defBrightness
+      // );
     });
 
     this.renderer.render(this.scene, this.camera);
@@ -523,11 +529,13 @@ export default class Fractal extends React.Component<
       90,
       window.innerWidth / window.innerHeight,
       1,
-      3 * this.params.scaleFactor
+      2 * this.params.scaleFactor
     );
+    // this.camera.position.z = this.params.scaleFactor / 2;
     this.camera.position.z = this.params.scaleFactor / 2;
+    // console.log(this.camera.position.z);
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(0x000000, 0.0012);
+    this.scene.fog = new THREE.FogExp2(0x000000, 0.001);
     this.generateOrbit();
 
     // Create particle systems
@@ -551,27 +559,28 @@ export default class Fractal extends React.Component<
             3
           )
         );
-        // geometry.setAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
-        // geometry.setAttribute( 'size', new THREE.Float32BufferAttribute( sizes, 1 ).setUsage( THREE.DynamicDrawUsage ) );
-        // geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( vertices, 3 ) );
+        // geometry.setAttribute(
+        //   "color",
+        //   new THREE.Float32BufferAttribute(this.subsetPositions[s].colors, 3)
+        // );
 
-        let spriteSize =
-          this.params.spriteSizeMin +
-          Math.random() *
-            (this.params.spriteSizeMax - this.params.spriteSizeMin);
+        // geometry.setAttribute( 'size', new THREE.Float32BufferAttribute( sizes, 1 ).setUsage( THREE.DynamicDrawUsage ) );
+
+        let spriteSize = this.params.spriteSize;
 
         let materials = new THREE.PointsMaterial({
           size: spriteSize,
+          vertexColors: true,
           map: texture,
           blending: THREE.AdditiveBlending,
           depthTest: false,
-          transparent: true,
+          // transparent: true,
         });
-        materials.color.setHSL(
-          this.params.hueValues[s],
-          this.params.defSaturation,
-          this.params.defBrightness
-        );
+        // materials.color.setHSL(
+        //   this.params.hueValues[s],
+        //   this.params.defSaturation,
+        //   this.params.defBrightness
+        // );
         let points = new THREE.Points(geometry, materials);
         points.position.x = 0;
         points.position.y = 0;
@@ -589,35 +598,7 @@ export default class Fractal extends React.Component<
       }
     }
 
-    // create the text
-    let font = this.fontLoader.parse(typefaceFont);
-    let textGeometry = new THREE.TextGeometry("Welcome back Papa", {
-      font,
-      size: 80,
-      height: 1,
-      bevelEnabled: false,
-      bevelThickness: 10,
-      bevelSize: 8,
-      bevelOffset: 0,
-      bevelSegments: 5,
-    });
-    textGeometry?.computeBoundingBox();
-    let textMaterial = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(0xffffff),
-      depthTest: false,
-    });
-    this.text = new THREE.Mesh(textGeometry, textMaterial);
-    const textBBMax = textGeometry?.boundingBox?.max;
-    const textBBMin = textGeometry?.boundingBox?.min;
-    let textWidth = (textBBMax?.x ?? 0) - (textBBMin?.x ?? 0);
-    let textHeight = (textBBMax?.y ?? 0) - (textBBMin?.y ?? 0);
-
-    this.text.position.x = -0.5 * (textWidth ?? 0);
-    this.text.position.y = 0.5 * (textHeight ?? 0);
-    this.text.position.z = -10;
-    this.text.visible = false;
-    this.scene.add(this.text);
-
+    
     // Setup renderer and effects
     this.renderer = new THREE.WebGLRenderer({
       antialias: false,
@@ -627,8 +608,15 @@ export default class Fractal extends React.Component<
 
     this.container.appendChild(this.renderer.domElement);
 
-    if (this.params.showFps) this.stats = new AppStats(this.container);
+    // const test = new URLSearchParams(useLocation().search);
+    const test = this.props.match.params.debug;
+    console.log(test);
+    this.stats = new Stats(this.container);
+    this.stats.setVisible(this.params.enableDebug);
     this.controls = new FractalControls(this.params, this.container);
+    this.controls.onChange = () => {
+      this.stats?.setVisible(this.params.enableDebug);
+    };
 
     // Setup listeners
     // document.addEventListener("mousemove", onDocumentMouseMove, false);
@@ -639,17 +627,6 @@ export default class Fractal extends React.Component<
 
     // Schedule orbit regeneration
     setInterval(this.updateOrbit, 250);
-    this.showText();
-  };
-
-  showText = () => {
-    setInterval(() => {
-      if (this.text) this.text.visible = true;
-      setInterval(() => {
-        if (this.text) this.text.visible = false;
-        this.showText();
-      }, 15 * second);
-    }, 15 * second);
   };
 
   componentDidMount = () => {
@@ -659,7 +636,7 @@ export default class Fractal extends React.Component<
 
   render = () => {
     return (
-      <div className="Fractal">
+      <div>
         <div id="Fractal"></div>
       </div>
     );

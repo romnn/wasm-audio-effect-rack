@@ -51,12 +51,12 @@ def pack(c, upgrade=False):
     """Compile, pack and upgrade the wasm module package"""
     # os.environ["RUSTFLAGS"] = "-Ctarget-feature=+simd128"
     for p in WASM_TARGETS:
-        c.run("wasm-pack build --target web --release {}".format(p), pty=True)
+        c.run("wasm-pack build --target no-modules --release {}".format(p), pty=True)
         c.run("mkdir -p {}".format(WWW_PUBLIC_WASM_DIR / p.name))
         c.run("rm -rf {}".format(WWW_PUBLIC_WASM_DIR / p.name))
         c.run("cp -R {} {}".format(p / "pkg", WWW_PUBLIC_WASM_DIR / p.name))
-        if upgrade:
-            c.run("yarn --cwd {} upgrade {}".format(WWW_DIR, p.name), pty=True)
+        # if upgrade:
+            # c.run("yarn --cwd {} upgrade {}".format(WWW_DIR, p.name), pty=True)
     # os.environ["RUSTFLAGS"] = ""
 
 

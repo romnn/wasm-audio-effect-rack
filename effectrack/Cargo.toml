@@ -9,9 +9,16 @@ crate-type = ["cdylib", "rlib"]
 
 [workspace]
 members = [
-  "bpm-detection"
+  "bpm-detection",
+  "server"
 ]
 
+# [[bin]]
+# name = "effect-rack-server"
+# path = "server/main.rs"
+
+[build-dependencies]
+tonic-build = { version = "0.5", features = ["prost", "compression"] }
 
 [profile.release]
 debug-assertions = false

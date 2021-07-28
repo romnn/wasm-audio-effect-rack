@@ -1,0 +1,5 @@
+[packages]
+numpy = "*"
+scipy = "*"
+pyaudio = "*"
+SimpleWebSocketServer = "*"

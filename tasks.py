@@ -56,10 +56,37 @@ def pack(c, upgrade=False):
         c.run("rm -rf {}".format(WWW_PUBLIC_WASM_DIR / p.name))
         c.run("cp -R {} {}".format(p / "pkg", WWW_PUBLIC_WASM_DIR / p.name))
         # if upgrade:
-            # c.run("yarn --cwd {} upgrade {}".format(WWW_DIR, p.name), pty=True)
+        # c.run("yarn --cwd {} upgrade {}".format(WWW_DIR, p.name), pty=True)
     # os.environ["RUSTFLAGS"] = ""
 
 
+@task
+def to_wav(c, audio_file, output_file):
+    """Convert audio file to wav for easy streaming with wave"""
+    audio_file = Path(audio_file)
+    output_file = Path(output_file)
+
+    # validate audio input file
+    valid_audio_formats = [".mp3"]
+    if not (audio_file.exists() and audio_file.suffix.lower() in valid_audio_formats):
+        raise ValueError(
+            "{} is not a valid audio file (must be one of {})".format(
+                audio_file, ",".join(valid_audio_formats)
+            )
+        )
+
+    # validate audio output file
+    if not (output_file.suffix.lower() == ".wav"):
+        raise ValueError("{} is not a wav file".format(output_file))
+
+    # create the path to the output
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+
+    # convert using ffmpeg
+    c.run("ffmpeg -i {} {}".format(audio_file, output_file))
+
+
+@task
 def lint(c):
     """Lint code"""
     c.run("cargo clippy {}".format(WASM_SOURCE_DIR))

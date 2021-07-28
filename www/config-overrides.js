@@ -1,6 +1,11 @@
 const path = require('path');
+// const {alias} = require('react-app-rewire-alias')
 
 module.exports = function override(config, env) {
+  // alias({
+  //   '@' : 'src',
+  // })(config)
+
   const wasmExtensionRegExp = /\.wasm$/;
 
   config.resolve.extensions.push('.wasm');
@@ -16,9 +21,9 @@ module.exports = function override(config, env) {
 
   // add a dedicated loader for WASM
   config.module.rules.push({
-    test: wasmExtensionRegExp,
-    include: path.resolve(__dirname, 'src'),
-    use: [{ loader: require.resolve('wasm-loader'), options: {} }]
+    test : wasmExtensionRegExp,
+    include : path.resolve(__dirname, 'src'),
+    use : [ {loader : require.resolve('wasm-loader'), options : {}} ]
   });
 
   // make sure web workers are handled before going through typescript

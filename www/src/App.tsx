@@ -1,13 +1,10 @@
 import React from "react";
-import Fractal from "./Fractal1";
-import TextTransform from "./TextTransform";
+import Viewer from "./Viewer";
+import Controller from "./Controller";
 import "./App.css";
 import {
   HashRouter as Router,
-  Switch,
   Route,
-  Link,
-  RouteComponentProps,
 } from "react-router-dom";
 
 type AppState = {};
@@ -25,8 +22,9 @@ export default class App extends React.Component<AppProps, AppState> {
     return (
       <div className="App">
         <Router>
-          <Route exact path="/fractal" component={Fractal} />
-          <Route exact path="/texttransform" component={TextTransform} />
+          <Route exact path="/" component={Viewer} />
+          <Route exact path="/viewer/:token?" component={Viewer} />
+          <Route exact path="/controller/:token?" component={Controller} />
         </Router>
       </div>
     );

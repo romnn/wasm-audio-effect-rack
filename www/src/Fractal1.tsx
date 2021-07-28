@@ -1,6 +1,6 @@
 import React from "react";
 import * as THREE from "three";
-import Stats from "./stats";
+import Stats from "./visualizations/stats";
 import dat from "dat.gui";
 import spriteTexture from "./george_face.png";
 import BPMDetection from "./nodes/bpm-detection";

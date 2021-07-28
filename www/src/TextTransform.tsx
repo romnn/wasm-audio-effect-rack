@@ -1,7 +1,7 @@
 import React from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-import Stats from "./stats";
+import Stats from "./visualizations/stats";
 import dat from "dat.gui";
 // import typefaceFont from "./fonts/MotoyaLMaru_W3 mono.json";
 import typefaceFont from "./fonts/Inter ExtraBold_Regular.json";

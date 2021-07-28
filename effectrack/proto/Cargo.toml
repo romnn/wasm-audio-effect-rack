@@ -1,0 +1,13 @@
+[package]
+name = "proto"
+version = "0.1.0"
+authors = ["romnn <contact@romnn.com>"]
+edition = "2018"
+
+[dependencies]
+tonic = "0.5"
+prost = "0.8"
+prost-types = "0.8"
+
+[build-dependencies]
+tonic-build = { version = "0.5", features = ["prost"] }

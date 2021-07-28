@@ -1,0 +1,7 @@
+syntax = "proto3";
+package proto.audio;
+
+message AnalysisResult {
+  int64 seq_num = 1;
+  repeated int32 fft_bins = 2;
+}

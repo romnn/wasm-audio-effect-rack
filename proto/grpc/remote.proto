@@ -1,0 +1,28 @@
+syntax = "proto3";
+package proto.grpc;
+
+import "google/protobuf/timestamp.proto";
+import "proto/audio/analysis.proto";
+
+service RemoteController {
+  rpc Subscribe(SubscriptionRequest) returns (stream Update) {}
+}
+
+message Update {
+  oneof update {
+      string name = 1;
+      int32 age = 2;
+  }
+}
+
+message SubscriptionRequest {
+  string user_id = 1;
+  // todo: what to subscribe to
+  // should be changeable with regular rpcs and the user id 
+  // topic, e.g. status, audio (source)
+}
+
+/* message Result { */
+/*   proto.audio.AnalysisResult result = 1; */
+/*   google.protobuf.Timestamp date = 2; */
+/* } */

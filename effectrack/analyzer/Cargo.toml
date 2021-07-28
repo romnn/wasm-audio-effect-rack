@@ -1,0 +1,12 @@
+[package]
+name = "analyzer"
+version = "0.1.0"
+authors = ["romnn <contact@romnn.com>"]
+edition = "2018"
+
+[dependencies]
+
+[features]
+
+[build-dependencies]
+tonic-build = { version = "0.5", features = ["prost"] }

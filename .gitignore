@@ -1,9 +1,10 @@
+.DS_Store
 target/
-build/
 **/*.rs.bk
 Cargo.lock
 bin/
 /pkg
 /binaryen
+/deprecate
 /wabt
 wasm-pack.log

@@ -12,6 +12,7 @@ pub extern crate analyzer;
 #[cfg(feature = "record")]
 pub extern crate recorder;
 
+use analyzer::spectral::{SpectralAnalyzer, SpectralAnalyzerOptions};
 #[cfg(feature = "analyze")]
 use analyzer::Analyzer;
 use anyhow::Result;
@@ -19,14 +20,16 @@ use clap::Clap;
 use cli::{Commands, Opts};
 use common::errors::FeatureDisabledError;
 use futures::{Future, Stream};
-// use std::future::Future;
 use proto::grpc::remote_controller_server::{RemoteController, RemoteControllerServer};
 use proto::grpc::{SubscriptionRequest, Update};
+#[cfg(feature = "portaudio")]
+use recorder::PortaudioRecorder;
 #[cfg(feature = "record")]
 use recorder::{CpalRecorder, Recorder, RecorderOptions};
 use std::collections::HashMap;
 use std::error::Error;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::thread;
@@ -42,7 +45,8 @@ pub type EffectRackStateType = Arc<RwLock<EffectRackState>>;
 
 struct EffectRack {
     recorder: Arc<dyn Recorder + Sync + Send>,
-    analyzer: Arc<Analyzer>,
+    analyzer: Arc<dyn Analyzer + Sync + Send>,
+    // analyzer: Arc<Analyzer>,
     // recorder: Box<dyn Recorder + Sync + Send>,
     // analyzer: Analyzer,
     state: EffectRackStateType,
@@ -64,7 +68,7 @@ impl ConnectedUserState {
 }
 
 #[derive(Debug)]
-struct EffectRackState {
+pub struct EffectRackState {
     // mspc send channel for each user that is connected
     connected: HashMap<String, RwLock<ConnectedUserState>>,
 }
@@ -92,6 +96,7 @@ impl EffectRackState {
 #[derive(Debug)]
 pub struct RemoteControllerService {
     pub state: EffectRackStateType,
+    // pub shutdown_rx:
 }
 
 impl RemoteControllerService {
@@ -119,22 +124,27 @@ impl RemoteController for RemoteControllerService {
             ));
         }
         println!("{} connected", user_id);
+
         let (stream_tx, stream_rx) = mpsc::channel(1);
         let (tx, mut rx) = mpsc::channel(1);
         let user_state = ConnectedUserState::new(tx);
-        self.state
-            .write()
-            .await
-            .connected
-            .insert(user_id.clone(), RwLock::new(user_state));
-        // let s = stream_tx.clone();
-        // tokio::spawn(async move {
-        //     for x in 0..20 {
-        //         println!("{}", x);
-        //         time::sleep(Duration::from_millis(1000)).await;
-        //         s.send(Ok(Update::default())).await;
-        //     }
-        // });
+        let connected = &mut self.state.write().await.connected;
+        if connected.contains_key(&user_id) {
+            return Err(Status::new(
+                Code::InvalidArgument,
+                "will not connect with user without user_id",
+            ));
+        };
+        connected.insert(user_id.clone(), RwLock::new(user_state));
+
+        let recorder_thread = thread::spawn(|| {
+            let recorder = CpalRecorder::new(RecorderOptions::default()).unwrap();
+            recorder.stream_file(PathBuf::from(
+                "/home/roman/dev/wasm-audio-effect-rack/experimental/audio-samples/roddy.wav",
+            ));
+            println!("playback is over. exiting thread");
+        });
+
         let state = self.state.clone();
         tokio::spawn(async move {
             // send ack
@@ -144,32 +154,47 @@ impl RemoteController for RemoteControllerService {
             //     "connected",
             // ))).await;
 
-            // wait for updates and send them to the user
-            while let Some(update) = rx.recv().await {
-                match stream_tx.send(Ok(update)).await {
-                    Ok(_) => {}
-                    Err(_) => {
-                        // If sending failed, then remove the user from shared data
-                        println!("[Remote] stream tx sending error. Remote {}", &user_id);
-                        state.write().await.connected.remove(&user_id);
+            // wait for either shutdown or an update to send out
+            loop {
+                tokio::select! {
+                    received = rx.recv() => {
+                        if let Some(update) = received {
+                            match stream_tx.send(Ok(update)).await {
+                                Ok(_) => {}
+                                Err(_) => {
+                                    // If sending failed, then remove the user from shared data
+                                    println!("[Remote] stream tx sending error. Remote {}", &user_id);
+                                    state.write().await.connected.remove(&user_id);
+                                        }
+                        }
+                        }
                     }
                 }
+                // wait for updates and send them to the user
+                // while let Some(update) = rx.recv().await {
+                //     match stream_tx.send(Ok(update)).await {
+                //         Ok(_) => {}
+                //         Err(_) => {
+                //             // If sending failed, then remove the user from shared data
+                //             println!("[Remote] stream tx sending error. Remote {}", &user_id);
+                //             state.write().await.connected.remove(&user_id);
+                //         }
+                //     }
+                // }
             }
-            // let updates = vec![];
-            // for u in &updates[..] {
-            // tx.send(Ok(u.clone())).await.unwrap();
-            // if in_range(feature.location.as_ref().unwrap(), request.get_ref()) {
-            // tx.send(Ok(feature.clone())).await.unwrap();
-            // }
         });
 
         Ok(Response::new(Box::pin(ReceiverStream::new(stream_rx))))
         // Ok(Response::new(ReceiverStream::new(stream_rx)))
     }
 }
-// struct RemoteControllerServer
-// }
+
 impl EffectRack {
+    async fn shutdown(&self) -> Result<()> {
+        println!("todo: set some internal oneshot channel or so");
+        Ok(())
+    }
+
     async fn start<F>(&self, addr: SocketAddr, shutdown_signal: F) -> Result<()>
     where
         F: Future<Output = ()>,
@@ -182,7 +207,7 @@ impl EffectRack {
         let analyzer = self.analyzer.clone();
         let analyzer_thread = thread::spawn(move || {
             // println!("{:?}", self.recorder);
-            println!("{:?}", analyzer);
+            // println!("{:?}", analyzer);
             // for i in 1..10 {
             // server.broadcast(i).await;
             // println!("hi number {} from the spawned thread!", i);
@@ -194,7 +219,7 @@ impl EffectRack {
         // for t in thrds {
         // t.join();
         // }
-        analyzer_thread.join();
+        // analyzer_thread.join();
 
         let grpc_server = RemoteControllerServer::new(server);
         let grpc_server = tonic_web::config()
@@ -203,13 +228,14 @@ impl EffectRack {
 
         let state = self.state.clone();
         tokio::spawn(async move {
-            for x in 0..100 {
+            for x in 0..2 {
                 for x in 0..5 {
                     time::sleep(Duration::from_millis(1 * 1000)).await;
                     state.read().await.broadcast(Update::default()).await;
                 }
-                time::sleep(Duration::from_millis(10 * 1000)).await;
+                time::sleep(Duration::from_millis(5 * 1000)).await;
             }
+            println!("done pushing updates to");
         });
 
         let tserver = TonicServer::builder()
@@ -228,14 +254,26 @@ async fn main() -> Result<()> {
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
 
     // let state = Arc::new(RwLock::new(EffectRackState::new()));
+    // let rec_options = RecorderOptions::default();
+    let rec_opts = RecorderOptions {
+        #[cfg(use_jack)]
+        jack: opts.use_jack_backend,
+        device: opts.device,
+    };
+    let recorder = Arc::new(CpalRecorder::new(rec_opts)?);
+
+    #[cfg(feature = "portaudio")]
+    if opts.use_portaudio_backend {
+        let recorder = Arc::new(PortaudioRecorder::new(rec_opts)?);
+    };
 
     // let rack: &'static EffectRack = &EffectRack {
     let rack = Arc::new(EffectRack {
         // recorder: Box::new(CpalRecorder::new(RecorderOptions::default())?),
         // analyzer: Analyzer::new(),
         // state: RwLock::new(EffectRackState::new()),
-        recorder: Arc::new(CpalRecorder::new(RecorderOptions::default())?),
-        analyzer: Arc::new(Analyzer::new()),
+        recorder,
+        analyzer: Arc::new(SpectralAnalyzer::new(SpectralAnalyzerOptions::default())),
         state: Arc::new(RwLock::new(EffectRackState::new())),
     });
 
@@ -258,6 +296,8 @@ async fn main() -> Result<()> {
                 let running = tokio::task::spawn(async move {
                     rack.start(addr, async {
                         shutdown_rx.await.ok();
+                        println!("telling the rack to shutdown");
+                        rack.shutdown().await.ok();
                     })
                     .await;
                 });
@@ -267,7 +307,8 @@ async fn main() -> Result<()> {
                     shutdown_tx.send(()).expect("send shutdown signal");
                 });
 
-                running.await.ok();
+                // this is not graceful at all
+                // running.await.ok();
                 println!("exiting");
             }
         }

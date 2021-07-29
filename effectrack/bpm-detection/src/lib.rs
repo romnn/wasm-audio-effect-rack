@@ -184,7 +184,7 @@ impl WasmBPMDetector {
 
         // combine channels and choose the maximum
         let samples = samples.map_axis(Axis(1), |row| {
-            row.iter().fold(0.0 as f64, |acc, v| acc.max(*v))
+            row.iter().fold(0f64, |acc, v| acc.max(*v))
         });
 
         // add them to the big buffer

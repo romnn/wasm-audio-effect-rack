@@ -91,7 +91,6 @@ export default class TTFVisualization extends
   getParameters(): TTFParams { return this.params; }
 
   renderFrame = () => {
-    console.log("frame");
     this.camera.lookAt(this.scene.position);
     if (!this.characters || !this.text)
       return;

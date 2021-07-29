@@ -1,90 +1,8 @@
-import sys
-import time
+import math
 import numpy as np
-import pyaudio
-import wave
 import melbank
-import tkinter as tk
-import threading
-# import asyncio
-# import websockets
 from SimpleWebSocketServer import SimpleWebSocketServer, WebSocket
 from scipy.ndimage.filters import gaussian_filter1d
-
-root = tk.Tk()
-
-# async def hello(websocket, path):
-#     name = await websocket.recv()
-#     print(f"< {name}")
-
-#     greeting = f"Hello {name}!"
-
-#     await websocket.send(greeting)
-#     print(f"> {greeting}")
-
-class SimpleEcho(WebSocket):
-
-    #def broadcast(self, value):
-    #    # if self.data is None:
-    #        # self.data = ''
-
-    #    for client in self.server.connections.itervalues():
-    #        # client.sendMessage(str(self.address[0]) + ' - ' + str(self.data))
-    #        client.sendMessage(value)
-
-    #    #echo message back to client
-    #    #self.sendMessage(str(self.data))
-
-    def handleConnected(self):
-        print(self.address, 'connected')
-
-    def handleClose(self):
-        print(self.address, 'closed')
-
-server = SimpleWebSocketServer('', 9000, SimpleEcho)
-
-class AudioAnalyzer(threading.Thread):
-    def run(self):
-        stream_from_file(sys.argv[1])
-        root.quit()
-        root.update()
-
-class Webserver(threading.Thread):
-    def run(self):
-        server.serveforever()
-        # start_server = websockets.serve(hello, "localhost", 8765)
-        # asyncio.get_event_loop().run_until_complete(start_server)
-        # asyncio.get_event_loop().run_forever()
-
-    
-webserver= Webserver()
-analyzer= AudioAnalyzer()
-
-# MIC_SAMPLE_RATE = 44100  # 48000
-# def start_stream(callback):
-#     p = pyaudio.PyAudio()
-#     frames_per_buffer = int(MIC_SAMPLE_RATE / config.FPS)
-#     stream = p.open(format=pyaudio.paInt16,
-#                     channels=1,
-#                     rate=config.MIC_RATE,
-#                     input=True,
-#                     frames_per_buffer=frames_per_buffer)
-#     overflows = 0
-#     prev_ovf_time = time.time()
-#     while True:
-#         try:
-#             y = np.fromstring(stream.read(frames_per_buffer, exception_on_overflow=False), dtype=np.int16)
-#             y = y.astype(np.float32)
-#             stream.read(stream.get_read_available(), exception_on_overflow=False)
-#             callback(y)
-#         except IOError:
-#             overflows += 1
-#             if time.time() > prev_ovf_time + 1:
-#                 prev_ovf_time = time.time()
-#                 print('Audio buffer has overflowed {} times'.format(overflows))
-#     stream.stop_stream()
-#     stream.close()
-#     p.terminate()
 
 
 class ExpFilter:
@@ -147,8 +65,6 @@ class AudioProcessor:
         self.visualization_effect = self.visualize_scroll
 
     def visualize_scroll(self, y):
-        # print(y)
-        # print(y.shape)
         y = y ** 2.0
         gain.update(y)
         y /= gain.value
@@ -169,11 +85,17 @@ class AudioProcessor:
         # Update the LED strip
         return np.concatenate((p[:, ::-1], p), axis=1)
 
-    def process(self, stereo):
+    def process(self, data):
+        if self.nchannels == 1:
+            stereo = np.array([data, data])
+        else:
+            stereo = np.array([data[::2], data[1::2]])
+
         # combine stereo signal to mono
         mono = np.amax(stereo, axis=0)
         if mono.shape[0] != self.samples_per_frame:
-            return
+            return None
+            # raise ValueError("mono shape[0] does not match samples per frame")
         # normalize
         mono = mono / 2 ** 15
 
@@ -181,6 +103,7 @@ class AudioProcessor:
         self.roll_win[:-1] = self.roll_win[1:]
         self.roll_win[-1, :] = np.copy(mono)
         window = np.concatenate(self.roll_win, axis=0).astype(np.float32)
+        assert len(window) == len(self.fft_window)
 
         volume = np.max(np.abs(mono))
         if volume < MIN_VOLUME_THRESHOLD:
@@ -209,71 +132,74 @@ class AudioProcessor:
             mel /= mel_gain.value
             mel = mel_smoothing.update(mel)
 
-            rgb = self.visualization_effect(mel)
-            color = rgb_to_hex(*rgb)
-            root.configure(bg=color)
-            for c in server.connections.values():
-                c.sendMessage("test")
+            return self.visualization_effect(mel)
 
 
-def clip(x, lower, upper):
-    return max(min(x, upper), lower)
+def gen_samples(length, func):
+    return np.array([func(i) for i in range(length)]).reshape((length, 1))
 
 
-def rgb_to_hex(r, g, b):
-    return "#%02x%02x%02x" % tuple([clip(comp, 0, 255) for comp in [r, g, b]])
-
-
-def stream_from_file(path):
-    wf = wave.open(path, "rb")
-    p = pyaudio.PyAudio()
-
-    sample_rate = wf.getframerate()
-    nchannels = wf.getnchannels()
-    nbytesframe = wf.getsampwidth()
-    audio_format = p.get_format_from_width(wf.getsampwidth())
-
-    fps = 60
-    frames_per_buffer = int(sample_rate / fps)
-
-    processor = AudioProcessor(sample_rate, fps, nchannels)
-
-    def callback(in_data, frame_count, time_info, status):
-        raw_data = wf.readframes(frame_count)
-        data = np.frombuffer(
-            raw_data, dtype=(np.uint8 if nbytesframe == 1 else np.int16)
-        )
-        if nchannels == 1:
-            data = np.array([data, data])
-        else:
-            data = np.array([data[::2], data[1::2]])
-        processor.process(data)
-        return (raw_data, pyaudio.paContinue)
-
-    stream = p.open(
-        format=audio_format,
-        channels=nchannels,
-        rate=sample_rate,
-        frames_per_buffer=frames_per_buffer,
-        stream_callback=callback,
-        output=True,
-    )
-
-    stream.start_stream()
-    while stream.is_active():
-        time.sleep(0.1)
-
-    stream.stop_stream()
-    stream.close()
-    wf.close()
-    p.terminate()
+def test_gen_function(x):
+    return 0.7 * np.sin(x + 100) + 0.3 * np.sin(x)
 
 
 if __name__ == "__main__":
-    analyzer.start()
+    # print("we will do the tests here that will be great!")
+    from numpy.testing import assert_almost_equal
 
-    webserver.start()
+    sample_rate = 44100
+    fps = 60
+    nchannels = 1
 
-    root.title("preview")
-    root.geometry("200x200")
-    root.mainloop()
+    # assume already mono
+    samples = gen_samples(10, test_gen_function)
+    print(samples.shape)
+    assert_almost_equal(
+        samples[:4, 0], np.array([-0.35445595, 0.56885935, 0.96916798, 0.47842804])
+    )
+    # make abs
+    samples = np.abs(samples)
+
+    # make mono
+    samples = np.amax(samples, axis=1)
+    print(samples.shape, len(samples))
+
+    volume = np.max(samples)
+    print("volume", volume)
+    assert_almost_equal(volume, 0.969167981998589)
+
+    window_size = len(samples)
+    # pad with zeros until the next power of two
+    next_power_of_two = int(np.ceil(np.log2(window_size)))
+    print("po2", next_power_of_two)
+    padding = 2 ** next_power_of_two - window_size
+    print("padding", padding)
+
+    # normally we have a fixed amount of samples per frame and we choose it to be able to make 60 analyses per seconds which is the speed at which the vis should run
+    # however, we do not (yet) have that in rust and we therefore use the test window we have right here
+    samples_per_frame = int(sample_rate / fps)
+    samples_per_frame = len(samples)
+    frames_in_rolling_window = 1
+    fft_window = np.hamming(samples_per_frame * frames_in_rolling_window)
+
+    print("window size", len(samples))
+    print("fft_window", len(fft_window))
+    print("before hamming", samples.reshape((-1, 1)))
+    samples *= fft_window
+    print("after hamming", samples.reshape((-1, 1)))
+    # window = np.pad(window, (0, padding), mode="constant")
+    # ys = np.abs(np.fft.rfft(window)[: window_size // 2])
+
+    # # construct a Mel filterbank from the FFT data
+    # mel = np.atleast_2d(ys).T * self.mel_y.T
+
+    # # scale data to values more suitable for visualization
+    # mel = np.sum(mel, axis=0)
+    # mel = mel ** 2.0
+
+    # # gain normalization
+    # mel_gain.update(np.max(gaussian_filter1d(mel, sigma=1.0)))
+    # mel /= mel_gain.value
+    # mel = mel_smoothing.update(mel)
+
+    print("samples", samples)

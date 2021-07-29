@@ -7,4 +7,5 @@ bin/
 /binaryen
 /deprecate
 /wabt
+/experimental/audio-samples
 wasm-pack.log

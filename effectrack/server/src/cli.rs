@@ -45,7 +45,7 @@ pub struct Opts {
 
     #[cfg(feature = "portaudio")]
     #[clap(long = "portaudio", about = "use portaudio audio backend")]
-    pub use_portaudio_implementation: bool,
+    pub use_portaudio_backend: bool,
 
     #[clap(subcommand)]
     pub commands: Option<Commands>,

@@ -24,23 +24,26 @@ export default class Communicator {
   public onMessage?: MessageHandler;
 
   protected receiver: string;
-  // protected options?: CommunicatorConfig;
   protected isSubscribed = false;
   protected updateStream?: ClientReadableStream<unknown>;
   protected client = new RemoteControllerClient(GRPC_ENDPOINT, null, null);
 
   constructor(receiver: string, options?: CommunicatorConfig) {
+    console.log("constructor here");
     console.log(receiver);
     console.log(options);
     this.receiver = receiver;
-    // this.options = options;
     this.onMessage = options?.onMessage;
 
-    // subscribe to updates from the controller
+    // subscribe to updates from the remote controller
     this.subscribe();
   }
 
-  public unsubscribe = () => { console.log("unsubscribed"); }
+  public unsubscribe = () => { 
+    // todo: actually send an unsubscribe request to the backend
+    console.log("unsubscribed"); 
+
+  }
 
   // Promise<void>
   // return new Promise<void>((resolve, reject) => {

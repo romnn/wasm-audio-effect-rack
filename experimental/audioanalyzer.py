@@ -29,6 +29,7 @@ class ExpFilter:
 
 MIN_VOLUME_THRESHOLD = 1e-7
 N_FRAMES_ROLLING_WINDOW = 2
+N_FRAMES_ROLLING_WINDOW = 1
 
 N_FFT_BINS = 24
 MIN_FREQUENCY = 200
@@ -46,6 +47,7 @@ class AudioProcessor:
         self.nchannels = nchannels
 
         self.samples_per_frame = int(self.sample_rate / self.fps)
+        print(self.samples_per_frame * N_FRAMES_ROLLING_WINDOW)
 
         self.fft_window = np.hamming(self.samples_per_frame * N_FRAMES_ROLLING_WINDOW)
 
@@ -54,6 +56,19 @@ class AudioProcessor:
         )
 
         mel_samples = int(self.sample_rate * N_FRAMES_ROLLING_WINDOW / (2.0 * self.fps))
+        print("frames_in_rolling_window", N_FRAMES_ROLLING_WINDOW)
+        print("sample_rate", self.sample_rate)
+        print("fps", self.fps)
+        print("mel_samples", mel_samples)
+
+        # print("sample rate", self.sample_rate)
+        # print("fft bins", N_FFT_BINS)
+        # mel samples 735
+        # sample rate 44100
+        # fft bins 24
+
+        # mel_x is the fft_frequencies
+        # mel_y are the weights?
         self.mel_y, (_, self.mel_x) = melbank.compute_melmat(
             num_mel_bands=N_FFT_BINS,
             freq_min=MIN_FREQUENCY,
@@ -72,7 +87,6 @@ class AudioProcessor:
         r = int(np.max(y[: len(y) // 3]))
         g = int(np.max(y[len(y) // 3 : 2 * len(y) // 3]))
         b = int(np.max(y[2 * len(y) // 3 :]))
-        print(r, g, b)
         return (r, g, b)
         # Scrolling effect window
         p[:, 1:] = p[:, :-1]
@@ -119,6 +133,9 @@ class AudioProcessor:
             window *= self.fft_window
             window = np.pad(window, (0, padding), mode="constant")
             ys = np.abs(np.fft.rfft(window)[: window_size // 2])
+            print("ys", ys.shape)
+            print("ys (2d)", np.atleast_2d(ys).T.shape)  # (735, 1)
+            print("mel.T", self.mel_y.T.shape)  # (735, 1)
 
             # construct a Mel filterbank from the FFT data
             mel = np.atleast_2d(ys).T * self.mel_y.T
@@ -152,7 +169,8 @@ if __name__ == "__main__":
     nchannels = 1
 
     # assume already mono
-    samples = gen_samples(10, test_gen_function)
+    sample_count = 735
+    samples = gen_samples(sample_count, test_gen_function)
     print(samples.shape)
     assert_almost_equal(
         samples[:4, 0], np.array([-0.35445595, 0.56885935, 0.96916798, 0.47842804])
@@ -166,7 +184,7 @@ if __name__ == "__main__":
 
     volume = np.max(samples)
     print("volume", volume)
-    assert_almost_equal(volume, 0.969167981998589)
+    # assert_almost_equal(volume, 0.969167981998589)
 
     window_size = len(samples)
     # pad with zeros until the next power of two
@@ -184,22 +202,62 @@ if __name__ == "__main__":
 
     print("window size", len(samples))
     print("fft_window", len(fft_window))
-    print("before hamming", samples.reshape((-1, 1)))
+    print("before hamming", samples[:5].reshape((-1, 1)))
     samples *= fft_window
-    print("after hamming", samples.reshape((-1, 1)))
-    # window = np.pad(window, (0, padding), mode="constant")
-    # ys = np.abs(np.fft.rfft(window)[: window_size // 2])
+    print("after hamming", samples[:5].reshape((-1, 1)))
 
-    # # construct a Mel filterbank from the FFT data
-    # mel = np.atleast_2d(ys).T * self.mel_y.T
+    window = np.pad(samples, (0, padding), mode="constant")
+    print("window", len(window), window[:5].reshape((-1, 1)))
 
-    # # scale data to values more suitable for visualization
-    # mel = np.sum(mel, axis=0)
-    # mel = mel ** 2.0
+    ys = np.abs(np.fft.rfft(window)[: window_size // 2])
+    print("fft ys", ys.shape)
+    print("fft ys", ys[:5].reshape((-1, 1)))
+
+    # construct a Mel filterbank from the FFT data
+    mel_samples = int(sample_rate * frames_in_rolling_window / (2.0 * fps))
+    # mel_samples = int(samples_per_frame * frames_in_rolling_window / (2.0 * fps))
+    # mel_samples = 1
+    print("frames_in_rolling_window", frames_in_rolling_window)
+    print("sample_rate", sample_rate)
+    print("fps", fps)
+    print("mel_samples", mel_samples)
+
+    fft_bins = 24
+    min_freq = 200
+    max_freq = 12000
+    # mel samples 735
+    # sample rate 44100
+    # fft bins 24
+
+    mel_y, (_, mel_x) = melbank.compute_melmat(
+        num_mel_bands=fft_bins,
+        freq_min=min_freq,
+        freq_max=max_freq,
+        num_fft_bands=mel_samples,
+        sample_rate=sample_rate,
+    )
+
+    a = np.atleast_2d(ys).T
+    print("np.atleast_2d(ys).T", a.shape, a[:5, :])
+    b = mel_y.T
+    print("mel_y.T", b.shape, b[:5, :])
+    print("mel_y.T ( min %f max %f )" % (np.min(b), np.max(b)))
+    mel = a * b
+    print("mel", mel.shape, mel[:5, :])
+    print("mel ( min %f max %f )" % (np.min(mel), np.max(mel)))
+
+    # scale data to values more suitable for visualization
+    mel = np.sum(mel, axis=0)
+    mel = mel ** 2.0
+    print("mel", mel.shape, mel[:5])
 
     # # gain normalization
-    # mel_gain.update(np.max(gaussian_filter1d(mel, sigma=1.0)))
+    mel = gaussian_filter1d(mel, sigma=1.0)
+    print("mel", mel.shape, mel[:5])
+    # mel = np.max(mel)
+    # mel_gain.update(mel)
+
     # mel /= mel_gain.value
     # mel = mel_smoothing.update(mel)
 
-    print("samples", samples)
+    # print("samples", samples)

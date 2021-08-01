@@ -1,10 +1,28 @@
 use ndarray::prelude::*;
 use ndarray::{Data, RemoveAxis, Zip};
-
-// use rawpointer::PointerExt;
-
+use num::{traits::FloatConst, Float, NumCast, Zero};
 use std::cmp::Ordering;
-// use std::ptr::copy_nonoverlapping;
+
+pub trait DebugMinMax<T> {
+    fn debug_min(&self) -> T;
+    fn debug_max(&self) -> T;
+}
+
+impl<T> DebugMinMax<T> for Vec<T>
+where
+    T: Float + FloatConst,
+{
+    fn debug_min(&self) -> T {
+        self.iter().fold(T::infinity(), |a: T, &b| a.min(b))
+    }
+
+    fn debug_max(&self) -> T {
+        self.iter().fold(T::neg_infinity(), |a: T, &b| a.max(b))
+    }
+}
+
+// impl<f32> DebugMinMax<f32> for Vec<f32> {}
+// impl<f64> DebugMinMax<f64> for Vec<f64> {}
 
 // Type invariant: Each index appears exactly once
 #[derive(Clone, Debug)]

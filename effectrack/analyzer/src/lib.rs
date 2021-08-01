@@ -1,7 +1,9 @@
 use anyhow::Result;
 
 pub mod spectral;
+pub mod mel;
 pub mod windows;
+pub mod fft;
 
 #[derive(Debug, Default)]
 pub struct AnalysisResult {

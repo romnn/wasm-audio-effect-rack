@@ -251,6 +251,7 @@ def stream_from_file(path):
         # else:
         #     data = np.array([data[::2], data[1::2]])
         rgb = processor.process(data)
+        # print(rgb)
         if rgb is not None:
             # rgb can be none when there is silence
             color = rgb_to_hex(*rgb)

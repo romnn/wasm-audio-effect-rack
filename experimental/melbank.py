@@ -1,6 +1,4 @@
-# from numpy import abs, append, arange, insert, linspace, log10, round, zeros
 import numpy as np
-
 
 def hertz_to_mel(freq):
     """Returns mel-frequency from linear frequency input.
@@ -99,9 +97,12 @@ def compute_melmat(
     ) = melfrequencies_mel_filterbank(num_mel_bands, freq_min, freq_max, num_fft_bands)
 
     center_frequencies_hz = mel_to_hertz(center_frequencies_mel)
+    print("mel_freqs", center_frequencies_hz.shape, center_frequencies_hz[:10])
     lower_edges_hz = mel_to_hertz(lower_edges_mel)
     upper_edges_hz = mel_to_hertz(upper_edges_mel)
+    # todo if they use the standard for num_fft_bands (sr/2)+1
     freqs = np.linspace(0.0, sample_rate / 2.0, num_fft_bands)
+    print("fft_freqs", freqs.shape, freqs[:10])
     melmat = np.zeros((num_mel_bands, num_fft_bands))
 
     for imelband, (center, lower, upper) in enumerate(

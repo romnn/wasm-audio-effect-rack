@@ -53,53 +53,39 @@ use tokio::time;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{transport::Server as TonicServer, Code, Request, Response, Status};
 
-pub type EffectRackStateType<B> = Arc<RwLock<EffectRackState<B>>>;
+pub type EffectRackStateType<U, B> = Arc<RwLock<EffectRackState<U, B>>>;
 
-struct EffectRack<B>
+struct EffectRack<U, B>
 where
-    B: AudioBackend + Sync + Send, //+ 'static, // R: Recorder,
+    B: AudioBackend + Sync + Send,
 {
-    // audio_backend: Arc<dyn Recorder + Sync + Send>,
-    state: EffectRackStateType<B>,
+    state: EffectRackStateType<U, B>,
 }
 
 pub trait DynRecorder: Recorder + Sync + Send {}
 
 #[derive(Debug)]
-pub struct ConnectedUserState<R> {
+pub struct ConnectedUserState<U, R> {
     // todo: also allow sending errors?
-    connection: mpsc::Sender<Update>,
-    // recorder: Option<Arc<dyn DynRecorder>>,
-    // recorder: Option<Arc<dyn DynRecorder>>,
+    connection: mpsc::Sender<U>,
     recorder: Option<Arc<R>>,
-    // analyzer: Arc<dyn Analyzer<T> + Sync + Send>,
 }
 
-impl<R> ConnectedUserState<R>
-// where
-// R: Sync,
-{
-    pub fn new(connection: mpsc::Sender<Update>) -> Self {
+pub type Msg = Result<Update, Status>;
+
+impl<R> ConnectedUserState<Msg, R> {
+    pub fn new(connection: mpsc::Sender<Msg>) -> Self {
         Self {
             connection,
             recorder: None,
         }
     }
 
-    // pub fn start_analysis<T>(&mut self, recorder: R) -> Result<()>
-    // pub fn start_analysis<T, B>(&mut self, audio_backend: &Arc<B>) -> Result<()>
-    // todo: make this async, add another channel and write out the updates for this analysis in a
-    // spawned tokio thread
     async fn start_analysis<T, B>(&mut self, audio_backend: &Arc<B>) -> Result<()>
     where
-        // R: DynRecorder + 'static,
-        // R: DynRecorder + 'static,
-        // B: AudioBackend + Sync + Send + 'static,
         B: AudioBackend + Sync + Send + 'static,
         T: Sample + Mel + Hz + Sync + std::fmt::Debug + Default + ScalarOperand + 'static,
     {
-        // self.recorder = Some(Arc::new(recorder));
-        // let recorder = self.recorder.clone();
         let audio_backend = audio_backend.clone();
 
         // create a tokio runtime to perform async operations in threads
@@ -107,17 +93,9 @@ impl<R> ConnectedUserState<R>
             .enable_all()
             .build()?;
 
-        // let (sender, receiver) = std::sync::mpsc::sync_channel(100);
-        // sender.send((10,10));
-        // let sender2 = sender.clone();
         let (result_tx, result_rx) = std::sync::mpsc::channel();
         let (rec_tx, rec_rx) = std::sync::mpsc::channel();
         let stream_tx = self.connection.clone();
-        // let analysis_thread = thread::spawn(move || {
-        // let (sender, receiver) = std::sync::mpsc::sync_channel(100);
-        // let sender2 = sender.clone();
-
-        // let sender2 = sender.clone();
         let file_name = PathBuf::from(
             "/home/roman/dev/wasm-audio-effect-rack/experimental/audio-samples/roddy.wav",
         );
@@ -125,37 +103,21 @@ impl<R> ConnectedUserState<R>
         let recorder_thread = thread::spawn(move || {
             println!("starting the recording...");
             let rec = audio_backend.new_recorder().expect("create recorder");
-            // .map_err(|_| Status::new(Code::Internal, "failed to create a recorder"))?;
 
-            // if let Some(recorder) = recorder {
-            // for i in 0..1000 {
-            //     if let Err(err) = sender.send((10, 10)) {
-            //         panic!("{}", err)
-            //     }
-            // }
             // todo: choose either file or stream based on the server config
-            // let sender3 = sender2.clone();
             rec.stream_file(
                 rec_file_name,
                 move |samples: Result<Array2<T>>, sample_rate, nchannels| {
-                    // let _ = sender.send((samples, sample_rate, nchannels));
-                    // let _ = sender3.send((sample_rate, nchannels));
-                    // sender.send((10,10));
-                    // println!("sending to analyser");
                     if let Err(err) = rec_tx.send((samples, sample_rate, nchannels)) {
-                        // println!("can not send channel");
-                        // println!("{}", err);
                         panic!("{}", err);
                     }
-                    // sender2.send((10,10)).expect("can send upates");
                 },
             );
-            println!("playback is over. exiting thread");
-            // }
+            println!("playback is over");
         });
 
+        // thread that collects and analyzes samples
         let analysis_thread = thread::spawn(move || {
-            println!("starting the analysis...");
             let (sample_rate, nchannels) =
                 <B as AudioBackend>::Rec::get_file_info(file_name.clone()).unwrap();
             let analyzer_opts = SpectralAnalyzerOptions {
@@ -165,27 +127,18 @@ impl<R> ConnectedUserState<R>
             };
             let mut analyzer = SpectralAnalyzer::<T>::new(analyzer_opts).unwrap();
             loop {
-                // match receiver.try_recv() {
                 match rec_rx.recv() {
-                    Ok((samples, sample_rate, nchannels)) => {
-                        match samples {
-                            Ok(samples) => {
-                                // analyze them
-                                println!("size of samples: {:?}", samples.shape());
-                                result_tx.send(10);
-                                // let heartbeat = Update {
-                                //     update: Some(update::Update::Heartbeat(Heartbeat { seq: 0 })),
-                                // };
-                                // if let Err(err) = rt.block_on(stream_tx.send(heartbeat)) {
-                                //     println!("{}", err);
-                                // };
-                                // match analyzer.analyze_samples(samples) {
-                                //     Ok(result) => println!("{:?}", result),
-                                //     Err(err) => println!("{}", err),
-                                // }
-                            }
-                            Err(err) => {}
-                        }
+                    Ok((Ok(samples), sample_rate, nchannels)) => {
+                        println!("size of samples: {:?}", samples.shape());
+                        result_tx.send(10);
+                        // match analyzer.analyze_samples(samples) {
+                        //     Ok(result) => println!("{:?}", result),
+                        //     Err(err) => println!("{}", err),
+                        // }
+                    }
+                    Ok((Err(err), _, _)) => {
+                        println!("{}", err);
+                        break;
                     }
                     Err(err) => {
                         println!("{}", err);
@@ -193,16 +146,9 @@ impl<R> ConnectedUserState<R>
                     }
                 }
             }
-            // while let Ok((sample_rate, nchannels)) = receiver.try_recv() { }
         });
 
-        // let analysis_thread = thread::spawn(move || {
-        //     // println!("{:?}", samples);
-        //     // while let Ok((samples, sample_rate, nchannels)) = receiver.try_recv() {
-        //             });
-
         // wait for analysis results and send them to the user
-        // tokio::spawn(async move {
         let update_thread = thread::spawn(move || {
             loop {
                 match result_rx.recv() {
@@ -210,7 +156,7 @@ impl<R> ConnectedUserState<R>
                         let heartbeat = Update {
                             update: Some(update::Update::Heartbeat(Heartbeat { seq: 0 })),
                         };
-                        if let Err(err) = rt.block_on(stream_tx.send(heartbeat)) {
+                        if let Err(err) = rt.block_on(stream_tx.send(Ok(heartbeat))) {
                             println!("{}", err);
                         }
 
@@ -233,53 +179,62 @@ impl<R> ConnectedUserState<R>
 }
 
 #[derive(Debug)]
-pub struct EffectRackState<B>
+pub struct EffectRackState<U, B>
 where
-    B: AudioBackend + Sync + Send, // + 'static,
+    B: AudioBackend + Sync + Send,
 {
     pub audio_backend: Arc<B>,
     // mspc send channel for each user that is connected
-    pub connected: HashMap<String, RwLock<ConnectedUserState<B::Rec>>>,
+    pub connected: HashMap<String, RwLock<ConnectedUserState<U, B::Rec>>>,
 }
 
-impl<B> EffectRackState<B>
+impl<B> EffectRackState<Msg, B>
 where
-    B: AudioBackend + Sync + Send, // + 'static,
+    B: AudioBackend + Sync + Send,
 {
-    // fn new() -> Self {
-    //     Self {
-    //     }
-    // }
-
     fn remove_user(&mut self, user_id: &String) {
         println!("removing {}", user_id);
         self.connected.remove(user_id);
     }
 
-    async fn broadcast(&self, msg: Update) {
+    async fn broadcast(&self, msg: Msg) {
         for (user_id, state) in &self.connected {
-            if let Err(err) = state.read().await.connection.send(msg.clone()).await {
-                println!("broadcast send error to {}, {:?}", user_id, err)
+            let conn = &state.read().await.connection;
+            // this would be a simple msg.clone() but Status has no Clone
+            match msg {
+                Ok(ref msg) => {
+                    if let Err(err) = conn.send(Ok(msg.clone())).await {
+                        println!("broadcast send error to {}, {:?}", user_id, err)
+                    }
+                }
+                Err(ref err) => {
+                    if let Err(err) = conn
+                        .send(Err(Status::new(err.code(), err.to_string())))
+                        .await
+                    {
+                        println!("broadcast send error to {}, {:?}", user_id, err)
+                    }
+                }
             }
         }
     }
 }
 
 #[derive()]
-pub struct RemoteControllerService<B>
+pub struct RemoteControllerService<U, B>
 where
-    B: AudioBackend + Sync + Send, // + 'static,
+    B: AudioBackend + Sync + Send,
 {
-    pub state: EffectRackStateType<B>,
+    pub state: EffectRackStateType<U, B>,
     pub shutdown_rx: watch::Receiver<bool>,
 }
 
-impl<B> RemoteControllerService<B>
+impl<B> RemoteControllerService<Msg, B>
 where
-    B: AudioBackend + Sync + Send, // + 'static,
+    B: AudioBackend + Sync + Send,
 {
     fn new_with_shutdown(
-        state: EffectRackStateType<B>,
+        state: EffectRackStateType<Msg, B>,
         shutdown_rx: watch::Receiver<bool>,
     ) -> Self {
         Self { state, shutdown_rx }
@@ -287,7 +242,7 @@ where
 }
 
 #[tonic::async_trait]
-impl<B> RemoteController for RemoteControllerService<B>
+impl<B> RemoteController for RemoteControllerService<Msg, B>
 where
     B: AudioBackend + Sync + Send + 'static,
 {
@@ -362,9 +317,6 @@ where
         tokio::spawn(async move {
             // send ack
             let _ = stream_tx.send(Ok(Update::default())).await;
-            // stream_tx
-            //     .send(Err(Status::new(Code::Ok, "connected")))
-            //     .await;
 
             // wait for either shutdown, heartbeat or an update to send out
             let mut seq = 0u64;
@@ -380,7 +332,7 @@ where
                     }
                     received = rx.recv() => {
                         if let Some(update) = received {
-                            if let Err(err) = update_tx.send(Ok(update)).await {
+                            if let Err(err) = update_tx.send(update).await {
                                 // If sending failed, then remove the user from shared data
                                 state.write().await.remove_user(&update_user_id);
                                 break;
@@ -409,7 +361,7 @@ where
     }
 }
 
-impl<B> EffectRack<B>
+impl<B> EffectRack<Msg, B>
 where
     B: AudioBackend + Sync + Send + 'static,
 {
@@ -424,39 +376,10 @@ where
         let server =
             RemoteControllerService::new_with_shutdown(self.state.clone(), shutdown_rx.clone());
 
-        // let analyzer = self.analyzer.clone();
-        // let analyzer_thread = thread::spawn(move || {
-        //     // println!("{:?}", self.recorder);
-        //     // println!("{:?}", analyzer);
-        //     // for i in 1..10 {
-        //     // server.broadcast(i).await;
-        //     // println!("hi number {} from the spawned thread!", i);
-        //     // thread::sleep(Duration::from_millis(1));
-        //     // }
-        // });
-
-        // let recorder = self.recorder.clone();
-        // for t in thrds {
-        // t.join();
-        // }
-        // analyzer_thread.join();
-
         let grpc_server = RemoteControllerServer::new(server);
         let grpc_server = tonic_web::config()
             // .allow_origins(vec!["localhost", "127.0.0.1"])
             .enable(grpc_server);
-
-        // let state = self.state.clone();
-        // tokio::spawn(async move {
-        //     for x in 0..2 {
-        //         for x in 0..5 {
-        //             time::sleep(Duration::from_millis(1 * 1000)).await;
-        //             state.read().await.broadcast(Update::default()).await;
-        //         }
-        //         time::sleep(Duration::from_millis(5 * 1000)).await;
-        //     }
-        //     println!("done pushing updates to");
-        // });
 
         let tserver = TonicServer::builder()
             .accept_http1(true)
@@ -476,7 +399,6 @@ where
 #[tokio::main]
 async fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
-    // let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
 
     let audio_config = AudioBackendConfig {
@@ -531,7 +453,7 @@ async fn main() -> Result<()> {
                     shutdown_tx.send(true).expect("send shutdown signal");
                 });
 
-                // this is not graceful at all
+                // also wait for other threads and all
                 running.await.ok();
                 println!("exiting");
             }

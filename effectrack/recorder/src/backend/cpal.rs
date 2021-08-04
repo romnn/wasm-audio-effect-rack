@@ -17,11 +17,7 @@ pub struct CpalAudioBackend {
     config: AudioBackendConfig,
 }
 
-// impl AudioBackend<CpalRecorder> for CpalAudioBackend {
 impl AudioBackend for CpalAudioBackend
-// where
-//     F: Fn(Array2<T>, u32, u16) -> (), // + Send + 'static,
-//     T: Float,
 {
     type Rec = CpalRecorder;
 

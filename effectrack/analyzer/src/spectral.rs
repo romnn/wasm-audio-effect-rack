@@ -40,7 +40,6 @@ impl Default for SpectralAnalyzerOptions {
 pub struct SpectralAnalyzerResults {
     pub volume: f32,
 }
-// impl AnalysisResult for SpectralAnalysisResult {}
 
 #[derive(Debug)]
 pub struct SpectralAnalyzer<T>
@@ -56,10 +55,8 @@ where
     buffer: Array1<T>,
 }
 
-// impl<T> SpectralAnalyzer<Array1<T>>
 impl<T> SpectralAnalyzer<T>
 where
-    // T: Hz + Mel + Float + FloatConst + Default + Send + Sync + std::fmt::Debug,
     T: Hz + Mel + Float + FloatConst + Default + Send + std::fmt::Debug,
 {
     // buffer size and channel
@@ -112,7 +109,6 @@ where
     }
 }
 
-// impl<T> Analyzer<Array2<T>> for SpectralAnalyzer<Array2<T>>
 impl<T> Analyzer<Array2<T>> for SpectralAnalyzer<T>
 where
     T: Float
@@ -149,7 +145,6 @@ where
         hwindow.apply(&mut samples);
         samples
             .append(Axis(0), Array::zeros(padding as usize).view())?;
-            // .unwrap();
         let ys = samples
             .fft()?
             .slice(s![..window_size / 2])

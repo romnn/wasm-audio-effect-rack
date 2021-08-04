@@ -22,9 +22,7 @@ invoke to-wav ./path/to/audio.mp3 ./path/to/output.wav
   - select the current parameterizer via the controller page
 
 - adriana
-  - create a rust backend binary with a websocket server
   - add a second thread with a very simple audio analyzer that just streams the audio volume to the frontend via websocket as a grpc message
-
   - use another temporary circular buffer for the width and for the color that is modified in the render loop based on the speed
   - only update the width targets once in a while and then gradually increase towards them based on the speed
   - include the groups bouding box
@@ -36,6 +34,8 @@ invoke to-wav ./path/to/audio.mp3 ./path/to/output.wav
   - dj controller audio monitor setup
   - 
 
+- check for memory leaks with valgrind by using nightly and the default allocator
+- implement a heartbeat that checks when to disconnect
 - lint because i cannot see all the warnings anymore
 - add text based visualization with some warping and some parameters ready to be animated
 - refactor the frontend visualization code to share a common interface for connecting with audio analysis results
@@ -46,7 +46,9 @@ invoke to-wav ./path/to/audio.mp3 ./path/to/output.wav
 - read the arturia midi board to check what can be done with the web audio midi api
 - implement remote control via p2p such that the recorder and the controller do not have to be in the same network even
   - generate qr codes to scan on mobile that redirect to the web controller with the token so that controlling can be done easily
-- since we will be using rust and a lot of protobuf, we might as well just add support for building with bazel?
 
 
 #### Done
+- create a rust backend binary with a websocket server
+- since we will be using rust and a lot of protobuf, we might as well just add support for building with bazel?
+

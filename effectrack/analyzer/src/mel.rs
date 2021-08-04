@@ -256,6 +256,7 @@ pub trait MelFilterBank<F: Hz, Mat: FilterBankMat<F>> {
 }
 
 // pub struct FilterBank<T: Mel, Mat: FilterBankMat<Mel>> {
+#[derive(Debug)]
 pub struct FilterBank<F, Mat>
 where
     F: Mel + Hz,

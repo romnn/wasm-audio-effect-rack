@@ -251,13 +251,29 @@ if __name__ == "__main__":
     mel = mel ** 2.0
     print("mel", mel.shape, mel[:5])
 
-    # # gain normalization
-    mel = gaussian_filter1d(mel, sigma=1.0)
-    print("mel", mel.shape, mel[:5])
-    # mel = np.max(mel)
-    # mel_gain.update(mel)
+    # gain normalization
+    # mel_gain.update(np.max(gaussian_filter1d(mel, sigma=1.0)))
+    gaussian_mel = gaussian_filter1d(mel, sigma=1.0)
+    print("gaussian mel", gaussian_mel.shape, mel[:5])
+    print(
+        "gaussian mel ( min %f max %f )" % (np.min(gaussian_mel), np.max(gaussian_mel))
+    )
 
-    # mel /= mel_gain.value
-    # mel = mel_smoothing.update(mel)
+    gain_update = np.max(gaussian_mel)
+    print("max mel", gain_update)
+    mel_gain_val = mel_gain.update(gain_update)
+
+    print("mel gain value", mel_gain_val.shape, mel_gain_val)
+    mel /= mel_gain_val
+    print("mel after gain norm", mel.shape, mel)
+    print(
+        "( min %f max %f )" % (np.min(mel), np.max(mel))
+    )
+
+    mel = mel_smoothing.update(mel)
+    print("mel after smoothing", mel.shape, mel)
+    print(
+        "( min %f max %f )" % (np.min(mel), np.max(mel))
+    )
 
     # print("samples", samples)

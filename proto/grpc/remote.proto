@@ -2,24 +2,64 @@ syntax = "proto3";
 package proto.grpc;
 
 import "google/protobuf/timestamp.proto";
-import "proto/audio/analysis.proto";
+import "proto/audio/analysis/analysis.proto";
 
 service RemoteController {
+  // subscribe and unsubscribe to audio updates
   rpc Subscribe(SubscriptionRequest) returns (stream Update) {}
+  rpc Unsubscribe(UnsubscriptionRequest) returns (Empty) {}
+
+  // change subscription
+  rpc UpdateSubscription(UpdateSubscriptionRequest) returns (Empty) {}
+
+  // start and stop analyzing audio
+  rpc StartAnalysis(StartAnalysisRequest) returns (Empty) {}
+
+}
+
+message Empty {}
+
+message Heartbeat {
+  uint64 seq = 1;
 }
 
 message Update {
   oneof update {
-      string name = 1;
-      int32 age = 2;
+      Heartbeat heartbeat = 1;
   }
+}
+
+message DefaultAudioSource {
+  // todo
+}
+
+message CustomAudioSource {
+  // todo
+}
+
+message AudioSource {
+  oneof source {
+    DefaultAudioSource default = 1;
+    CustomAudioSource custom = 2;
+  }
+}
+
+message StartAnalysisRequest {
+  string user_id = 1;
+  AudioSource audio_source = 10;
+}
+
+message UpdateSubscriptionRequest {
+  AudioSource audio_source = 1;
+  /* string topic = 1; */
 }
 
 message SubscriptionRequest {
   string user_id = 1;
-  // todo: what to subscribe to
-  // should be changeable with regular rpcs and the user id 
-  // topic, e.g. status, audio (source)
+}
+
+message UnsubscriptionRequest {
+  string user_id = 1;
 }
 
 /* message Result { */

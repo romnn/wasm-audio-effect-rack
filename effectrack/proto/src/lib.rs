@@ -1,5 +1,7 @@
 pub mod audio {
-    tonic::include_proto!("proto.audio");
+    pub mod analysis {
+        tonic::include_proto!("proto.audio.analysis");
+    }
 }
 
 pub mod grpc {

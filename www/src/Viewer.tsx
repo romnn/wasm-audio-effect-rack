@@ -30,7 +30,9 @@ export default class Viewer extends React.Component<
   }
 
   componentDidMount = () => {
-    // subscribe to updated fromt the communicator
+    // subscribe to updates from the communicator
+    this.comm.subscribe();
+    this.comm.startAnalysis();
     this.visualization = new TextTransformVisualization();
     console.log(this.visualization, "lol");
     const container = document.getElementById("Viewer");

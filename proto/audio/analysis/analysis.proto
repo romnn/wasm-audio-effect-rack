@@ -1,0 +1,11 @@
+syntax = "proto3";
+package proto.audio.analysis;
+
+import "proto/audio/analysis/spectral.proto";
+
+message AudioAnalysisResult {
+  int64 seq_num = 1;
+  oneof result {
+    proto.audio.analysis.SpectralAudioAnalysisResult spectral = 100;
+  }
+}

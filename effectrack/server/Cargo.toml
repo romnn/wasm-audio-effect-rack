@@ -29,6 +29,8 @@ rand = "0.7"
 clap = "3.0.0-beta.2"
 anyhow = "1.0.42"
 cfg-if = "0.1"
+ndarray = { version = "0.15.0" , features = ["approx", "rayon"]}
+num = "0.4.0"
 recorder = { path = "../recorder" }
 analyzer = { path = "../analyzer" }
 proto = { path = "../proto" }

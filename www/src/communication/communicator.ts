@@ -1,8 +1,10 @@
 import {ClientReadableStream, Error, Metadata, Status} from "grpc-web";
 
-import {AnalysisResult} from "../generated/proto/audio/analysis_pb";
+// import {AnalysisResult} from "../generated/proto/audio/analysis_pb";
 import {
+  StartAnalysisRequest,
   SubscriptionRequest,
+  UnsubscriptionRequest,
   Update
 } from "../generated/proto/grpc/remote_pb";
 import {
@@ -23,6 +25,7 @@ export const GRPC_ENDPOINT =
 export default class Communicator {
   public onMessage?: MessageHandler;
 
+  protected userID: string;
   protected receiver: string;
   protected isSubscribed = false;
   protected updateStream?: ClientReadableStream<unknown>;
@@ -32,28 +35,34 @@ export default class Communicator {
     console.log("constructor here");
     console.log(receiver);
     console.log(options);
+    // todo: generate a random user id here
+    this.userID = "roman";
     this.receiver = receiver;
     this.onMessage = options?.onMessage;
-
-    // subscribe to updates from the remote controller
-    this.subscribe();
   }
 
-  public unsubscribe = () => { 
-    // todo: actually send an unsubscribe request to the backend
-    console.log("unsubscribed"); 
+  public unsubscribe =
+      () => {
+        const req = new UnsubscriptionRequest();
+        req.setUserId(this.userID);
+        this.client.unsubscribe(req, null)
+            .then(() => { console.log("unsubscribed"); })
+            .catch((err) => { console.log("failed to unsubscribe", err); });
+      }
 
-  }
-
-  // Promise<void>
-  // return new Promise<void>((resolve, reject) => {
+  public startAnalysis =
+      () => {
+        const req = new StartAnalysisRequest();
+        req.setUserId(this.userID);
+        this.client.startAnalysis(req, null)
+            .then(() => { console.log("started analysis"); })
+            .catch((err) => { console.log("failed to start analysis", err); });
+      }
 
   public subscribe = () => {
-    if (this.isSubscribed)
-      return;
-    const subRequest = new SubscriptionRequest();
-    subRequest.setUserId("roman");
-    this.updateStream = this.client.subscribe(subRequest, undefined);
+    const req = new SubscriptionRequest();
+    req.setUserId(this.userID);
+    this.updateStream = this.client.subscribe(req, undefined);
     this.updateStream.on(
         "error",
         (err: Error) => { console.log("error while subscribing", err); });
@@ -64,23 +73,17 @@ export default class Communicator {
         console.log("subscribed");
       }
       if (msg instanceof Update) {
-        // todo: get a user token for unsubscribe
-        // console.log(response.getMessage());
-        console.log("got update: ", msg);
+        console.log("got update: ", msg.toObject());
         if (this.onMessage)
           this.onMessage(msg);
       }
     });
-    this.updateStream.on('status', (status: Status) => {
-      // todo: get a user token for unsubscribe
-      console.log("got status", status);
-    });
-    this.updateStream.on('metadata', (metadata: Metadata) => {
-      // todo: get a user token for unsubscribe
-      console.log("got metadata", metadata);
-    });
+    this.updateStream.on(
+        'status', (status: Status) => { console.log("got status", status); });
+    this.updateStream.on(
+        'metadata',
+        (metadata: Metadata) => { console.log("got metadata", metadata); });
     this.updateStream.on('end', () => {
-      // stream end signal
       this.isSubscribed = false;
       console.log("unsubscribed");
     });

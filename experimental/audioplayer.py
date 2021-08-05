@@ -6,43 +6,10 @@ import wave
 import melbank
 import tkinter as tk
 import threading
-from SimpleWebSocketServer import SimpleWebSocketServer, WebSocket
 from scipy.ndimage.filters import gaussian_filter1d
 from audioanalyzer import AudioProcessor
 
 root = tk.Tk()
-
-# async def hello(websocket, path):
-#     name = await websocket.recv()
-#     print(f"< {name}")
-
-#     greeting = f"Hello {name}!"
-
-#     await websocket.send(greeting)
-#     print(f"> {greeting}")
-
-
-class SimpleEcho(WebSocket):
-
-    # def broadcast(self, value):
-    #    # if self.data is None:
-    #        # self.data = ''
-
-    #    for client in self.server.connections.itervalues():
-    #        # client.sendMessage(str(self.address[0]) + ' - ' + str(self.data))
-    #        client.sendMessage(value)
-
-    #    #echo message back to client
-    #    #self.sendMessage(str(self.data))
-
-    def handleConnected(self):
-        print(self.address, "connected")
-
-    def handleClose(self):
-        print(self.address, "closed")
-
-
-server = SimpleWebSocketServer("", 9000, SimpleEcho)
 
 
 class AudioAnalyzer(threading.Thread):
@@ -52,15 +19,6 @@ class AudioAnalyzer(threading.Thread):
         root.update()
 
 
-class Webserver(threading.Thread):
-    def run(self):
-        server.serveforever()
-        # start_server = websockets.serve(hello, "localhost", 8765)
-        # asyncio.get_event_loop().run_until_complete(start_server)
-        # asyncio.get_event_loop().run_forever()
-
-
-webserver = Webserver()
 analyzer = AudioAnalyzer()
 
 # MIC_SAMPLE_RATE = 44100  # 48000
@@ -256,8 +214,6 @@ def stream_from_file(path):
             # rgb can be none when there is silence
             color = rgb_to_hex(*rgb)
             root.configure(bg=color)
-            for c in server.connections.values():
-                c.sendMessage("test")
 
         return (raw_data, pyaudio.paContinue)
 
@@ -282,9 +238,6 @@ def stream_from_file(path):
 
 if __name__ == "__main__":
     analyzer.start()
-
-    webserver.start()
-
     root.title("preview")
     root.geometry("200x200")
     root.mainloop()

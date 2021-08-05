@@ -1,7 +1,8 @@
 import React from "react";
 import Viewer from "./Viewer";
 import Controller from "./Controller";
-import "./App.css";
+import Landing from "./Landing";
+import "./App.sass";
 import {
   HashRouter as Router,
   Route,
@@ -22,7 +23,7 @@ export default class App extends React.Component<AppProps, AppState> {
     return (
       <div className="App">
         <Router>
-          <Route exact path="/" component={Viewer} />
+          <Route exact path="/" component={Landing} />
           <Route exact path="/viewer/:token?" component={Viewer} />
           <Route exact path="/controller/:token?" component={Controller} />
         </Router>

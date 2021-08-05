@@ -28,9 +28,10 @@
     },
     "scripts": {
         "pack": "invoke pack",
+        "test": "react-app-rewired build",
         "start": "./gen-protos.sh invoke pack && react-app-rewired start",
         "build": "./gen-protos.sh invoke pack && react-app-rewired build",
-        "test": "./gen-protos.sh invoke pack && react-app-rewired test",
+        "unittest": "./gen-protos.sh invoke pack && react-app-rewired test",
         "eject": "./gen-protos.sh invoke pack && react-app-rewired eject"
     },
     "eslintConfig": {
@@ -59,6 +60,7 @@
         "@types/google-protobuf": "^3.15.3",
         "@types/react-router-dom": "^5.1.8",
         "@types/seedrandom": "^3.0.1",
+        "node-sass": "4.14.1",
         "react-app-rewire-alias": "^1.0.3",
         "react-app-rewired": "^2.1.8",
         "wasm-loader": "^1.3.0",

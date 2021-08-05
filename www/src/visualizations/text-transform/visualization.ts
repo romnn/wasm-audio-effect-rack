@@ -1,14 +1,16 @@
-// import typefaceFont from "@/fonts/Inter ExtraBold_Regular.json";
 import seedrandom from "seedrandom";
 import * as THREE from "three";
 import {OrbitControls} from "three/examples/jsm/controls/OrbitControls";
 
 import typefaceFont from "../../fonts/Inter ExtraBold_Regular.json";
+import {
+  AudioAnalysisResult
+} from "../../generated/proto/audio/analysis/analysis_pb";
 import {gaussianProb, map, softmax, sum} from "../../utils";
 import {DatGuiParameterControls} from "../controls"
 import Stats from "../stats";
 import {
-  BaseVisualization,
+  BaseParameterizedVisualization,
   ParameterizedVisualization,
   UpdateParameterOptions
 } from "../visualization"
@@ -60,15 +62,18 @@ export class TTFControls extends DatGuiParameterControls<TTFParams> {
 // implements
 
 export default class TTFVisualization extends
-    BaseVisualization<TTFParams, TTFControls> implements
+    BaseParameterizedVisualization<TTFParams, TTFControls> implements
         ParameterizedVisualization<TTFParams> {
+
   public readonly name = "Text Transform";
+  public parameters = new TTFParams();
+  public initParameters = new TTFParams();
 
-  public get isRunning() { return super.isRunning };
+  // public get isRunning() { return super.isRunning };
   public get isDebug() { return super.isDebug };
-  public get parameters() { return super.parameters };
+  // public get parameters() { return super.parameters };
 
-  protected params = new TTFParams();
+  // protected params = new TTFParams();
   protected controls!: TTFControls;
 
   protected camera?: any;
@@ -84,13 +89,17 @@ export default class TTFVisualization extends
   protected lastUpdate = 0;
   protected weightCenters: WeightCenter[] = [];
 
-  updateParameters(parameters: TTFParams, options?: UpdateParameterOptions) {
-    console.log("updating parameters to", parameters);
-  }
+  constructor() { super(); }
+  // updateParameters(parameters: TTFParams, options?: UpdateParameterOptions) {
+  //   console.log("updating parameters to", parameters);
+  // }
 
-  getParameters(): TTFParams { return this.params; }
+  // getParameters(): TTFParams { return this.parameters; }
+  // public destroy(): void { super.destroy(); }
+  // public updateUI(): void { super.updateUI(); }
+  // public setDebug(enabled: boolean) { super.setDebug(enabled); }
 
-  renderFrame = () => {
+  renderFrame = (frame: number) => {
     this.camera.lookAt(this.scene.position);
     if (!this.characters || !this.text)
       return;
@@ -99,19 +108,19 @@ export default class TTFVisualization extends
     const targetWidth = sum(baseCharWidths);
     // const gen = seedrandom("42");
     const gen = seedrandom((100 * Math.random()).toString());
-    // gen = seedrandom(Math.floor(this.frameCount/ (0.5 * 60)).toString());
+    // gen = seedrandom(Math.floor(frame/ (0.5 * 60)).toString());
 
     // check if it is time to update the weight centers
-    if (this.frameCount - this.lastUpdate >= this.params.updateIntervalFrames) {
+    if (frame - this.lastUpdate >= this.parameters.updateIntervalFrames) {
       // update the weight centers
       this.weightCenters =
-          new Array(this.params.weightCenters).fill(0).map((_, idx) => {
+          new Array(this.parameters.weightCenters).fill(0).map((_, idx) => {
             return {
               idx : Math.random() * this.characters.length,
-              amplification : this.params.amplification *
-                                  this.params.weightCenterAmps[idx] *
+              amplification : this.parameters.amplification *
+                                  this.parameters.weightCenterAmps[idx] *
                                   Math.random(),
-              variance : Math.sqrt(this.params.weightCenterVariances[idx] *
+              variance : Math.sqrt(this.parameters.weightCenterVariances[idx] *
                                    this.characters.length),
             };
           });
@@ -129,27 +138,33 @@ export default class TTFVisualization extends
       // do not transform
       // this.targetCharWidthFracs = this.targetCharWidthFracs.map(() => 1.0);
 
-      this.lastUpdate = this.frameCount;
+      this.lastUpdate = frame;
     }
 
     this.characters?.forEach((ch, chIdx) => {
       // move the char width fraction a bit closer to the target value
       this.currentCharWidthFracs[chIdx] += (this.targetCharWidthFracs[chIdx] -
                                             this.currentCharWidthFracs[chIdx]) *
-                                           0.001 * this.params.transformSpeed;
+                                           0.001 *
+                                           this.parameters.transformSpeed;
     });
 
     const currentCharWidths = this.characters.map(
         (ch,
          chIdx) => { return ch.width * this.currentCharWidthFracs[chIdx]; });
     const newTotalWidth = sum(currentCharWidths);
-    const correction = this.params.fixedWidth ? targetWidth / newTotalWidth : 1;
-    const extrudeDistance = this.params.depth / resolution;
+    const correction =
+        this.parameters.fixedWidth ? targetWidth / newTotalWidth : 1;
+    const extrudeDistance = this.parameters.depth / config.resolution;
 
     let width = 0;
     this.characters?.forEach((ch, chIdx) => {
-      console.assert(ch.positions.length == ch.colors.length);
-      console.assert(ch.positions.length / resolution ==
+      console.assert(config.resolution == this.parameters.colors[chIdx].length);
+      // console.assert(ch.positions.length == ch.colors.length);
+      // console.assert(ch.positions.length ==
+      //                this.parameters.colors[chIdx].length);
+      const colors = [];
+      console.assert(ch.positions.length / config.resolution ==
                      3 * ch.pointsPerSegment);
       for (let pointIdx = ch.positions.length - 3; pointIdx >= 0;
            pointIdx -= 3) {
@@ -177,7 +192,7 @@ export default class TTFVisualization extends
           const [xPrev, yPrev, zPrev] =
               ch.interpolated.slice(prevPointIdx, prevPointIdx + 3);
           const interp =
-              ((this.frameCount % this.params.speed) + 1) / this.params.speed;
+              ((frame % this.parameters.speed) + 1) / this.parameters.speed;
           if (interp == 1) {
             ch.interpolated[pointIdx + 0] = xPrev;
             ch.interpolated[pointIdx + 1] = yPrev;
@@ -194,18 +209,21 @@ export default class TTFVisualization extends
         // ch.colors[pointIdx + 1] = 255;
         // ch.colors[pointIdx + 2] = 255;
       }
-      width += this.params.spacing + currentCharWidths[chIdx] * correction;
+      width += this.parameters.spacing + currentCharWidths[chIdx] * correction;
 
       ch.mesh.geometry.setAttribute(
           "position", new THREE.Float32BufferAttribute(ch.transformed, 3));
       ch.mesh.geometry.setAttribute(
-          "color", new THREE.Float32BufferAttribute(ch.colors, 3));
+          "color", new THREE.Float32BufferAttribute(colors, 3));
+      // new THREE.Float32BufferAttribute(this.parameters.colors[chIdx], 3));
+      // ch.mesh.geometry.setAttribute(
+      //     "color", new THREE.Float32BufferAttribute(ch.colors, 3));
     });
     this.text.position.x = -width / 2;
     this.renderer.render(this.scene, this.camera);
   };
 
-  init = (container: HTMLElement) => {
+  public init = (container: HTMLElement) => {
     this.container = container;
     this.camera = new THREE.OrthographicCamera(
         -window.innerWidth / 2, window.innerWidth / 2, window.innerHeight / 2,
@@ -243,17 +261,14 @@ export default class TTFVisualization extends
     this.container?.appendChild(this.renderer.domElement);
 
     this.stats = new Stats(this.container);
-    this.stats?.setVisible(true);
+    this.stats?.setVisible(this.parameters.debug);
 
-    // this.controls = new TTFControls();
-    this.controls = new TTFControls(this.params, this.container);
-    // this.controls.init(this.params, this.container);
+    this.controls = new TTFControls(this.parameters, this.container);
     this.controls.onChange =
-        () => { this.stats?.setVisible(this.params.debug); };
+        () => { this.stats?.setVisible(this.parameters.debug); };
+    this.controls?.setVisible(this.parameters.debug);
 
     this.orbiter = new OrbitControls(this.camera, this.renderer.domElement);
-
-    this.animate();
   };
 
   buildCharacterGeometry = (character: string, config: {
@@ -282,7 +297,7 @@ export default class TTFVisualization extends
 
     const indices = [];
     const vertices3d = [];
-    const colors = [];
+    // const colors = [];
 
     // add all faces of the planar char
     for (let idx = 0; idx < numPoints2d; idx++) {
@@ -292,7 +307,8 @@ export default class TTFVisualization extends
     // extend the planar char
     for (let extrudeIdx = 0; extrudeIdx < config.resolution; extrudeIdx++) {
       // console.log("extrude", extrudeIdx);
-      color.setHSL(0.1 * extrudeIdx, 1.0, 0.5);
+      // color.setHSL(0.1 * extrudeIdx, 1.0, 0.5);
+      // color = params.colors[
       for (let pointIdx = 0; pointIdx < numPoints2d; pointIdx++) {
         let [x, y, z] = vertices2d.slice(3 * pointIdx, 3 * (pointIdx + 1));
         // no need to change any vertices here
@@ -301,7 +317,8 @@ export default class TTFVisualization extends
         // fit into the bounding box of the planar char anymore! x = x - 50 *
         // Math.sin(20 * (extrudeIdx / config.resolution));
         vertices3d.push(x, y, z);
-        colors.push(color.r, color.g, color.b);
+        // colors.push(color.r, color.g, color.b);
+        // colors.push(color.r, color.g, color.b);
       }
       console.assert(vertices3d.length == (extrudeIdx + 1) * (numPoints2d * 3));
 
@@ -337,6 +354,7 @@ export default class TTFVisualization extends
     geometry.setIndex(Array.from(indices));
     geometry.setAttribute("position",
                           new THREE.Float32BufferAttribute(vertices3d, 3));
+    const colors = new Array(3 * numPoints2d * config.resolution).fill(0);
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
 
     geometry.computeVertexNormals();

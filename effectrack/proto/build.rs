@@ -1,9 +1,12 @@
 // use std::env;
 // use std::path::PathBuf;
 
-
 fn main() {
+    // trigger rebuilds when these files change
     println!("cargo:rerun-if-changed=../../proto/grpc/remote.proto");
+    println!("cargo:rerun-if-changed=../../proto/audio/analysis/analysis.proto");
+    println!("cargo:rerun-if-changed=../../proto/audio/analysis/spectral.proto");
+
     tonic_build::configure()
         // .type_attribute("routeguide.Point", "#[derive(Hash)]")
         .build_server(true)

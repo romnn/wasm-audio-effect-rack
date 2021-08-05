@@ -5,27 +5,49 @@ import "google/protobuf/timestamp.proto";
 import "proto/audio/analysis/analysis.proto";
 
 service RemoteController {
+
+  // start and stop analyzing audio
+  rpc StartAnalysis(StartAnalysisRequest) returns (Empty) {}
+
+  // controller
+  /* rpc QueryCurrentVisualization(QueryCurrentVisualizationRequest) */
+  /*     returns (Visualization) {} */
+  /* rpc RegisterVisualization(RegisterVisualizationRequest) returns (Empty) {} */
+
+  // the entire parameterization is happening on the client based on the
+  // selected parameterizer but when one controls via the controller, the
+  // changes should be live so we also have to upload the entire user input
+  // includes: active visualization, active parameterizer, their user defined
+  // options (which can be changed e.g. with a midi and then have to be synced)
+  // maybe best if all the updates go to the backend and really just the updates
+  // that come back trigger something in the viewer such that they really have
+  // no shared state whatsoever
+}
+
+service RemoteViewer {
   // subscribe and unsubscribe to audio updates
   rpc Subscribe(SubscriptionRequest) returns (stream Update) {}
   rpc Unsubscribe(UnsubscriptionRequest) returns (Empty) {}
 
   // change subscription
   rpc UpdateSubscription(UpdateSubscriptionRequest) returns (Empty) {}
-
-  // start and stop analyzing audio
-  rpc StartAnalysis(StartAnalysisRequest) returns (Empty) {}
-
 }
+
+message Visualization {}
+
+message QueryCurrentVisualizationRequest {}
+
+message RegisterVisualizationRequest {}
 
 message Empty {}
 
-message Heartbeat {
-  uint64 seq = 1;
-}
+message Heartbeat { uint64 seq = 1; }
 
 message Update {
   oneof update {
-      Heartbeat heartbeat = 1;
+    // todo: add status messages or notifications
+    Heartbeat heartbeat = 1;
+    proto.audio.analysis.AudioAnalysisResult audio_analysis_result = 2;
   }
 }
 
@@ -45,7 +67,7 @@ message AudioSource {
 }
 
 message StartAnalysisRequest {
-  string user_id = 1;
+  /* string user_id = 1; */
   AudioSource audio_source = 10;
 }
 
@@ -54,15 +76,12 @@ message UpdateSubscriptionRequest {
   /* string topic = 1; */
 }
 
-message SubscriptionRequest {
-  string user_id = 1;
+message SubscriptionRequest { /* string user_id = 1; */
 }
 
-message UnsubscriptionRequest {
-  string user_id = 1;
+message UnsubscriptionRequest { /* string user_id = 1; */
 }
 
 /* message Result { */
-/*   proto.audio.AnalysisResult result = 1; */
 /*   google.protobuf.Timestamp date = 2; */
 /* } */

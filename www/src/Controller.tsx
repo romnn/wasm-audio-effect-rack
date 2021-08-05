@@ -1,6 +1,7 @@
 import React from "react";
 import { RouteComponentProps } from "react-router-dom";
-import { getToken, P2PState, P2PURLQueryProps } from "./communication/p2p";
+import { getToken, P2PState, P2PURLQueryProps } from "./remote/p2p";
+import RemoteController from "./remote/controller";
 
 type ControllerState = {};
 type ControllerProps = {};

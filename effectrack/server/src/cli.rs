@@ -8,6 +8,9 @@ pub struct StartOpts {
     #[clap(long = "play")]
     pub play: Option<String>,
     #[cfg(feature = "record")]
+    #[clap(long = "max-viewers")]
+    pub max_viewers: Option<u16>,
+    #[cfg(feature = "record")]
     #[clap(long = "no-sound")]
     pub no_sound: bool,
 }

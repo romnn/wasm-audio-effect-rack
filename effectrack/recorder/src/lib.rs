@@ -32,7 +32,7 @@ pub trait Recorder {
     fn stream_input(&self) -> Result<()>;
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct AudioBackendConfig {
     #[cfg(use_jack)]
     pub jack: bool,

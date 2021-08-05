@@ -30,6 +30,7 @@ class ExpFilter:
 MIN_VOLUME_THRESHOLD = 1e-7
 N_FRAMES_ROLLING_WINDOW = 2
 N_FRAMES_ROLLING_WINDOW = 1
+N_FRAMES_ROLLING_WINDOW = 4
 
 N_FFT_BINS = 24
 MIN_FREQUENCY = 200
@@ -118,6 +119,7 @@ class AudioProcessor:
         self.roll_win[-1, :] = np.copy(mono)
         window = np.concatenate(self.roll_win, axis=0).astype(np.float32)
         assert len(window) == len(self.fft_window)
+        print("window size is: ", len(window))
 
         volume = np.max(np.abs(mono))
         if volume < MIN_VOLUME_THRESHOLD:
@@ -132,12 +134,14 @@ class AudioProcessor:
 
             window *= self.fft_window
             window = np.pad(window, (0, padding), mode="constant")
+            print("padding window to size", window.shape)
             ys = np.abs(np.fft.rfft(window)[: window_size // 2])
             print("ys", ys.shape)
             print("ys (2d)", np.atleast_2d(ys).T.shape)  # (735, 1)
             print("mel.T", self.mel_y.T.shape)  # (735, 1)
 
             # construct a Mel filterbank from the FFT data
+            # mel bands can be set free but mel and fft must have same len
             mel = np.atleast_2d(ys).T * self.mel_y.T
 
             # scale data to values more suitable for visualization

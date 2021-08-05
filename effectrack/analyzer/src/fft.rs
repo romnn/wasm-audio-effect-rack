@@ -99,9 +99,11 @@ where
         }
         .and_then(|mut res| {
             // manually add the nyquist frequency
+            // if false {
             let nyquist_fr_pos_val = res[0].im;
             res[0].im = 0.0;
             res.push(Complex32::new(nyquist_fr_pos_val, 0.0));
+            // }
             Ok(Array1::from(res))
         })
     }

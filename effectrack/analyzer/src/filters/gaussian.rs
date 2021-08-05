@@ -35,8 +35,8 @@ where
         let mut sum = T::one();
         let sd = pow(sd, 2);
 
-        println!("lw: {:?}", lw);
-        println!("sd: {:?}", sd);
+        // println!("lw: {:?}", lw);
+        // println!("sd: {:?}", sd);
 
         // calculate the kernel:
         for ii in 1..lw + 1 {
@@ -50,7 +50,7 @@ where
         for ii in 0..2 * lw + 1 {
             weights[ii] = weights[ii] / sum;
         }
-        println!("weights: {:?}", weights);
+        // println!("weights: {:?}", weights);
         // todo: implement the derivations for the order of the filter
         Self::correlate(array, weights)
     }

@@ -4,8 +4,8 @@ use crate::fft::FFT;
 use crate::filters::{exp::ExpSmoothingFilter, gaussian::GaussianFilter1d};
 use crate::mel;
 use crate::mel::{FilterBankMat, Hz, Mel, MelFilterBank};
-use crate::windows::{HammingWindow, Window};
-use crate::{AnalysisResult, Analyzer};
+use crate::windows::{HammingWindow, HannWindow, Window};
+use crate::Analyzer;
 use anyhow::Result;
 use common::sorting::DebugMinMax;
 use ndarray::parallel::prelude::*;
@@ -15,11 +15,40 @@ use ndarray::{
 };
 use num::pow::pow;
 use num::traits::{Float, FloatConst, NumCast, NumOps, One};
+// use proto::audio::analysis::audio_analysis_result::Result as SpecificAudioAnalysisResult;
+use proto::audio::analysis::audio_analysis_result;
+// ::Result as SpecificAudioAnalysisResult;
+use proto::audio::analysis::{AudioAnalysisResult, SpectralAudioAnalysisResult};
+use std::error;
+use std::fmt;
 use std::sync::mpsc::*;
+
+#[derive(Debug)]
+enum SpectralAnalyzerError {
+    InvalidParameter(String),
+    MissingParameter(String),
+}
+
+impl fmt::Display for SpectralAnalyzerError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::InvalidParameter(msg) => {
+                write!(f, "invalid parameter: {}", msg)
+            }
+            Self::MissingParameter(msg) => {
+                write!(f, "missing parameter: {}", msg)
+            }
+        }
+    }
+}
+
+impl error::Error for SpectralAnalyzerError {}
 
 // todo: replace with proto
 #[derive(Debug)]
 pub struct SpectralAnalyzerOptions {
+    pub mel_bands: usize,
+    pub window_size: usize,
     pub sample_rate: u32,
     pub nchannels: u16,
     pub fps: u16,
@@ -28,18 +57,20 @@ pub struct SpectralAnalyzerOptions {
 impl Default for SpectralAnalyzerOptions {
     fn default() -> Self {
         Self {
+            window_size: 1024,
             nchannels: 2,
             sample_rate: 44100,
             fps: 60,
+            mel_bands: 24,
         }
     }
 }
 
-// todo: replace with proto
-#[derive(Default, Debug)]
-pub struct SpectralAnalyzerResults {
-    pub volume: f32,
-}
+// // todo: replace with proto
+// #[derive(Default, Debug)]
+// pub struct SpectralAnalyzerResults {
+//     pub volume: f32,
+// }
 
 #[derive(Debug)]
 pub struct SpectralAnalyzer<T>
@@ -51,6 +82,8 @@ where
     mel_exp_filter: ExpSmoothingFilter<T, Array1<T>>,
     gain_exp_filter: ExpSmoothingFilter<T, Array1<T>>,
     gaussian_filter: GaussianFilter1d<T>,
+    hann_window: Window<T>,
+    padding: usize,
     mel_filterbank: mel::FilterBank<T, Array2<T>>,
     buffer: Array1<T>,
 }
@@ -63,18 +96,42 @@ where
     pub fn new(options: SpectralAnalyzerOptions) -> Result<Self> {
         let sample_rate_f: f32 = NumCast::from(options.sample_rate).unwrap();
         let fps_f: f32 = NumCast::from(options.fps).unwrap();
+
         let mel_samples: f32 = sample_rate_f * 1.0 / (2.0 * fps_f);
         let mel_samples: usize = NumCast::from(mel_samples).unwrap();
 
-        let num_fft_bands = mel_samples;
-        let num_mel_bands = 24;
+        // let window_size: u32 = NumCast::from(samples.len()).unwrap();
+        let next_pwr_two: f32 = NumCast::from(options.window_size).unwrap();
+        let next_pwr_two: usize = NumCast::from(next_pwr_two.log2().ceil()).unwrap();
+        let next_pwr_two = pow(2, next_pwr_two);
+
+        if next_pwr_two > 4096 {
+            return Err(SpectralAnalyzerError::InvalidParameter(
+                format!(
+                    "window size mut be between 0 and 4096, got {}",
+                    next_pwr_two
+                )
+                .to_string(),
+            )
+            .into());
+        }
+
+        // let padding = 2usize.powi(next_pwr_two) - options.window_size;
+        // println!("nptwo {}, ws {}", next_pwr_two, options.window_size);
+        let padding = next_pwr_two - options.window_size;
+        let hann_window = Window::hamming(options.window_size);
+
+        // println!("mel samples: {}", mel_samples);
+        // println!("mel samples: {}", mel_samples);
+
         let mel_opts = mel::FilterBankParameters::<T> {
-            num_mel_bands: num_mel_bands,
+            num_mel_bands: options.mel_bands,
             freq_min: T::from(200).unwrap(),
             freq_max: T::from(12000).unwrap(),
-            fft_size: 1024,                   // we dont care about it
-            num_fft_bands: Some(mel_samples), // (fft_size/2)+1
-            sample_rate: 44100,
+            fft_window_size: next_pwr_two,
+            // fft_size: 1024,                   // we dont care about it
+            // num_fft_bands: Some(mel_samples), // (fft_size/2)+1
+            sample_rate: options.sample_rate,
             htk: true,
             norm: None,
             ..mel::FilterBankParameters::default()
@@ -82,17 +139,17 @@ where
         let mel_filterbank = mel::FilterBank::<T, Array2<T>>::new(Some(mel_opts));
         let gaussian_filter = GaussianFilter1d::default();
         let mut mel_gain_exp_filter = ExpSmoothingFilter::new(
-            Array1::from(vec![T::from(1e-1).unwrap(); num_mel_bands]),
+            Array1::from(vec![T::from(1e-1).unwrap(); options.mel_bands]),
             T::from(0.01).unwrap(),
             T::from(0.99).unwrap(),
         )?;
         let mut mel_exp_filter = ExpSmoothingFilter::new(
-            Array1::from(vec![T::from(1e-1).unwrap(); num_mel_bands]),
+            Array1::from(vec![T::from(1e-1).unwrap(); options.mel_bands]),
             T::from(0.5).unwrap(),
             T::from(0.99).unwrap(),
         )?;
         let mut gain_exp_filter = ExpSmoothingFilter::new(
-            Array1::from(vec![T::from(1e-1).unwrap(); num_mel_bands]),
+            Array1::from(vec![T::from(1e-1).unwrap(); options.mel_bands]),
             T::from(0.01).unwrap(),
             T::from(0.99).unwrap(),
         )?;
@@ -105,6 +162,8 @@ where
             mel_exp_filter,
             gain_exp_filter,
             gaussian_filter,
+            hann_window,
+            padding,
         })
     }
 }
@@ -122,7 +181,7 @@ where
         + std::fmt::Debug
         + ScalarOperand,
 {
-    fn analyze_samples(&mut self, samples: Array2<T>) -> Result<AnalysisResult> {
+    fn analyze_samples(&mut self, samples: Array2<T>) -> Result<AudioAnalysisResult> {
         // todo: make this nicer with some chaining of processing
         // e.g. make mono, perform fft etc
         let samples = samples.mapv(|v| v.abs());
@@ -134,25 +193,21 @@ where
             .iter()
             .fold(T::neg_infinity(), |acc: T, &b| acc.max(b));
         let volume: f32 = NumCast::from(volume).unwrap();
+        // println!("volume: {:?}", volume);
 
-        let window_size: u32 = NumCast::from(samples.len()).unwrap();
+        assert!(samples.len() == self.options.window_size);
+        self.hann_window.apply(&mut samples);
+
         // pad with zeros until the next power of two
-        let next_power_of_two: f32 = NumCast::from(window_size).unwrap();
-        let next_power_of_two: u32 = NumCast::from(next_power_of_two.log2().ceil()).unwrap();
-        let padding = 2u32.pow(next_power_of_two) - window_size;
-        let window_size = samples.len();
-        let hwindow = Window::hamming(window_size);
-        hwindow.apply(&mut samples);
-        samples
-            .append(Axis(0), Array::zeros(padding as usize).view())?;
+        samples.append(Axis(0), Array::zeros(self.padding).view())?;
         let ys = samples
             .fft()?
-            .slice(s![..window_size / 2])
+            // .slice(s![..samples.len() / 2])
             .mapv(|v| T::from(v.norm()).unwrap());
         let a = ys.insert_axis(Axis(1));
 
         let mel_weights = self.mel_filterbank.weights().t();
-        println!("wel_weights: {:?}, a: {:?}", mel_weights.shape(), a.shape());
+        // println!("mel.T: {:?}, ys(2d): {:?}", mel_weights.shape(), a.shape());
         let mel = a * mel_weights;
 
         let mel = mel
@@ -176,9 +231,15 @@ where
         let mel = mel / gain;
         let mel = mel * T::from(255.0).unwrap();
 
-        Ok(AnalysisResult {
+        let result = SpectralAudioAnalysisResult {
             volume: volume,
-            ..AnalysisResult::default()
+            num_mel_bands: NumCast::from(self.options.mel_bands).unwrap(),
+            mel_bands: mel.mapv(|v| NumCast::from(v).unwrap()).to_vec(),
+        };
+        Ok(AudioAnalysisResult {
+            seq_num: 0,
+            window_size: NumCast::from(self.options.window_size).unwrap(),
+            result: Some(audio_analysis_result::Result::Spectral(result)),
         })
     }
 }

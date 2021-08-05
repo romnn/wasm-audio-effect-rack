@@ -2,6 +2,8 @@
 compile_error!("feature \"jack\" and feature \"portaudio\" cannot be enabled when feature \"record\" is disabled");
 
 mod cli;
+mod controller;
+mod viewer;
 pub extern crate common;
 pub extern crate proto;
 
@@ -24,8 +26,9 @@ use ndarray::prelude::*;
 use ndarray::{
     concatenate, indices, Array, IntoDimension, Ix, NdIndex, RemoveAxis, ScalarOperand, Slice, Zip,
 };
-use num::traits::{Float, FloatConst, Zero};
+use num::traits::{Float, FloatConst, NumCast, Zero};
 use proto::grpc::remote_controller_server::{RemoteController, RemoteControllerServer};
+use proto::grpc::remote_viewer_server::{RemoteViewer, RemoteViewerServer};
 use proto::grpc::update;
 use proto::grpc::{
     Empty, Heartbeat, StartAnalysisRequest, SubscriptionRequest, UnsubscriptionRequest, Update,
@@ -44,40 +47,45 @@ use std::marker::Send;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::pin::Pin;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 use tokio::signal;
 use tokio::sync::{mpsc, oneshot, watch, RwLock};
 use tokio::time;
+// use crate::viewer;
+// use crate::controller;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{transport::Server as TonicServer, Code, Request, Response, Status};
 
 pub type EffectRackStateType<U, B> = Arc<RwLock<EffectRackState<U, B>>>;
+// pub type Msg = Result<Update, Status>;
+// pub type Msg = Result<Update>;
+pub type Msg = Update;
+pub trait DynRecorder: Recorder + Sync + Send {}
 
 struct EffectRack<U, B>
 where
     B: AudioBackend + Sync + Send,
+    U: Clone,
 {
     state: EffectRackStateType<U, B>,
 }
 
-pub trait DynRecorder: Recorder + Sync + Send {}
-
 #[derive(Debug)]
 pub struct ConnectedUserState<U, R> {
-    // todo: also allow sending errors?
-    connection: mpsc::Sender<U>,
+    connection: Arc<RwLock<mpsc::Sender<U>>>,
     recorder: Option<Arc<R>>,
+    is_analyzing: bool,
 }
-
-pub type Msg = Result<Update, Status>;
 
 impl<R> ConnectedUserState<Msg, R> {
     pub fn new(connection: mpsc::Sender<Msg>) -> Self {
         Self {
-            connection,
+            connection: Arc::new(RwLock::new(connection)),
             recorder: None,
+            is_analyzing: false,
         }
     }
 
@@ -86,6 +94,7 @@ impl<R> ConnectedUserState<Msg, R> {
         B: AudioBackend + Sync + Send + 'static,
         T: Sample + Mel + Hz + Sync + std::fmt::Debug + Default + ScalarOperand + 'static,
     {
+        self.is_analyzing = true;
         let audio_backend = audio_backend.clone();
 
         // create a tokio runtime to perform async operations in threads
@@ -95,7 +104,6 @@ impl<R> ConnectedUserState<Msg, R> {
 
         let (result_tx, result_rx) = std::sync::mpsc::channel();
         let (rec_tx, rec_rx) = std::sync::mpsc::channel();
-        let stream_tx = self.connection.clone();
         let file_name = PathBuf::from(
             "/home/roman/dev/wasm-audio-effect-rack/experimental/audio-samples/roddy.wav",
         );
@@ -120,55 +128,86 @@ impl<R> ConnectedUserState<Msg, R> {
         let analysis_thread = thread::spawn(move || {
             let (sample_rate, nchannels) =
                 <B as AudioBackend>::Rec::get_file_info(file_name.clone()).unwrap();
+            let buffer_window_size = 2048;
             let analyzer_opts = SpectralAnalyzerOptions {
+                window_size: buffer_window_size,
+                mel_bands: 24,
                 nchannels: nchannels,
                 sample_rate: sample_rate,
                 fps: 60,
             };
             let mut analyzer = SpectralAnalyzer::<T>::new(analyzer_opts).unwrap();
+            let mut buffer = Array2::<T>::zeros((0, 2));
             loop {
                 match rec_rx.recv() {
                     Ok((Ok(samples), sample_rate, nchannels)) => {
-                        println!("size of samples: {:?}", samples.shape());
-                        result_tx.send(10);
-                        // match analyzer.analyze_samples(samples) {
-                        //     Ok(result) => println!("{:?}", result),
-                        //     Err(err) => println!("{}", err),
-                        // }
+                        // println!("new samples: {:?}", samples.shape());
+                        if let Err(err) = buffer.append(Axis(0), samples.view()) {
+                            eprintln!("failed to extend buffer: {}", err);
+                        }
+                        // println!("size of buffer: {:?}", buffer.shape());
+                        // todo: maybe measure the processing time here and try to keep the real time
+                        let buffer_size = buffer.len_of(Axis(0));
+                        if buffer_size > NumCast::from(sample_rate * 1).unwrap() {
+                            panic!("more than one second in the buffer");
+                        }
+
+                        let ready_buffers = buffer_size / buffer_window_size;
+                        let mut processed = 0;
+
+                        // process the chunks
+                        for i in (0..ready_buffers) {
+                            let start = i * buffer_window_size;
+                            let end = (i + 1) * buffer_window_size;
+                            // println!("analyzing from {} to {}", start, end);
+                            let chunk = buffer
+                                .slice_axis(Axis(0), Slice::from(start..end))
+                                .to_owned();
+                            result_tx.send(analyzer.analyze_samples(chunk));
+                            processed += 1;
+                        }
+                        buffer.slice_axis_inplace(
+                            Axis(0),
+                            Slice::from((processed * buffer_window_size)..),
+                        );
                     }
                     Ok((Err(err), _, _)) => {
-                        println!("{}", err);
-                        break;
+                        println!("error while recording samples: {}", err);
                     }
                     Err(err) => {
-                        println!("{}", err);
-                        break;
+                        // println!("failed to receive new samples: {}", err);
                     }
                 }
             }
         });
 
         // wait for analysis results and send them to the user
+        let stream_tx = self.connection.clone();
         let update_thread = thread::spawn(move || {
+            let mut seq_num = 0;
             loop {
                 match result_rx.recv() {
-                    Ok(i) => {
-                        let heartbeat = Update {
-                            update: Some(update::Update::Heartbeat(Heartbeat { seq: 0 })),
-                        };
-                        if let Err(err) = rt.block_on(stream_tx.send(Ok(heartbeat))) {
-                            println!("{}", err);
-                        }
-
-                        // match samples {
-                        //     Ok(samples) => {
-                        //                                     }
-                        //     Err(err) => {}
-                        // }
+                    Ok(Err(analysis_err)) => {
+                        println!("{}", analysis_err);
                     }
-                    Err(err) => {
-                        println!("{}", err);
-                        break;
+                    Ok(Ok(mut analysis_result)) => {
+                        analysis_result.seq_num = seq_num;
+                        let analysis_result_update = Update {
+                            update: Some(update::Update::AudioAnalysisResult(analysis_result)),
+                        };
+                        // let stream_tx = self.connection;
+                        match rt.block_on(async {
+                            let rx = stream_tx.read().await;
+                            // rx.send(Ok(analysis_result_update)).await
+                            rx.send(analysis_result_update).await
+                        }) {
+                            Err(err) => println!("{}", err),
+                            Ok(_) => seq_num = seq_num + 1,
+                        };
+                    }
+                    Err(recv_err) => {
+                        println!("{}", recv_err);
+                        // break;
                     }
                 }
             }
@@ -182,6 +221,7 @@ impl<R> ConnectedUserState<Msg, R> {
 pub struct EffectRackState<U, B>
 where
     B: AudioBackend + Sync + Send,
+    U: Clone,
 {
     pub audio_backend: Arc<B>,
     // mspc send channel for each user that is connected
@@ -200,38 +240,44 @@ where
     async fn broadcast(&self, msg: Msg) {
         for (user_id, state) in &self.connected {
             let conn = &state.read().await.connection;
-            // this would be a simple msg.clone() but Status has no Clone
-            match msg {
-                Ok(ref msg) => {
-                    if let Err(err) = conn.send(Ok(msg.clone())).await {
-                        println!("broadcast send error to {}, {:?}", user_id, err)
-                    }
-                }
-                Err(ref err) => {
-                    if let Err(err) = conn
-                        .send(Err(Status::new(err.code(), err.to_string())))
-                        .await
-                    {
-                        println!("broadcast send error to {}, {:?}", user_id, err)
-                    }
-                }
+            let conn = conn.read().await;
+            if let Err(err) = conn.send(msg.clone()).await {
+                println!("broadcast send error to {}, {:?}", user_id, err)
             }
+
+            // this would be a simple msg.clone() but Status has no Clone
+            // match msg {
+            //     Ok(ref msg) => {
+            //         if let Err(err) = conn.send(Ok(msg.clone())).await {
+            //             println!("broadcast send error to {}, {:?}", user_id, err)
+            //         }
+            //     }
+            //     Err(ref err) => {
+            //         if let Err(err) = conn
+            //             .send(Err(Status::new(err.code(), err.to_string())))
+            //             .await
+            //         {
+            //             println!("broadcast send error to {}, {:?}", user_id, err)
+            //         }
+            //     }
+            // }
         }
     }
 }
 
-#[derive()]
-pub struct RemoteControllerService<U, B>
+#[derive(Clone)]
+pub struct RemoteService<U, B>
 where
-    B: AudioBackend + Sync + Send,
+    B: AudioBackend + Sync + Send + Clone,
+    U: Clone,
 {
     pub state: EffectRackStateType<U, B>,
     pub shutdown_rx: watch::Receiver<bool>,
 }
 
-impl<B> RemoteControllerService<Msg, B>
+impl<B> RemoteService<Msg, B>
 where
-    B: AudioBackend + Sync + Send,
+    B: AudioBackend + Clone + Sync + Send,
 {
     fn new_with_shutdown(
         state: EffectRackStateType<Msg, B>,
@@ -239,131 +285,20 @@ where
     ) -> Self {
         Self { state, shutdown_rx }
     }
-}
 
-#[tonic::async_trait]
-impl<B> RemoteController for RemoteControllerService<Msg, B>
-where
-    B: AudioBackend + Sync + Send + 'static,
-{
-    type SubscribeStream =
-        Pin<Box<dyn Stream<Item = Result<Update, Status>> + Send + Sync + 'static>>;
-
-    async fn update_subscription(
-        &self,
-        request: Request<UpdateSubscriptionRequest>,
-    ) -> Result<Response<Empty>, Status> {
-        Ok(Response::new(Empty {}))
-    }
-
-    async fn unsubscribe(
-        &self,
-        request: Request<UnsubscriptionRequest>,
-    ) -> Result<Response<Empty>, Status> {
-        Ok(Response::new(Empty {}))
-    }
-
-    async fn start_analysis(
-        &self,
-        request: Request<StartAnalysisRequest>,
-    ) -> Result<Response<Empty>, Status> {
-        let audio_backend = &self.state.read().await.audio_backend;
-        let user_id = request.into_inner().user_id;
-        println!("wants to start: {}", user_id);
-        if let Some(user) = self.state.read().await.connected.get(&user_id) {
-            // this will not block
-            user.write()
-                .await
-                .start_analysis::<f32, _>(&audio_backend)
-                .await;
-        };
-        Ok(Response::new(Empty {}))
-    }
-
-    async fn subscribe(
-        &self,
-        request: Request<SubscriptionRequest>,
-    ) -> Result<Response<Self::SubscribeStream>, Status> {
-        let user_id = request.into_inner().user_id;
-        if user_id.len() < 1 {
-            return Err(Status::new(
-                Code::InvalidArgument,
-                "will not connect with user without user_id",
-            ));
-        }
-
-        let (stream_tx, stream_rx) = mpsc::channel(1);
-        let pinned_stream = Box::pin(ReceiverStream::new(stream_rx));
-        let (tx, mut rx) = mpsc::channel(1);
-
-        let connected = &mut self.state.write().await.connected;
-        match connected.get_mut(&user_id) {
-            Some(existing) => {
-                // reconnect
-                println!("({} reconnected)", user_id);
-                existing.write().await.connection = tx;
-            }
-            None => {
-                let user_state = ConnectedUserState::new(tx);
-                connected.insert(user_id.clone(), RwLock::new(user_state));
-                println!("{} connected", user_id);
-            }
-        }
-
-        let state = self.state.clone();
-        let update_tx = stream_tx.clone();
-        let update_user_id = user_id.clone();
-        let mut shutdown_rx = self.shutdown_rx.clone();
-        tokio::spawn(async move {
-            // send ack
-            let _ = stream_tx.send(Ok(Update::default())).await;
-
-            // wait for either shutdown, heartbeat or an update to send out
-            let mut seq = 0u64;
-            // todo: counter for failed send events
-            let heartbeat_interval = time::sleep(Duration::from_millis(5 * 1000));
-            let mut heartbeat_timer = Box::pin(heartbeat_interval);
-            let mut shutdown_signal = Box::pin(shutdown_rx.changed());
-            loop {
-                tokio::select! {
-                    _ = &mut shutdown_signal => {
-                        println!("shutdown from open connection");
-                        break;
-                    }
-                    received = rx.recv() => {
-                        if let Some(update) = received {
-                            if let Err(err) = update_tx.send(update).await {
-                                // If sending failed, then remove the user from shared data
-                                state.write().await.remove_user(&update_user_id);
-                                break;
-                            }
-                        }
-                    }
-                    _ = &mut heartbeat_timer => {
-                        // reset the heartbeat
-                        let heartbeat_interval = time::sleep(Duration::from_millis(5 * 1000));
-                        heartbeat_timer = Box::pin(heartbeat_interval);
-
-                        let heartbeat = Update {
-                            update: Some(update::Update::Heartbeat(Heartbeat { seq })),
-                        };
-                        if let Err(_) = update_tx.send(Ok(heartbeat)).await {
-                            state.write().await.remove_user(&update_user_id);
-                            break;
-                        };
-                        seq = seq + 1;
-                    }
-                }
-            }
-        });
-
-        Ok(Response::new(pinned_stream))
+    fn extract_user_token<T>(request: Request<T>) -> Result<String, Status> {
+        request
+            .metadata()
+            .get("user-token")
+            .and_then(|token| token.to_str().ok())
+            .map(|token| token.to_string())
+            .ok_or(Status::new(Code::InvalidArgument, "missing user token"))
     }
 }
 
 impl<B> EffectRack<Msg, B>
 where
-    B: AudioBackend + Sync + Send + 'static,
+    B: AudioBackend + Sync + Clone + Send + 'static,
 {
     async fn shutdown(&self) -> Result<()> {
         println!("todo: set some internal oneshot channel or so");
@@ -373,17 +308,34 @@ where
     async fn start(&self, addr: SocketAddr, shutdown_rx: watch::Receiver<bool>) -> Result<()> {
         println!("listening on {}", addr);
 
-        let server =
-            RemoteControllerService::new_with_shutdown(self.state.clone(), shutdown_rx.clone());
+        let remote_server =
+            RemoteService::new_with_shutdown(self.state.clone(), shutdown_rx.clone());
+        // let remote_controller_server =
+        //     RemoteService::new_with_shutdown(self.state.clone(), shutdown_rx.clone());
+        // let remote_viewer_server =
+        //     RemoteService::new_with_shutdown(self.state.clone(), shutdown_rx.clone());
 
-        let grpc_server = RemoteControllerServer::new(server);
-        let grpc_server = tonic_web::config()
+        // let remote_controller_grpc_server = RemoteControllerServer::new(remote_controller_server);
+        let remote_controller_grpc_server = RemoteControllerServer::new(remote_server.clone());
+        let remote_controller_grpc_server = tonic_web::config()
             // .allow_origins(vec!["localhost", "127.0.0.1"])
-            .enable(grpc_server);
+            .enable(remote_controller_grpc_server);
+
+        // let remote_grpc_server = tonic_web::config()
+        //     // .allow_origins(vec!["localhost", "127.0.0.1"])
+        //     .enable(remote_server);
+
+        // let remote_viewer_grpc_server = RemoteViewerServer::new(remote_viewer_server);
+        let remote_viewer_grpc_server = RemoteViewerServer::new(remote_server.clone());
+        let remote_viewer_grpc_server = tonic_web::config()
+            // .allow_origins(vec!["localhost", "127.0.0.1"])
+            .enable(remote_viewer_grpc_server);
 
         let tserver = TonicServer::builder()
             .accept_http1(true)
-            .add_service(grpc_server)
+            // .add_service(remote_grpc_server)
+            .add_service(remote_controller_grpc_server)
+            .add_service(remote_viewer_grpc_server)
             .serve_with_shutdown(addr, async {
                 shutdown_rx
                     .clone()

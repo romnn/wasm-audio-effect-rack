@@ -1,5 +1,10 @@
 import {ParameterControls} from "./controls"
-import {Parameterizer, Parameters} from "./parameterizer";
+import {
+  Parameterizer,
+  ParameterizerClass,
+  Parameters,
+  StartParameters
+} from "./parameterizer";
 import Stats from "./stats";
 
 export interface UpdateParameterOptions {
@@ -7,106 +12,213 @@ export interface UpdateParameterOptions {
   speed?: number;
 }
 
-export interface Visualization {
+export interface Visualization<SP extends StartParameters> {
   readonly name: string;
-  readonly isRunning: boolean;
-  // public readonly isDebug: boolean;
+  readonly isDebug: boolean;
 
-  // adding and destroying
-  init(container: HTMLElement): void;
+  init(container: HTMLElement, parameters: StartParameters): void;
   destroy(): void;
+  updateUI(): void;
+  renderFrame(frame: number): void;
+  setDebug(enabled: boolean): void;
+}
 
-  // starting and stopping
-  start(): void;
-  pause(): void;
+export class BaseVisualization<P extends Parameters,
+                                         C extends ParameterControls<P>> {
 
-  // enabling and disabling of options
-  // setDebug(enabled: boolean): void;
+  protected debug = false;
+  protected container?: HTMLElement;
+  protected stats!: Stats;
+  protected controls!: C;
+
+  constructor() {}
+
+  public get isDebug() { return this.debug }
+
+  public setDebug(enabled: boolean) {
+    this.debug = enabled;
+    this.stats?.setVisible(this.debug);
+    this.controls?.setVisible(this.debug);
+  }
+
+  public updateUI() {
+    this.controls?.update();
+    this.stats?.update();
+  }
+
+  // protected abstract renderFrame(): void;
+  public destroy(): void {
+    if (this.container)
+      for (let c of this.container.children) {
+        c.remove();
+      }
+  }
 }
 
 export interface ParameterizedVisualization<P extends Parameters> extends
     Visualization {
-  readonly parameters: P;
-
-  // get and update parameters
+  parameterize<I>(frame: number, input: I,
+                  parameterizer: Parameterizer<I, any, P>,
+                  options?: UpdateParameterOptions): P|undefined;
   updateParameters(parameters: P, options?: UpdateParameterOptions): void;
   getParameters(): P;
 }
 
-// <Controls, Parameters>
-// implements Visualization {
-export abstract class BaseVisualization<
-    P extends Parameters, C extends ParameterControls<P>> {
+// implements ParameterizedVisualization
+// export class ReactiveVisualization<V extends ParameterizedVisualization<P>,
+// I,
+//                                              H, P extends Parameters> {
+// export interface ReactiveVisualization<I, H, P extends Parameters> extends
+// ParameterizedVisualization<P> {
+// public parameterizer?: Parameterizer<I, H, P>;
+// public visualization!: V;
+// constructor(visualization: V, paramerizer?: Parameterizer<I, H, P>) {
+//   this.visualization = visualization;
+//   this.parameterizer = paramerizer;
+// }
+// constructor(visualization: V) { this.visualization = visualization; }
+
+// public useParameterizer(parameterizer: Parameterizer<I, H, P>): void {
+//   this.parameterizer = parameterizer;
+// }
+
+// parameterize(frame: number, input: I, parameterizer: Parameterizer<I, H, P>,
+//              options?: UpdateParameterOptions): P|undefined;
+
+// public parameterize(frame: number, input: I,
+//                     options?: UpdateParameterOptions): P|undefined {
+//   if (this.parameterizer) {
+//     const [parameters, temp] = this.parameterizer.parameterize(frame,
+//     input); this.visualization.updateParameters(parameters, options);
+//     return parameters;
+//   }
+// }
+// }
+
+export class BaseParameterizedVisualization<
+    // I, H, P extends Parameters, C extends ParameterControls<P>> extends
+    P extends Parameters, C extends ParameterControls<P>> extends
+    BaseVisualization<P, C> {
+  // protected abstract parameters: P;
+  protected parameters!: P;
+
+  constructor() { super(); }
+
+  public updateParameters = (parameters: P, options?: UpdateParameterOptions):
+      void => { this.parameters = parameters; }
+
+  public getParameters = (): P => { return this.parameters; }
+
+  parameterize<I>(frame: number, input: I,
+                  parameterizer: Parameterizer<I, any, P>,
+                  options?: UpdateParameterOptions): P|undefined {
+    // public parameterize =
+    //     (frame: number, input: I, parameterizer: Parameterizer<I, H, P>,
+    //      options?: UpdateParameterOptions): P|undefined => {
+    const [parameters, temp] = parameterizer.parameterize(frame, input);
+    this.updateParameters(parameters, options);
+    return parameters;
+  }
+}
+
+export interface VisualizationController<I> {
+  frame: number;
+  visualization: Visualization;
+  start(): void;
+  pause(): void;
+  init(container: HTMLElement): void;
+  getParameterizerNames(): {idx: number; name : string}[];
+  parameterize(input: I): void;
+  useParameterizerAtIndex(idx: number): void;
+  useParameterizerNamed(name: string): void;
+}
+
+// we dont want to restrict to use reactive visualization
+// for parameterized ones, just use an empty parameterizer list
+export interface InternalVisualizationController<
+    // I, H, P extends Parameters, V extends ParameterizedVisualization<P>>
+    // extends
+    I, P extends Parameters, V extends Visualization> extends
+    VisualizationController<I> {
+  // visualization: V;
+  parameterizers: ParameterizerClass<I, any, P>[];
+  parameterizer: Parameterizer<I, any, P>|null;
+  // getParameterizer(): Parameterizer<I, H, P>|null;
+  // useParameterizer(parameterizer: ParameterizerClass<I, any, P>): void;
+}
+
+export abstract class BaseVisualizationController<
+    I, P extends Parameters, V extends ParameterizedVisualization<P>> implements
+    InternalVisualizationController<I, P, V> {
+  public frame = 0;
 
   protected running = false;
-  protected debug = false;
-  protected container?: HTMLElement;
-  protected frameCount = 0;
-  protected stats!: Stats;
-  protected params!: P;
-  protected controls!: C;
-
   public get isRunning(): boolean { return this.running }
-  public get isDebug() { return this.debug }
-  public get parameters() { return this.params }
 
-  public setDebug(enabled: boolean) {
-    this.debug = enabled;
-    // toggle stats and controls based on debug mode
-  }
-  protected abstract renderFrame(): void;
-
-  protected animate = () => {
-    requestAnimationFrame(this.animate);
-    if (this.running) {
-      this.renderFrame();
-      this.frameCount++;
-    }
-    this.controls?.update();
-    this.stats?.update();
-  };
+  public abstract visualization: V;
+  public abstract parameterizers: ParameterizerClass<I, any, P>[];
+  public abstract parameterizer: Parameterizer<I, any, P>|null;
 
   public start() { this.running = true; }
   public pause() { this.running = false; }
 
-  destroy() {
-    // pause and remove container
-    this.pause();
-    if (this.container)
-      this.container.innerHTML = "";
-  }
-}
-
-// implements ParameterizedVisualization
-export class ReactiveVisualization<V extends ParameterizedVisualization<P>, I,
-                                             P extends Parameters> {
-  public parameterizer?: Parameterizer<I, P>;
-  public visualization!: V;
-  constructor(visualization: V, paramerizer?: Parameterizer<I, P>) {
-    this.visualization = visualization;
-    this.parameterizer = paramerizer;
-  }
-
-  public useParameterizer(parameterizer: Parameterizer<I, P>): void {
-    this.parameterizer = parameterizer;
-  }
-
-  public parameterize(input: I, options?: UpdateParameterOptions): P|undefined {
-    if (this.parameterizer) {
-      const parameters = this.parameterizer.parameterize(input);
-      this.visualization.updateParameters(parameters, options);
-      return parameters;
+  protected animate = () => {
+    requestAnimationFrame(this.animate);
+    if (this.running) {
+      this.visualization.renderFrame(this.frame);
+      this.visualization.updateUI();
+      this.frame++;
     }
-  }
-}
+  };
 
-// todo: we need logic for websockets
-// todo: we need to register at the backend that this effect is on?
-// todo: we need a controller class (generic <AudioAnalyisResults,
-// EffectParams>) todo todo: we need a generic viewer class ( react component
-// ) that manages whatever effect is on
-//
-// todo: we need a wrapper that makes it reactive?
-// public socket = new WebSocket(
-//     "ws://" + window.location.hostname + "/ws"
-//   );
+  public init = (container: HTMLElement):
+      void => {
+        this.visualization.init(container);
+        this.animate();
+      }
+
+  getParameterizerNames = ():
+      {idx: number; name : string}[] => {
+        return this.parameterizers.map(
+            (p, idx) => { return {idx, name : p.name}; });
+      }
+
+  parameterize = (input: I):
+      void => {
+        let parameterizer = this.parameterizer;
+        if (parameterizer) {
+          // console.log("parameterize with", frame, input);
+          this.visualization.parameterize(this.frame, input, parameterizer,
+                                          undefined)
+        }
+      }
+
+  // getParameterizer =
+  //     (): ParameterizerType|null => { return this.currentParameterizer; }
+
+  useParameterizerAtIndex = (idx: number):
+      void => {
+        if (0 <= idx && (this.parameterizers.length) < idx) {
+          this.parameterizer = new this.parameterizers[idx]();
+          // this.useParameterizer(this.parameterizers[idx]);
+        }
+      }
+
+  useParameterizerNamed = (name: string): void => {
+    let parameterizer = this.parameterizers.find(p => p.name == name);
+    if (parameterizer)
+      // this.useParameterizer(parameterizer);
+      this.parameterizer = new parameterizer();
+  }
+
+  // useParameterizer =
+  //     (parameterizer:
+  //          ParameterizerClass<I, any, P>):
+  //         void => {
+  //           this.parameterizer
+  //         }
+
+  // parameterize(frame: number, input: I): void;
+  // useParameterizerAtIndex(idx: number): void;
+  // useParameterizerNamed(name: string): void;
+}

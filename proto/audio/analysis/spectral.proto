@@ -2,6 +2,7 @@ syntax = "proto3";
 package proto.audio.analysis;
 
 message SpectralAudioAnalysisResult {
-  int64 seq_num = 1;
-  repeated int32 fft_bins = 2;
+  uint32 num_mel_bands = 1;
+  float volume = 2;
+  repeated float mel_bands = 10;
 }

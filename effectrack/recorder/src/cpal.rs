@@ -61,7 +61,8 @@ impl CpalRecorder {
         )?;
         stream.play()?;
         // todo: await and block here until we receive a stop signal
-        std::thread::sleep(std::time::Duration::from_millis(1000 * 1000));
+        // one hour for now
+        std::thread::sleep(std::time::Duration::from_millis(60 * 60 * 1000 * 1000));
         Ok((sample_rate, nchannels))
     }
 }
@@ -83,7 +84,7 @@ impl Recorder for CpalRecorder {
         F: Fn(Result<Array2<T>>, u32, u16) -> () + Send + 'static,
         T: Sample + 'static,
     {
-        let config = self.device.default_output_config().unwrap();
+        let config = self.device.default_output_config()?;
         // let config = StreamConfig {
         //     channels: 2,
         //     buffer_size: BufferSize::Fixed(2048),

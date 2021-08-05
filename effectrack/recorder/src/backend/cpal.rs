@@ -12,7 +12,7 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use num::traits::{Float, FloatConst, Zero};
 
-#[derive()]
+#[derive(Clone)]
 pub struct CpalAudioBackend {
     config: AudioBackendConfig,
 }

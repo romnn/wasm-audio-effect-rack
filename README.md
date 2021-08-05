@@ -16,12 +16,23 @@ invoke to-wav ./path/to/audio.mp3 ./path/to/output.wav
 #### TODO
 
 - goal for today
-  - stream data from rust backend to frontend
-  - implement base class and interface for effects
-  - effect parameterizer chaining
+  - create a visualization gallery that keeps a list of al the available visualizations
+  - remove unnecessary stuff in rust and make the linter happy
+  - allow multiple connections to both the controllers and the viewers
   - select the current parameterizer via the controller page
+  - inject the token using interceptors so i dont always forget in the api calls
+
+done
+
+- randomly generate a token
+- split the viewer and controller grpc services
+- stream data from rust backend to frontend
+- implement base class and interface for effects
+- effect parameterizer chaining
+- allow to specify the token via the url
 
 - adriana
+
   - add a second thread with a very simple audio analyzer that just streams the audio volume to the frontend via websocket as a grpc message
   - use another temporary circular buffer for the width and for the color that is modified in the render loop based on the speed
   - only update the width targets once in a while and then gradually increase towards them based on the speed
@@ -29,10 +40,11 @@ invoke to-wav ./path/to/audio.mp3 ./path/to/output.wav
   - scale the camera to properly include all the text
 
 - what i need for the party
+
   - fog machine
   - maybe a projector if gera is not there
   - dj controller audio monitor setup
-  - 
+  -
 
 - check for memory leaks with valgrind by using nightly and the default allocator
 - implement a heartbeat that checks when to disconnect
@@ -47,8 +59,7 @@ invoke to-wav ./path/to/audio.mp3 ./path/to/output.wav
 - implement remote control via p2p such that the recorder and the controller do not have to be in the same network even
   - generate qr codes to scan on mobile that redirect to the web controller with the token so that controlling can be done easily
 
-
 #### Done
+
 - create a rust backend binary with a websocket server
 - since we will be using rust and a lot of protobuf, we might as well just add support for building with bazel?
-

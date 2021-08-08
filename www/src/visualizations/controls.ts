@@ -2,7 +2,7 @@ import dat from "dat.gui";
 import {Parameters} from "./parameterizer";
 
 export interface ParameterControls<T extends Parameters> {
-  onChange?: () => void;
+  onChange?: (paramters: T) => void;
   update(): void;
   setVisible(visible: boolean): void;
 }
@@ -15,7 +15,12 @@ export abstract class DatGuiParameterControls<T extends Parameters> implements
   protected ctrl!: T;
   protected visible = false;
 
-  public onChange?: () => void;
+  public onChange?: (parameters: T) => void;
+
+  public didChange = (parameters: T) => {
+    if (this.onChange)
+      this.onChange(this.ctrl);
+  }
 
   public update = () => { this.gui.updateDisplay(); };
 

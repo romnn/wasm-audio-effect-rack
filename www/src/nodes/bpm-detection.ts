@@ -5,7 +5,6 @@ import {
   BPMDetectionInitControlMessage,
   BPMDetectionNodeProcessorParameters,
 } from "./common";
-// import {AsyncOnce, hasSIMDSupport} from "./utils";
 
 export type BPMDetectionParameters = {
   onInitialized?: (inst: BPMDetection) => void

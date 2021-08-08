@@ -1,9 +1,9 @@
+use crate::{ConnectedUserState, Msg, RemoteService};
 use analyzer::spectral::{SpectralAnalyzer, SpectralAnalyzerOptions};
 #[cfg(feature = "analyze")]
 use analyzer::{mel::Hz, mel::Mel, Analyzer};
 use anyhow::Result;
 use clap::Clap;
-use crate::{ConnectedUserState, Msg, RemoteService};
 use common::errors::FeatureDisabledError;
 use futures::{Future, Stream};
 use ndarray::prelude::*;
@@ -15,8 +15,8 @@ use proto::grpc::remote_controller_server::{RemoteController, RemoteControllerSe
 use proto::grpc::remote_viewer_server::{RemoteViewer, RemoteViewerServer};
 use proto::grpc::update;
 use proto::grpc::{
-    Empty, Heartbeat, StartAnalysisRequest, SubscriptionRequest, UnsubscriptionRequest, Update,
-    UpdateSubscriptionRequest,
+    Empty, Heartbeat, InstanceToken, NewInstanceTokenRequest, StartAnalysisRequest,
+    SubscriptionRequest, UnsubscriptionRequest, Update, UpdateSubscriptionRequest,
 };
 #[cfg(feature = "record")]
 use recorder::{
@@ -54,6 +54,17 @@ where
     //             Ok(Response::new(Visualization{}))
     // }
 
+    async fn new_instance_token(
+        &self,
+        request: Request<NewInstanceTokenRequest>,
+    ) -> Result<Response<InstanceToken>, Status> {
+        let user_token = Self::extract_user_token(request)?;
+        println!("[controller] new instance token: {}", user_token);
+        Ok(Response::new(InstanceToken {
+            token: "1".to_string(),
+        }))
+    }
+
     async fn start_analysis(
         &self,
         request: Request<StartAnalysisRequest>,
@@ -73,10 +84,15 @@ where
                     )));
                 }
                 // this will not block
-                user.write()
+                if let Err(err) = user
+                    .write()
                     .await
                     .start_analysis::<f32, _>(&audio_backend)
-                    .await;
+                    .await
+                {
+                    eprintln!("failed to start the analysis: {}", err);
+                    return Err(Status::ok(format!("failed to start the analysis")));
+                }
 
                 Ok(Response::new(Empty {}))
             }

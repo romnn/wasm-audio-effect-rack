@@ -16,14 +16,50 @@ invoke to-wav ./path/to/audio.mp3 ./path/to/output.wav
 #### TODO
 
 - goal for today
-  - create a visualization gallery that keeps a list of al the available visualizations
+  - animate parameter changes
+  - implement a pride mode
+  - use HSL for generating colors
+  - implement a strobe mode
+  - iplement a nice colorful background
+  - play with the energy and spectrum effects to try to come up with something
+  - overlay the spectrum based transform of text with weight center based approach
+  - make it so that the playback does not stop after one hour but actually wait for an event
+  - make parameterized options in grpc so those should also be grpc based so that they can be synced
+  - allow the backend to have multiple connections open and terminate them after some amount of failed send events/ time
+    - log how many people are currently connected
+    - redirect every controller and viewer page to a custom instance url
+    - only if the instance matches connections should be re-attached
+  - create a very simple controller page that allows to select the current effect and shows the options for the current effect
+  - allow running multiple analyzers at the same time
+    - analyzer should define its preferred buffer size and push its own updates
+    - the real time requirement should be dependent on the buffer size
+  - allow parameterization of the color and position moving speed for each char
+  - fix the bug with the scroll
+  - limit the amount of messages sent by the backend to be max 60fps
+  - add a custom orbiter that keeps more visible
+  - make the frontend linter happy
   - remove unnecessary stuff in rust and make the linter happy
   - allow multiple connections to both the controllers and the viewers
   - select the current parameterizer via the controller page
-  - inject the token using interceptors so i dont always forget in the api calls
 
 done
 
+  - add parameterizer options as well
+    - for ttf: exponential, linear, eased, or no fadeout
+- pass the cli config object to the server instance so that it can use the cli arguments
+- remove the requirement to have the debug flag in the params
+  - debug, show fps and show controls should be part of the class
+  - such that they can be changed via the controller
+- create a font gallery class to select fonts dynamically
+- try out the SOPHIE text and font <3
+- query the audio inputs and try to get an live audio feed working
+- move the whole match gaussian stuff to utils
+- compute the fadeout factor using log and the resolution
+- make the ttf vis look nicer with blur
+- make weights change based on the mels
+- allow different depths for different chars
+- inject the token using interceptors so i dont always forget in the api calls
+- create a visualization gallery that keeps a list of al the available visualizations
 - randomly generate a token
 - split the viewer and controller grpc services
 - stream data from rust backend to frontend

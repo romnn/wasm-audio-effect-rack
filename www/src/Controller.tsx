@@ -1,23 +1,28 @@
 import React from "react";
 import { RouteComponentProps } from "react-router-dom";
-import { getToken, P2PState, P2PURLQueryProps } from "./remote/p2p";
 import RemoteController from "./remote/controller";
+import Remote, {RemoteState, RemoteURLQueryProps } from "./remote";
 
 type ControllerState = {};
 type ControllerProps = {};
 
 type ControllerRouteProps = ControllerProps &
-  RouteComponentProps<P2PURLQueryProps>;
+  RouteComponentProps<RemoteURLQueryProps>;
 
 export default class Controller extends React.Component<
   ControllerRouteProps,
-  ControllerState & P2PState
+  ControllerState & RemoteState
 > {
   constructor(props: ControllerRouteProps) {
     super(props);
-    const token = getToken(this.props.match, this.props.location);
+    let { token, instance } = Remote.getUser(
+      this.props.match,
+      this.props.location
+    );
+    token = token ?? Remote.generateToken();
     this.state = {
       token,
+      instance: instance ?? "todo",
     };
   }
 

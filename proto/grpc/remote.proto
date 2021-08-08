@@ -9,10 +9,13 @@ service RemoteController {
   // start and stop analyzing audio
   rpc StartAnalysis(StartAnalysisRequest) returns (Empty) {}
 
+  rpc NewInstanceToken(NewInstanceTokenRequest) returns (InstanceToken) {}
+
   // controller
   /* rpc QueryCurrentVisualization(QueryCurrentVisualizationRequest) */
   /*     returns (Visualization) {} */
-  /* rpc RegisterVisualization(RegisterVisualizationRequest) returns (Empty) {} */
+  /* rpc RegisterVisualization(RegisterVisualizationRequest) returns (Empty) {}
+   */
 
   // the entire parameterization is happening on the client based on the
   // selected parameterizer but when one controls via the controller, the
@@ -29,9 +32,15 @@ service RemoteViewer {
   rpc Subscribe(SubscriptionRequest) returns (stream Update) {}
   rpc Unsubscribe(UnsubscriptionRequest) returns (Empty) {}
 
+  rpc NewInstanceToken(NewInstanceTokenRequest) returns (InstanceToken) {}
+
   // change subscription
   rpc UpdateSubscription(UpdateSubscriptionRequest) returns (Empty) {}
 }
+
+message NewInstanceTokenRequest {}
+
+message InstanceToken { string token = 1; }
 
 message Visualization {}
 

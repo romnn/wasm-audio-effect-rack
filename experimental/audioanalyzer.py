@@ -80,6 +80,45 @@ class AudioProcessor:
 
         self.visualization_effect = self.visualize_scroll
 
+    def interpolate(y, new_length):
+        """Intelligently resizes the array by linearly interpolating the values
+        Parameters
+        ----------
+        y : np.array
+            Array that should be resized
+        new_length : int
+            The length of the new interpolated array
+        Returns
+        -------
+        z : np.array
+            New array with length of new_length that contains the interpolated
+            values of y.
+        """
+        if len(y) == new_length:
+            return y
+        x_old = _normalized_linspace(len(y))
+        x_new = _normalized_linspace(new_length)
+        z = np.interp(x_new, x_old, y)
+        return z
+
+    def visualize_spectrum(y):
+        """Effect that maps the Mel filterbank frequencies onto the LED strip"""
+        global _prev_spectrum
+        y = np.copy(interpolate(y, config.N_PIXELS // 2))
+        common_mode.update(y)
+        diff = y - _prev_spectrum
+        _prev_spectrum = np.copy(y)
+        # Color channel mappings
+        r = r_filt.update(y - common_mode.value)
+        g = np.abs(diff)
+        b = b_filt.update(np.copy(y))
+        # Mirror the color channels for symmetric output
+        r = np.concatenate((r[::-1], r))
+        g = np.concatenate((g[::-1], g))
+        b = np.concatenate((b[::-1], b))
+        output = np.array([r, g,b]) * 255
+        return output
+
     def visualize_scroll(self, y):
         y = y ** 2.0
         gain.update(y)

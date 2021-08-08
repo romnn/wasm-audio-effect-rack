@@ -1,9 +1,9 @@
+use crate::{ConnectedUserState, Msg, RemoteService};
 use analyzer::spectral::{SpectralAnalyzer, SpectralAnalyzerOptions};
 #[cfg(feature = "analyze")]
 use analyzer::{mel::Hz, mel::Mel, Analyzer};
 use anyhow::Result;
 use clap::Clap;
-use crate::{ConnectedUserState, Msg, RemoteService};
 use common::errors::FeatureDisabledError;
 use futures::{Future, Stream};
 use ndarray::prelude::*;
@@ -15,8 +15,8 @@ use proto::grpc::remote_controller_server::{RemoteController, RemoteControllerSe
 use proto::grpc::remote_viewer_server::{RemoteViewer, RemoteViewerServer};
 use proto::grpc::update;
 use proto::grpc::{
-    Empty, Heartbeat, StartAnalysisRequest, SubscriptionRequest, UnsubscriptionRequest, Update,
-    UpdateSubscriptionRequest,
+    Empty, Heartbeat, InstanceToken, NewInstanceTokenRequest, StartAnalysisRequest,
+    SubscriptionRequest, UnsubscriptionRequest, Update, UpdateSubscriptionRequest,
 };
 #[cfg(feature = "record")]
 use recorder::{
@@ -54,6 +54,7 @@ where
         request: Request<UpdateSubscriptionRequest>,
     ) -> Result<Response<Empty>, Status> {
         let user_token = Self::extract_user_token(request)?;
+        println!("update subscription: {}", user_token);
         Ok(Response::new(Empty {}))
     }
 
@@ -62,7 +63,19 @@ where
         request: Request<UnsubscriptionRequest>,
     ) -> Result<Response<Empty>, Status> {
         let user_token = Self::extract_user_token(request)?;
+        println!("unsubscribe: {}", user_token);
         Ok(Response::new(Empty {}))
+    }
+
+    async fn new_instance_token(
+        &self,
+        request: Request<NewInstanceTokenRequest>,
+    ) -> Result<Response<InstanceToken>, Status> {
+        let user_token = Self::extract_user_token(request)?;
+        println!("[viewer] new instance token: {}", user_token);
+        Ok(Response::new(InstanceToken {
+            token: "1".to_string(),
+        }))
     }
 
     async fn subscribe(
@@ -74,6 +87,7 @@ where
         let pinned_stream = Box::pin(ReceiverStream::new(stream_rx));
         let (tx, mut rx) = mpsc::channel(1);
 
+        let config = self.state.read().await.config.clone();
         let connected = &mut self.state.write().await.connected;
         match connected.get_mut(&user_token) {
             Some(existing) => {
@@ -83,9 +97,9 @@ where
                 *old_connection = tx;
             }
             None => {
-                let user_state = ConnectedUserState::new(tx);
-                connected.insert(user_token.clone(), RwLock::new(user_state));
                 println!("{} connected", user_token);
+                let user_state = ConnectedUserState::new(config, tx);
+                connected.insert(user_token.clone(), RwLock::new(user_state));
             }
         }
 
@@ -113,8 +127,9 @@ where
                         if let Some(update) = received {
                             if let Err(err) = update_tx.send(Ok(update)).await {
                                 // If sending failed, then remove the user from shared data
-                                // state.write().await.remove_user(&update_user_token);
-                                // break;
+                                eprintln!("failed to send to user {}: {}", update_user_token, err);
+                                state.write().await.remove_user(&update_user_token);
+                                break;
                             }
                         }
                     }
@@ -127,7 +142,7 @@ where
                             update: Some(update::Update::Heartbeat(Heartbeat { seq })),
                         };
                         if let Err(_) = update_tx.send(Ok(heartbeat)).await {
-                            // state.write().await.remove_user(&update_user_token);
+                            state.write().await.remove_user(&update_user_token);
                             // break;
                         };
                         seq = seq + 1;

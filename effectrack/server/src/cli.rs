@@ -5,8 +5,8 @@ pub struct StartOpts {
     #[clap(short = 'p', long = "port", default_value = "9000")]
     pub port: u16,
     #[cfg(feature = "record")]
-    #[clap(long = "play")]
-    pub play: Option<String>,
+    #[clap(short = 'f', long = "play-file")]
+    pub play_file: Option<String>,
     #[cfg(feature = "record")]
     #[clap(long = "max-viewers")]
     pub max_viewers: Option<u16>,
@@ -19,7 +19,7 @@ pub struct StartOpts {
 #[derive(Clap, Debug, Clone)]
 pub struct QueryOpts {
     #[clap(short = 'd', long = "device")]
-    pub device: String,
+    pub device: Option<String>,
 }
 #[derive(Clap, Debug, Clone)]
 pub enum Commands {
@@ -39,8 +39,16 @@ pub enum Commands {
 )]
 pub struct Opts {
     #[cfg(feature = "record")]
-    #[clap(long = "device")]
-    pub device: Option<String>,
+    #[clap(short = 'i', long = "input-device")]
+    pub input_device: Option<String>,
+
+    #[cfg(feature = "record")]
+    #[clap(short = 'o', long = "output-device")]
+    pub output_device: Option<String>,
+
+    #[cfg(feature = "record")]
+    #[clap(long = "latency", default_value = "150")]
+    pub latency: u32,
 
     #[cfg(use_jack)]
     #[clap(long = "jack", about = "use jack audio backend")]

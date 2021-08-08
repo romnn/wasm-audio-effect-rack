@@ -24,8 +24,8 @@ export default class App extends React.Component<AppProps, AppState> {
       <div className="App">
         <Router>
           <Route exact path="/" component={Landing} />
-          <Route exact path="/viewer/:token?" component={Viewer} />
-          <Route exact path="/controller/:token?" component={Controller} />
+          <Route exact path="/viewer/:token?/:instance?" component={Viewer} />
+          <Route exact path="/controller/:token?/:instance?" component={Controller} />
         </Router>
       </div>
     );

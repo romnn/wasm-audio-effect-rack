@@ -7,7 +7,6 @@ import {
 import {
   RemoteViewerClient,
 } from "../generated/proto/grpc/RemoteServiceClientPb";
-import {StreamAuthInterceptor, UnaryAuthInterceptor} from "./interceptors";
 import RemoteClient from "./index";
 
 type SubMessageHandler = (message: Update) => void;

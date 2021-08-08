@@ -77,7 +77,7 @@ pub struct SpectralAnalyzer<T>
 where
     T: Hz + Mel + Float + FloatConst,
 {
-    options: SpectralAnalyzerOptions,
+    pub options: SpectralAnalyzerOptions,
     mel_gain_exp_filter: ExpSmoothingFilter<T, Array1<T>>,
     mel_exp_filter: ExpSmoothingFilter<T, Array1<T>>,
     gain_exp_filter: ExpSmoothingFilter<T, Array1<T>>,
@@ -229,7 +229,7 @@ where
         let mel = mel.mapv(|v| v.powi(2));
         let gain = self.gain_exp_filter.update(&mel);
         let mel = mel / gain;
-        let mel = mel * T::from(255.0).unwrap();
+        // let mel = mel * T::from(255.0).unwrap();
 
         let result = SpectralAudioAnalysisResult {
             volume: volume,

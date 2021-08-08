@@ -1,15 +1,17 @@
+import {Location} from "history";
+import {match} from "react-router-dom";
 import {StreamAuthInterceptor, UnaryAuthInterceptor} from "./interceptors";
 
-export const generateToken = (n = 10):
-    string => {
-      const chars =
-          'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-      var token = '';
-      for (var i = 0; i < n; i++) {
-        token += chars[Math.floor(Math.random() * chars.length)];
-      }
-      return token;
-    }
+export interface RemoteState {
+  token: string;
+  instance: string;
+}
+;
+
+export interface RemoteURLQueryProps {
+  token?: string;
+  instance?: string;
+}
 
 // (window.location.port ? ":" + window.location.port : "");
 // export const GRPC_ENDPOINT =
@@ -32,6 +34,28 @@ export default class RemoteClient<C> {
     stream: StreamAuthInterceptor,
     unary: UnaryAuthInterceptor,
   };
+
+  public static generateToken = (n = 10):
+      string => {
+        const chars =
+            'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        var token = '';
+        for (var i = 0; i < n; i++) {
+          token += chars[Math.floor(Math.random() * chars.length)];
+        }
+        return token;
+      }
+
+  public static getUser = (match: match<{token?: string, instance?: string}>,
+                           location: Location<any>):
+      {token?: string, instance?: string} => {
+        const queryParams = new URLSearchParams(location.search);
+        const token =
+            match.params.token ?? queryParams.get("token") ?? undefined;
+        const instance =
+            match.params.instance ?? queryParams.get("instance") ?? undefined;
+        return {token, instance};
+      }
 
   constructor(client: GrpcClientFactory<C>, userToken: string) {
     this.userToken = userToken;

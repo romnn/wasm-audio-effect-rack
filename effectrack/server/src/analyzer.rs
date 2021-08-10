@@ -36,7 +36,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 use tokio::signal;
-use tokio::sync::{mpsc, oneshot, watch, RwLock};
+use tokio::sync::{broadcast, mpsc, oneshot, watch, RwLock};
 use tokio::time;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{transport::Server as TonicServer, Code, Request, Response, Status};
@@ -79,6 +79,18 @@ impl From<Opts> for AudioInputConfig {
     }
 }
 
+pub type AudioBuffer<T> = (Result<Array2<T>>, u32, u16);
+pub type AudioBufferReceiver<T> = broadcast::Receiver<AudioBuffer<T>>;
+pub type AudioBufferSender<T> = broadcast::Sender<AudioBuffer<T>>;
+
+// #[derive()]
+// pub trait AudioNode<T>
+// where
+//     T: NumCast + Zero + Send + Clone + 'static,
+//     // Self: Sized,
+// {
+//     fn connect_input(&mut self,
+
 #[derive()]
 pub struct AudioOutputNode<T>
 where
@@ -88,9 +100,13 @@ where
     pub config: AudioOutputConfig,
     // pub recorder: Box<Recorder<T> + Send + Sync + std::marker::Send: Clone + std::marker::Send: Sized + 'static>,
     // pub recorder: Arc<Box<dyn Recorder<T> + Send + Sync + 'static>>,
-    pub output: Arc<Box<dyn recorder::AudioOutput<T> + Send + Sync + 'static>>,
+    // pub output: Arc<Box<dyn recorder::AudioOutput<T> + Send + Sync + 'static>>,
+    pub output: Box<dyn recorder::AudioOutput<T> + Send + Sync + 'static>,
     // pub recorder: Box<NewTrait>,
     threads: Vec<thread::JoinHandle<()>>,
+    // input and output
+    pub stream_rx: Option<AudioBufferReceiver<T>>,
+    pub stream_tx: Option<AudioBufferSender<T>>,
     pub is_running: bool,
 }
 
@@ -112,8 +128,11 @@ where
         Ok(Self {
             config,
             // recorder: Arc::new(Box::new(recorder)),
-            output: Arc::new(Box::new(audio)),
+            // output: Arc::new(Box::new(audio)),
+            output: Box::new(audio),
             threads: Vec::new(),
+            stream_rx: None,
+            stream_tx: None,
             is_running: false,
         })
     }
@@ -127,7 +146,7 @@ where
         // input_config: Option<StreamConfig>,
         callback: AudioOutputCallback<T>,
     ) -> Result<()> {
-        let output = self.output.clone();
+        // let output = self.output.clone();
         Ok(())
         // output.stream_to_output(
         // input_config: Option<StreamConfig>,
@@ -247,7 +266,12 @@ where
     pub config: AudioInputConfig,
     // pub recorder: Box<Recorder<T> + Send + Sync + std::marker::Send: Clone + std::marker::Send: Sized + 'static>,
     // pub recorder: Arc<Box<dyn Recorder<T> + Send + Sync + 'static>>,
-    pub input: Arc<RwLock<Box<dyn recorder::AudioInput<T> + Send + Sync + 'static>>>,
+    // pub input: Arc<RwLock<Box<dyn recorder::AudioInput<T> + Send + Sync + 'static>>>,
+    pub input: Box<dyn recorder::AudioInput<T> + Send + Sync + 'static>,
+    // input and output
+    // pub stream_rx: AudioBufferReceiver<T>,
+    pub stream_tx: Option<AudioBufferSender<T>>,
+
     // pub recorder: Box<NewTrait>,
     threads: Vec<thread::JoinHandle<()>>,
     pub is_running: bool,
@@ -270,8 +294,11 @@ where
         Ok(Self {
             config,
             // recorder: Arc::new(Box::new(recorder)),
-            input: Arc::new(RwLock::new(Box::new(audio))),
+            // input: Arc::new(RwLock::new(Box::new(audio))),
+            // input: Arc::new(Box::new(audio)),
+            input: Box::new(audio),
             threads: Vec::new(),
+            stream_tx: None,
             is_running: false,
         })
     }
@@ -284,7 +311,7 @@ where
     fn stream_from_input(&mut self, callback: AudioInputCallback<T>) -> Result<()> {
         let builder = thread::Builder::new();
         let config = self.config.clone();
-        let input = self.input.clone();
+        // let input = self.input.clone();
         let audio_stream_thread = builder
             .name("audio input stream thread".to_string())
             .spawn(move || {

@@ -10,6 +10,7 @@ edition = "2018"
 serde = {version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 futures = { version = "0.3", default-features = false }
+nanoid = "0.4.0"
 uuid = { version = "0.4", features = ["serde", "v4"] }
 # libp2p = { version = "0.39", features = ["tcp-tokio", "mdns-tokio"] }
 libp2p = { version = "0.39", optional = true, features = ["tcp-tokio"] }
@@ -32,7 +33,7 @@ cfg-if = "0.1"
 ndarray = { version = "0.15.0" , features = ["approx", "rayon"]}
 num = "0.4.0"
 recorder = { path = "../recorder" }
-analyzer = { path = "../analyzer" }
+analysis = { path = "../analysis" }
 proto = { path = "../proto" }
 common = { path = "../common" }
 

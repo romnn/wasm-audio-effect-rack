@@ -1,5 +1,4 @@
 import {sum} from "../utils/functions";
-import {softmax} from "../utils/math";
 
 export interface StartConfig {}
 export interface Temporary {}

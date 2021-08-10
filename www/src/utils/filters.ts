@@ -8,7 +8,7 @@ export const boxesForGauss = (sigma: number, n: number):
     number[] => {
       const wIdeal = Math.sqrt((12 * sigma * sigma / n) + 1);
       let wl = Math.floor(wIdeal);
-      if (wl % 2 == 0)
+      if (wl % 2 === 0)
         wl--;
       const wu = wl + 2;
 

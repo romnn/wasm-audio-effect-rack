@@ -5,11 +5,24 @@ import "google/protobuf/timestamp.proto";
 import "proto/audio/analysis/analysis.proto";
 
 service RemoteController {
+  // Connect and Disconnect to updates
+  rpc Connect(ControllerConnectRequest) returns (stream ControllerUpdate) {}
+  rpc Disconnect(ControllerDisconnectRequest) returns (Empty) {}
 
   // start and stop analyzing audio
-  rpc StartAnalysis(StartAnalysisRequest) returns (Empty) {}
+  /* rpc StartAnalysis(StartAnalysisRequest) returns (Empty) {} */
+  rpc AddAudioInputStream(AddAudioInputStreamRequest)
+      returns (AudioInputStream) {}
+  rpc AddAudioOutputStream(AddAudioOutputStreamRequest)
+      returns (AudioOutputStream) {}
+  /* rpc RemoveAudioInputStream(RemoveAudioInputStreamRequest) returns
+   * (AudioInputStream) {} */
+  /* rpc AddAudioAnalyzer(AddAudioAnalyzerRequest) returns (AudioAnalyzer) {} */
+  /* rpc RemoteAudioAnalyzer(AddAudioAnalyzerRequest) returns (AudioAnalyzer) {}
+   */
 
-  rpc NewInstanceToken(NewInstanceTokenRequest) returns (InstanceToken) {}
+  // dont really need that if we do it internally in the connection method
+  /* rpc NewInstanceId(NewInstanceIdRequest) returns (InstanceId) {} */
 
   // controller
   /* rpc QueryCurrentVisualization(QueryCurrentVisualizationRequest) */
@@ -28,19 +41,26 @@ service RemoteController {
 }
 
 service RemoteViewer {
-  // subscribe and unsubscribe to audio updates
-  rpc Subscribe(SubscriptionRequest) returns (stream Update) {}
-  rpc Unsubscribe(UnsubscriptionRequest) returns (Empty) {}
+  // Connect and Disconnect to updates
+  rpc Connect(ViewerConnectRequest) returns (stream ViewerUpdate) {}
+  rpc Disconnect(ViewerDisconnectRequest) returns (Empty) {}
 
-  rpc NewInstanceToken(NewInstanceTokenRequest) returns (InstanceToken) {}
+  /* rpc NewInstanceId(NewInstanceIdRequest) returns (InstanceId) {} */
 
   // change subscription
   rpc UpdateSubscription(UpdateSubscriptionRequest) returns (Empty) {}
 }
 
-message NewInstanceTokenRequest {}
+message AudioInputStream {}
+message AudioOutputStream {}
 
-message InstanceToken { string token = 1; }
+message AddAudioInputStreamRequest {}
+message AddAudioOutputStreamRequest {}
+
+/* message NewInstanceIdRequest {} */
+
+message InstanceId { string id = 1; }
+message SessionToken { string token = 1; }
 
 message Visualization {}
 
@@ -52,11 +72,24 @@ message Empty {}
 
 message Heartbeat { uint64 seq = 1; }
 
-message Update {
+message Assignment {
+  SessionToken session_token = 1;
+  InstanceId instance_id = 2;
+}
+
+message ViewerUpdate {
   oneof update {
     // todo: add status messages or notifications
     Heartbeat heartbeat = 1;
-    proto.audio.analysis.AudioAnalysisResult audio_analysis_result = 2;
+    Assignment assignment = 2;
+    proto.audio.analysis.AudioAnalysisResult audio_analysis_result = 100;
+  }
+}
+
+message ControllerUpdate {
+  oneof update {
+    // todo: add status messages or notifications
+    Heartbeat heartbeat = 1;
   }
 }
 
@@ -75,21 +108,20 @@ message AudioSource {
   }
 }
 
-message StartAnalysisRequest {
-  /* string user_id = 1; */
-  AudioSource audio_source = 10;
-}
+message StartAnalysisRequest { AudioSource audio_source = 10; }
 
 message UpdateSubscriptionRequest {
   AudioSource audio_source = 1;
   /* string topic = 1; */
 }
 
-message SubscriptionRequest { /* string user_id = 1; */
-}
+message ControllerConnectRequest { InstanceId instance = 1; }
 
-message UnsubscriptionRequest { /* string user_id = 1; */
-}
+message ControllerDisconnectRequest {}
+
+message ViewerConnectRequest { InstanceId instance = 1; }
+
+message ViewerDisconnectRequest {}
 
 /* message Result { */
 /*   google.protobuf.Timestamp date = 2; */

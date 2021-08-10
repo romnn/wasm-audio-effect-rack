@@ -1,7 +1,10 @@
 // import {ClientReadableStream, Error, Metadata, Status} from "grpc-web";
 
 import {
-  StartAnalysisRequest,
+  // NewInstanceIdRequest,
+  AddAudioInputStreamRequest,
+  InstanceId,
+  AudioInputStream,
 } from "../generated/proto/grpc/remote_pb";
 import {
   RemoteControllerClient,
@@ -14,14 +17,24 @@ export interface RemoteControllerConfig {}
 export default class RemoteController extends
     RemoteClient<RemoteControllerClient> {
 
-  constructor(userToken: string, options?: RemoteControllerConfig) {
-    super(RemoteControllerClient, userToken);
+  constructor(session: string|undefined, instance: string|undefined, options?: RemoteControllerConfig) {
+    super(RemoteControllerClient, session, instance);
   }
 
-  public startAnalysis = () => {
-    const req = new StartAnalysisRequest();
-    this.client.startAnalysis(req, null)
-        .then(() => { console.log("started analysis"); })
+  // public newInstanceId = async (): Promise<InstanceId> => {
+  //   const req = new NewInstanceIdRequest();
+  //   const test = await this.client.newInstanceId(req, null);
+  //   return test;
+  //       // .then(
+  //       //     (stream) => { console.log("added new audio input stream", input); })
+  //       // .catch((err) => { console.log("failed to start analysis", err); });
+  // }
+
+  public addAudioInputStream = () => {
+    const req = new AddAudioInputStreamRequest();
+    this.client.addAudioInputStream(req, null)
+        .then(
+            (stream) => { console.log("added new audio input stream", stream); })
         .catch((err) => { console.log("failed to start analysis", err); });
   }
 }

@@ -1,15 +1,20 @@
 import {ClientReadableStream, Error, Metadata, Status} from "grpc-web";
+
 import {
-  SubscriptionRequest,
-  UnsubscriptionRequest,
-  Update
+  InstanceId,
+  // NewInstanceIdRequest,
+  SessionToken,
+  ViewerConnectRequest,
+  ViewerDisconnectRequest,
+  ViewerUpdate,
 } from "../generated/proto/grpc/remote_pb";
 import {
   RemoteViewerClient,
 } from "../generated/proto/grpc/RemoteServiceClientPb";
+
 import RemoteClient from "./index";
 
-type SubMessageHandler = (message: Update) => void;
+type SubMessageHandler = (message: ViewerUpdate) => void;
 type SubErrorHandler = (error: Error) => void;
 type SubStatusHandler = (status: Status) => void;
 type SubMetadataHandler = (metadata: Metadata) => void;
@@ -29,16 +34,19 @@ export default class RemoteViewer extends RemoteClient<RemoteViewerClient> {
   public onError?: SubErrorHandler;
   public onMetadata?: SubMetadataHandler;
 
-  protected isSubscribed = false;
+  protected isConnected = false;
   protected updateStream?: ClientReadableStream<unknown>;
   // protected interceptors: {
   //   stream: StreamAuthInterceptor,
   //   unary: UnaryAuthInterceptor,
   // };
 
-  
-  constructor(userToken: string, options?: RemoteViewerConfig) {
-    super(RemoteViewerClient, userToken);
+  // constructor(sessionToken: SessionToken|undefined,
+  //             instanceId: InstanceId|undefined, options?:
+  //             RemoteViewerConfig) {
+  constructor(session: string|undefined, instance: string|undefined,
+              options?: RemoteViewerConfig) {
+    super(RemoteViewerClient, session, instance);
     // this.client = new RemoteViewerClient(RemoteClient.endpoint, null, {
     //   unaryInterceptors : [ this.interceptors.unary ],
     //   streamInterceptors : [ this.interceptors.stream ]
@@ -49,19 +57,25 @@ export default class RemoteViewer extends RemoteClient<RemoteViewerClient> {
     this.onError = options?.onError;
   }
 
-  public unsubscribe =
+  // public newInstanceId = async():
+  //     Promise<InstanceId> => {
+  //       const req = new NewInstanceIdRequest();
+  //       return this.client.newInstanceId(req, null);
+  //     }
+
+  public disconnect =
       () => {
-        const req = new UnsubscriptionRequest();
-        this.client.unsubscribe(req, null)
-            .then(() => { console.log("unsubscribed"); })
-            .catch((err) => { console.log("failed to unsubscribe", err); });
+        const req = new ViewerDisconnectRequest();
+        this.client.disconnect(req, null)
+            .then(() => { console.log("DisConnected"); })
+            .catch((err) => { console.log("failed to Disconnect", err); });
       }
 
-  
-  public subscribe = (callback?: () => void) => {
-    const req = new SubscriptionRequest();
-    // req.setUserId(this.userID);
-    this.updateStream = this.client.subscribe(req, undefined);
+  // public connect = async (instance: InstanceId|undefined, callback?: () =>
+  // void): Promise<void> => {
+  public connect = async(callback?: () => void): Promise<void> => {
+    const req = new ViewerConnectRequest();
+    this.updateStream = this.client.connect(req, undefined);
     this.updateStream.on("error", (err: Error) => {
       if (this.onError) {
         this.onError(err);
@@ -70,14 +84,14 @@ export default class RemoteViewer extends RemoteClient<RemoteViewerClient> {
       }
     });
     this.updateStream.on('data', (msg: unknown) => {
-      if (!this.isSubscribed) {
+      if (!this.isConnected) {
         // todo: set when the oneof of the update is a status update?
-        this.isSubscribed = true;
+        this.isConnected = true;
         if (callback)
           callback();
-        console.log("subscribed");
+        console.log("connected");
       }
-      if (msg instanceof Update) {
+      if (msg instanceof ViewerUpdate) {
         if (this.onUpdate) {
           this.onUpdate(msg);
         } else {
@@ -102,8 +116,8 @@ export default class RemoteViewer extends RemoteClient<RemoteViewerClient> {
       }
     });
     this.updateStream.on('end', () => {
-      this.isSubscribed = false;
-      console.log("unsubscribed");
+      this.isConnected = false;
+      console.log("DisConnected");
     });
   }
 }

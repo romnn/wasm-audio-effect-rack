@@ -1,18 +1,18 @@
-import seedrandom from "seedrandom";
+// import seedrandom from "seedrandom";
 import * as THREE from "three";
 import {OrbitControls} from "three/examples/jsm/controls/OrbitControls";
 import Fonts from "../../fonts";
-import {
-  AudioAnalysisResult
-} from "../../generated/proto/audio/analysis/analysis_pb";
+// import {
+//   AudioAnalysisResult
+// } from "../../generated/proto/audio/analysis/analysis_pb";
 import {map, sum} from "../../utils/functions";
-import {gaussianProb, softmax} from "../../utils/math";
+// import {gaussianProb, softmax} from "../../utils/math";
 import {DatGuiParameterControls} from "../controls"
 import Stats from "../stats";
 import {
   BaseParameterizedVisualization,
   ParameterizedVisualization,
-  UpdateParameterOptions
+  // UpdateParameterOptions
 } from "../visualization"
 
 import {TTFParams, TTFStartConfig} from "./parameterizer";
@@ -100,7 +100,7 @@ export default class TTFVisualization extends
     const baseCharWidths = this.characters.map((ch) => ch.width);
     const targetWidth = sum(baseCharWidths);
     // const gen = seedrandom("42");
-    const gen = seedrandom((100 * Math.random()).toString());
+    // const gen = seedrandom((100 * Math.random()).toString());
     // gen = seedrandom(Math.floor(frame/ (0.5 * 60)).toString());
 
     // check if it is time to update the weight centers
@@ -167,10 +167,10 @@ export default class TTFVisualization extends
       // if (JSON.stringify(this.parameters.chars[chIdx].colors) !=
       //     JSON.stringify(this.parameters.chars[0].colors))
       //   debugger;
-      if (this.parameters.chars[chIdx].colors.length !=
+      if (this.parameters.chars[chIdx].colors.length !==
           3 * this.config.resolution)
         debugger;
-      if (ch.positions.length / this.config.resolution !=
+      if (ch.positions.length / this.config.resolution !==
           3 * ch.pointsPerSegment)
         debugger;
       return true;
@@ -190,7 +190,7 @@ export default class TTFVisualization extends
         const fsegment = this.config.resolution - segment - 1;
 
         let [x, y, z] = ch.positions.slice(pointIdx, pointIdx + 3);
-        if (segment == 0) {
+        if (segment === 0) {
           const valid =
             (ch.boundingBox?.min?.x ?? 0) <= x &&
             x <= (ch.boundingBox?.max?.x ?? 0);
@@ -211,8 +211,8 @@ export default class TTFVisualization extends
         } else {
           const prevPointIdx = pointIdx - 3 * ch.pointsPerSegment;
           [x, y, z] = ch.interpolated.slice(pointIdx, pointIdx + 3);
-          const [xPrev, yPrev, zPrev] =
-              ch.interpolated.slice(prevPointIdx, prevPointIdx + 3);
+          const [xPrev, yPrev] =
+              ch.interpolated.slice(prevPointIdx, prevPointIdx + 2);
           let speed =
               100 * baseSpeed *
               this.parameters.chars[chIdx].textLongitudinalVelocityFactor;
@@ -220,7 +220,7 @@ export default class TTFVisualization extends
           const interp = ((frame % speed) + 1) / speed;
           // ((frame % this.parameters.speed) + 1) / this.parameters.speed;
           // const interp = 1;
-          if (interp == 1) {
+          if (interp === 1) {
             ch.interpolated[pointIdx + 0] = xPrev;
             ch.interpolated[pointIdx + 1] = yPrev;
           }
@@ -238,8 +238,8 @@ export default class TTFVisualization extends
       }
       width += this.parameters.spacing + currentCharWidths[chIdx] * correction;
 
-      console.assert(ch.transformed.length == ch.positions.length);
-      console.assert(colors.length == ch.transformed.length);
+      console.assert(ch.transformed.length === ch.positions.length);
+      console.assert(colors.length === ch.transformed.length);
       ch.mesh.geometry.setAttribute(
           "position", new THREE.Float32BufferAttribute(ch.transformed, 3));
 
@@ -355,7 +355,7 @@ export default class TTFVisualization extends
     resolution?: number;
     curveSegments?: number
   }): TTFCharGeometry => {
-    if (character.length != 1)
+    if (character.length !== 1)
       throw new Error("character must be of length 1");
     let textGeometry = new THREE.TextGeometry(character, {
       font : config.font,
@@ -365,12 +365,12 @@ export default class TTFVisualization extends
       bevelEnabled
       : false,
     });
-    const resolution = config.resolution ?? 40;
+    // const resolution = config.resolution ?? 40;
 
     textGeometry.computeBoundingBox();
     textGeometry.center();
     const vertices2d = Array.from(textGeometry.attributes.position.array);
-    console.assert(vertices2d.length % 3 == 0);
+    console.assert(vertices2d.length % 3 === 0);
     const numPoints2d = vertices2d.length / 3;
     const geometry = new THREE.BufferGeometry();
     // const color = new THREE.Color();
@@ -401,10 +401,10 @@ export default class TTFVisualization extends
         // colors.push(color.r, color.g, color.b);
         // colors.push(color.r, color.g, color.b);
       }
-      console.assert(vertices3d.length == (extrudeIdx + 1) * (numPoints2d * 3));
+      console.assert(vertices3d.length === (extrudeIdx + 1) * (numPoints2d * 3));
 
       if (extrudeIdx > 0) {
-        console.assert(numPoints2d % 3 == 0);
+        console.assert(numPoints2d % 3 === 0);
         const numFaces = numPoints2d / 3;
 
         for (let faceIdx = 0; faceIdx < numFaces; faceIdx++) {

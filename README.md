@@ -16,6 +16,7 @@ invoke to-wav ./path/to/audio.mp3 ./path/to/output.wav
 #### TODO
 
 - goal for today
+  - rename subscribe/unsubscribe to connect/disconnect
   - animate parameter changes
   - implement a pride mode
   - use HSL for generating colors

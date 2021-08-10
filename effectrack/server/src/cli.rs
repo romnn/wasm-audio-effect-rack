@@ -1,4 +1,11 @@
 use clap::Clap;
+// use recorder::{AudioBackendConfig, Audio;
+
+#[derive(Debug, Clone)]
+pub struct Config {
+    pub run: StartOpts,
+    pub default: Opts,
+}
 
 #[derive(Clap, Debug, Clone)]
 pub struct StartOpts {
@@ -7,9 +14,14 @@ pub struct StartOpts {
     #[cfg(feature = "record")]
     #[clap(short = 'f', long = "play-file")]
     pub play_file: Option<String>,
-    #[cfg(feature = "record")]
+    #[clap(long = "max-sessions")]
+    pub max_sessions: Option<usize>,
     #[clap(long = "max-viewers")]
-    pub max_viewers: Option<u16>,
+    pub max_viewers: Option<usize>,
+    #[clap(long = "max-controllers")]
+    pub max_controllers: Option<usize>,
+    #[clap(long = "keepalive-sec", default_value = "30")]
+    pub max_keepalive_sec: u64,
     #[cfg(feature = "record")]
     #[clap(long = "no-sound")]
     pub no_sound: bool,
@@ -52,14 +64,26 @@ pub struct Opts {
 
     #[cfg(use_jack)]
     #[clap(long = "jack", about = "use jack audio backend")]
-    pub use_jack_backend: bool,
+    pub use_jack: bool,
 
     #[cfg(feature = "portaudio")]
     #[clap(long = "portaudio", about = "use portaudio audio backend")]
-    pub use_portaudio_backend: bool,
+    pub use_portaudio: bool,
 
     #[clap(subcommand)]
     pub commands: Option<Commands>,
 }
 
-// audio devices can be selected using the web control interface and the cli arg is just the default
+// impl Into<RecorderConfig> for Opts {
+//     fn into(self) -> RecorderConfig {
+//         RecorderConfig {
+//             #[cfg(use_jack)]
+//             use_jack: self.use_jack,
+//             #[cfg(use_portaudio)]
+//             use_portaudio: self.use_portaudio.clone(),
+//             input_device: self.input_device.clone(),
+//             output_device: self.output_device.clone(),
+//             // latency: NumCast::from(self.config.default.latency).unwrap(),
+//         }
+//     }
+// }

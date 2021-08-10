@@ -209,7 +209,7 @@ export abstract class BaseVisualizationController<
 
   useParameterizerNamed = (name: string):
       void => {
-        let parameterizer = this.parameterizers.find(p => p.name == name);
+        let parameterizer = this.parameterizers.find(p => p.name === name);
         if (parameterizer)
           this.useParameterizer(parameterizer);
       }

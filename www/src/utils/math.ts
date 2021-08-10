@@ -23,7 +23,7 @@ export const interp =
     (x: number[], xp: number[], fp: number[],
      left: number|undefined = undefined, right: number|undefined = undefined):
         number[] => {
-          console.assert(xp.length == fp.length,
+          console.assert(xp.length === fp.length,
                          "xp and fp must have the same length");
           console.assert(xp.length > 0, "xp must not be empty");
           const ans = new Array(x.length).fill(0.0);
@@ -31,7 +31,7 @@ export const interp =
           const r = right ?? fp[-1];
 
           // binary_search_with_guess needs at least a 3 item long array
-          if (xp.length == 1) {
+          if (xp.length === 1) {
             const xpv = xp[0];
             const fpv = fp[0];
             for (let i = 0; i < x.length; ++i) {
@@ -61,13 +61,13 @@ export const interp =
               }
 
               j = binary_search_with_guess(xv, xp, j);
-              if (j == -1) {
+              if (j === -1) {
                 ans[i] = l;
-              } else if (j == xp.length) {
+              } else if (j === xp.length) {
                 ans[i] = r;
-              } else if (j == xp.length - 1) {
+              } else if (j === xp.length - 1) {
                 ans[i] = fp[j];
-              } else if (xp[j] == xv) {
+              } else if (xp[j] === xv) {
                 // avoid potential non-finite interpolation
                 ans[i] = fp[j];
               } else {
@@ -81,7 +81,7 @@ export const interp =
                 if (Number.isNaN(ans[i])) {
                   ans[i] = slope * (xv - xp[j + 1]) + fp[j + 1];
                   // if (NPY_UNLIKELY(npy_isnan(dres[i])) && dy[j] == dy[j+1]) {
-                  if (Number.isNaN(ans[i]) && fp[j] == fp[j + 1]) {
+                  if (Number.isNaN(ans[i]) && fp[j] === fp[j + 1]) {
                     ans[i] = fp[j];
                   }
                 }

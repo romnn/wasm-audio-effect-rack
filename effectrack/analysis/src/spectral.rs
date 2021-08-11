@@ -47,8 +47,8 @@ impl error::Error for SpectralAnalyzerError {}
 // todo: replace with proto
 #[derive(Debug)]
 pub struct SpectralAnalyzerOptions {
+    // pub window_size: Option<usize>,
     pub mel_bands: usize,
-    pub window_size: usize,
     pub sample_rate: u32,
     pub nchannels: u16,
     pub fps: u16,
@@ -57,7 +57,8 @@ pub struct SpectralAnalyzerOptions {
 impl Default for SpectralAnalyzerOptions {
     fn default() -> Self {
         Self {
-            window_size: 1024,
+            // window_size: 1024,
+            // window_size: None,
             nchannels: 2,
             sample_rate: 44100,
             fps: 60,
@@ -66,18 +67,13 @@ impl Default for SpectralAnalyzerOptions {
     }
 }
 
-// // todo: replace with proto
-// #[derive(Default, Debug)]
-// pub struct SpectralAnalyzerResults {
-//     pub volume: f32,
-// }
-
 #[derive(Debug)]
 pub struct SpectralAnalyzer<T>
 where
     T: Hz + Mel + Float + FloatConst,
 {
     pub options: SpectralAnalyzerOptions,
+    pub buffer_window_size: usize,
     mel_gain_exp_filter: ExpSmoothingFilter<T, Array1<T>>,
     mel_exp_filter: ExpSmoothingFilter<T, Array1<T>>,
     gain_exp_filter: ExpSmoothingFilter<T, Array1<T>>,
@@ -100,8 +96,8 @@ where
         let mel_samples: f32 = sample_rate_f * 1.0 / (2.0 * fps_f);
         let mel_samples: usize = NumCast::from(mel_samples).unwrap();
 
-        // let window_size: u32 = NumCast::from(samples.len()).unwrap();
-        let next_pwr_two: f32 = NumCast::from(options.window_size).unwrap();
+        let buffer_window_size = 2048;
+        let next_pwr_two: f32 = NumCast::from(buffer_window_size).unwrap();
         let next_pwr_two: usize = NumCast::from(next_pwr_two.log2().ceil()).unwrap();
         let next_pwr_two = pow(2, next_pwr_two);
 
@@ -116,10 +112,10 @@ where
             .into());
         }
 
-        // let padding = 2usize.powi(next_pwr_two) - options.window_size;
-        // println!("nptwo {}, ws {}", next_pwr_two, options.window_size);
-        let padding = next_pwr_two - options.window_size;
-        let hann_window = Window::hamming(options.window_size);
+        // let padding = 2usize.powi(next_pwr_two) - buffer_window_size;
+        // println!("nptwo {}, ws {}", next_pwr_two, buffer_window_size);
+        let padding = next_pwr_two - buffer_window_size;
+        let hann_window = Window::hamming(buffer_window_size);
 
         // println!("mel samples: {}", mel_samples);
         // println!("mel samples: {}", mel_samples);
@@ -156,6 +152,7 @@ where
 
         Ok(Self {
             buffer: Array1::<T>::zeros(100),
+            buffer_window_size,
             options,
             mel_filterbank,
             mel_gain_exp_filter,
@@ -181,6 +178,18 @@ where
         + std::fmt::Debug
         + ScalarOperand,
 {
+    fn window_size(&self) -> usize {
+        self.buffer_window_size
+    }
+
+    fn descriptor(&self) -> proto::grpc::AudioAnalyzerDescriptor {
+        proto::grpc::AudioAnalyzerDescriptor {
+            name: "SpectralAnalyzer".to_string(),
+            input: None,
+            // input: self.input_desciptor
+        }
+    }
+
     fn analyze_samples(&mut self, samples: Array2<T>) -> Result<AudioAnalysisResult> {
         // todo: make this nicer with some chaining of processing
         // e.g. make mono, perform fft etc
@@ -195,7 +204,7 @@ where
         let volume: f32 = NumCast::from(volume).unwrap();
         // println!("volume: {:?}", volume);
 
-        assert!(samples.len() == self.options.window_size);
+        assert!(samples.len() == self.window_size());
         self.hann_window.apply(&mut samples);
 
         // pad with zeros until the next power of two
@@ -238,7 +247,7 @@ where
         };
         Ok(AudioAnalysisResult {
             seq_num: 0,
-            window_size: NumCast::from(self.options.window_size).unwrap(),
+            window_size: NumCast::from(self.window_size()).unwrap(),
             result: Some(audio_analysis_result::Result::Spectral(result)),
         })
     }

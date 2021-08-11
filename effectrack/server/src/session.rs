@@ -1,10 +1,8 @@
 // use crate::analyzer::{AudioAnalyzer, AudioInput};
-use crate::analyzer::{AudioAnalyzer, AudioInputNode, AudioOutputNode};
-use crate::recorder::{AudioInput, AudioInputConfig, AudioOutput, AudioOutputConfig};
-// use crate::analysis::{AudioStreamDescriptor};
+use crate::analyzer::{AudioAnalyzerNode, AudioInputNode, AudioOutputNode};
 use crate::cli::Config;
 use crate::controller::Controller;
-use crate::recorder::AudioStreamDescriptor;
+use crate::recorder::{AudioInput, AudioInputConfig, AudioOutput, AudioOutputConfig};
 use crate::viewer::Viewer;
 use analysis::{mel::Hz, mel::Mel, Analyzer};
 use anyhow::Result;
@@ -39,15 +37,21 @@ pub struct Session<VU, CU> {
     pub viewers: Arc<RwLock<HashMap<proto::grpc::InstanceId, RwLock<Viewer<VU>>>>>,
 
     /// all running analyzers of this session
-    pub analyzers: Arc<RwLock<HashMap<String, RwLock<AudioAnalyzer<crate::Sample>>>>>,
+    pub analyzers: Arc<
+        RwLock<
+            HashMap<proto::grpc::AudioAnalyzerDescriptor, RwLock<AudioAnalyzerNode<crate::Sample>>>,
+        >,
+    >,
 
     /// all running input streams of this session
-    pub input_streams:
-        Arc<RwLock<HashMap<AudioStreamDescriptor, RwLock<AudioInputNode<crate::Sample>>>>>,
+    pub input_streams: Arc<
+        RwLock<HashMap<proto::grpc::AudioInputDescriptor, RwLock<AudioInputNode<crate::Sample>>>>,
+    >,
 
     /// all running output streams of this session
-    pub output_streams:
-        Arc<RwLock<HashMap<AudioStreamDescriptor, RwLock<AudioOutputNode<crate::Sample>>>>>,
+    pub output_streams: Arc<
+        RwLock<HashMap<proto::grpc::AudioOutputDescriptor, RwLock<AudioOutputNode<crate::Sample>>>>,
+    >,
 }
 
 // impl<VU, CU, S> Session<VU, CU, S> {

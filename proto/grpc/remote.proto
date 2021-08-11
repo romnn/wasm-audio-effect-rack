@@ -13,12 +13,21 @@ service RemoteController {
   /* rpc StartAnalysis(StartAnalysisRequest) returns (Empty) {} */
   rpc AddAudioInputStream(AddAudioInputStreamRequest)
       returns (AudioInputStream) {}
+
+  rpc AddAudioAnalyzer(AddAudioAnalyzerRequest) returns (AudioAnalyzer) {}
+
   rpc AddAudioOutputStream(AddAudioOutputStreamRequest)
       returns (AudioOutputStream) {}
+
+  rpc SubscribeToAudioAnalyzer(SubscribeToAudioAnalyzerRequest)
+      returns (InstanceSubscriptions) {}
+
   /* rpc RemoveAudioInputStream(RemoveAudioInputStreamRequest) returns
    * (AudioInputStream) {} */
-  /* rpc AddAudioAnalyzer(AddAudioAnalyzerRequest) returns (AudioAnalyzer) {} */
-  /* rpc RemoteAudioAnalyzer(AddAudioAnalyzerRequest) returns (AudioAnalyzer) {}
+  /* rpc AddAudioAnalyzer(AddAudioAnalyzerRequest) returns (AudioAnalyzer) {}
+   */
+  /* rpc RemoteAudioAnalyzer(AddAudioAnalyzerRequest) returns (AudioAnalyzer)
+   * {}
    */
 
   // dont really need that if we do it internally in the connection method
@@ -27,17 +36,18 @@ service RemoteController {
   // controller
   /* rpc QueryCurrentVisualization(QueryCurrentVisualizationRequest) */
   /*     returns (Visualization) {} */
-  /* rpc RegisterVisualization(RegisterVisualizationRequest) returns (Empty) {}
+  /* rpc RegisterVisualization(RegisterVisualizationRequest) returns (Empty)
+   * {}
    */
 
   // the entire parameterization is happening on the client based on the
   // selected parameterizer but when one controls via the controller, the
   // changes should be live so we also have to upload the entire user input
   // includes: active visualization, active parameterizer, their user defined
-  // options (which can be changed e.g. with a midi and then have to be synced)
-  // maybe best if all the updates go to the backend and really just the updates
-  // that come back trigger something in the viewer such that they really have
-  // no shared state whatsoever
+  // options (which can be changed e.g. with a midi and then have to be
+  // synced) maybe best if all the updates go to the backend and really just
+  // the updates that come back trigger something in the viewer such that they
+  // really have no shared state whatsoever
 }
 
 service RemoteViewer {
@@ -51,11 +61,60 @@ service RemoteViewer {
   rpc UpdateSubscription(UpdateSubscriptionRequest) returns (Empty) {}
 }
 
-message AudioInputStream {}
-message AudioOutputStream {}
+/* enum AudioStreamKind { */
+/*   INPUT = 0; */
+/*   OUTPUT = 1; */
+/* } */
 
-message AddAudioInputStreamRequest {}
-message AddAudioOutputStreamRequest {}
+/* message AudioStreamDescriptor { */
+/*   AudioStreamKind kind = 1; */
+/*   string device = 2; */
+/*   string host = 3; */
+/* } */
+message AudioInputDescriptor {
+  string backend = 1;
+  string device = 2;
+  string host = 3;
+}
+
+message AudioAnalyzerDescriptor {
+  string name = 1;
+  // todo: maybe in the future we also want to key by their parameters
+  AudioInputDescriptor input = 10;
+}
+
+message AudioOutputDescriptor {
+  string backend = 1;
+  string device = 2;
+  string host = 3;
+  AudioInputDescriptor input = 10;
+}
+
+message AudioInputStream { AudioInputDescriptor descriptor = 1; }
+message AudioAnalyzer { AudioAnalyzerDescriptor descriptor = 1; }
+message AudioOutputStream { AudioOutputDescriptor descriptor = 1; }
+
+message SubscribeToAudioAnalyzerRequest {
+  // we assume the session is the controller session
+  InstanceId instance_id = 1;
+  AudioAnalyzerDescriptor audio_analyzer_descriptor = 10;
+}
+
+message InstanceSubscriptions {}
+
+message AddAudioInputStreamRequest {
+  // todo: all the options about device etc.
+}
+
+message AddAudioAnalyzerRequest {
+  // todo: all the audio analyzer options
+  AudioInputDescriptor input_descriptor = 1;
+}
+
+message AddAudioOutputStreamRequest {
+  // todo: all the options about device etc.
+  AudioInputDescriptor input_descriptor = 1;
+}
 
 /* message NewInstanceIdRequest {} */
 

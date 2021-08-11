@@ -1,4 +1,6 @@
+use ::cpal::{Stream, StreamConfig};
 use anyhow::Result;
+use async_trait::async_trait;
 use ndarray::parallel::prelude::*;
 use ndarray::prelude::*;
 use ndarray::{
@@ -7,9 +9,12 @@ use ndarray::{
 use num::traits::{Float, FloatConst, NumCast, ToPrimitive, Zero};
 use rodio;
 use std::convert::From;
+use std::error;
+use std::fmt;
 use std::marker::Send;
 use std::path::PathBuf;
-use ::cpal::{StreamConfig};
+use std::sync::Arc;
+use tokio::sync::{broadcast, mpsc, oneshot, watch, Mutex, RwLock};
 
 pub mod cpal;
 pub mod portaudio;
@@ -19,7 +24,14 @@ pub mod portaudio;
 // }
 
 // pub trait Sample: rodio::Sample + Zero + Float + FloatConst + Send {}
-pub trait Sample: rodio::Sample + Zero + ToPrimitive + Send {}
+
+// NumCast + Clone + Zero + Send + Sync + 'static
+// pub trait Sample: NumCast + Clone + Zero + Send + Sync + 'static {}
+// pub trait Sample: rodio::Sample + Zero + ToPrimitive + Send {}
+pub trait Sample:
+    rodio::Sample + NumCast + std::fmt::Debug + Clone + Zero + ToPrimitive + Send + Sync + 'static
+{
+}
 
 // rodio does not support any other float other than f32 but maybe others
 impl Sample for f32 {}
@@ -85,15 +97,15 @@ impl Default for AudioOutputConfig {
     }
 }
 
-#[derive(Eq, PartialEq, Debug, Clone, Hash)]
-pub enum AudioStreamKind
-// where
-// Self: std::hash::Hash + std::cmp::Eq,
-// Self: std::hash::Hash,
-{
-    INPUT,
-    OUTPUT,
-}
+// #[derive(Eq, PartialEq, Debug, Clone, Hash)]
+// pub enum AudioStreamKind
+// // where
+// // Self: std::hash::Hash + std::cmp::Eq,
+// // Self: std::hash::Hash,
+// {
+//     INPUT,
+//     OUTPUT,
+// }
 
 // impl std::cmp::PartialEq for AudioStreamKind {
 //     fn eq(&self, other: &AudioStreamDescriptor) -> bool {
@@ -101,24 +113,93 @@ pub enum AudioStreamKind
 //     }
 // }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct AudioStreamDescriptor
-// where
-//     // Self: std::hash::Hash + std::cmp::Eq,
-//     Self: std::hash::Hash,
-{
-    pub kind: AudioStreamKind,
-    pub device: String,
-    pub host: String,
-}
+// #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+// pub struct AudioStreamDescriptor
+// // where
+// //     // Self: std::hash::Hash + std::cmp::Eq,
+// //     Self: std::hash::Hash,
+// {
+//     pub kind: AudioStreamKind,
+//     pub device: String,
+//     pub host: String,
+// }
 
 // pub type CallbackMut<T> = ;
 // pub type Callback<T> = Box<dyn FnMut(Result<Array2<T>>, u32, u16) -> () + Send + Sync + 'static>;
+#[derive(Debug, Clone)]
+pub enum AudioError {
+    Unknown(String),
+    DeviceNotFound(String),
+    DeviceNotAvailable(String),
+    // DeviceNotAvailable(String),
+}
+
+impl fmt::Display for AudioError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Unknown(msg) => {
+                write!(f, "audio error: {}", msg)
+            }
+            Self::DeviceNotFound(device_name) => {
+                write!(f, "device \"{}\" was not found", device_name)
+            }
+            Self::DeviceNotAvailable(device_name) => {
+                write!(f, "device \"{}\" is not available", device_name)
+            }
+        }
+    }
+}
+
+impl error::Error for AudioError {}
+
+#[derive(Debug, Clone)]
+pub enum AudioAnalysisError {
+    Unknown(String),
+    // DeviceNotFound(String),
+    // DeviceNotAvailable(String),
+    // DeviceNotAvailable(String),
+}
+
+impl fmt::Display for AudioAnalysisError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Unknown(msg) => {
+                write!(f, "analysis error: {}", msg)
+            } // Self::DeviceNotFound(device_name) => {
+              //     write!(f, "device \"{}\" was not found", device_name)
+              // }
+              // Self::DeviceNotAvailable(device_name) => {
+              //     write!(f, "device \"{}\" is not available", device_name)
+              // }
+        }
+    }
+}
+
+impl error::Error for AudioAnalysisError {}
+
+// pub type AudioBuffer<T> = (Result<Array2<T>>, u32, u16);
+pub type AudioBuffer<T> = (Result<Array2<T>, AudioError>, u32, u16);
+// pub type AudioBufferReceiver<T> = broadcast::Receiver<AudioBuffer<T>>;
+pub type AudioBufferReceiver<T> = Arc<Mutex<broadcast::Receiver<AudioBuffer<T>>>>;
+// pub type AudioBufferSender<T> = Arc<broadcast::Sender<AudioBuffer<T>>>;
+pub type AudioBufferSender<T> = broadcast::Sender<AudioBuffer<T>>;
+
+type AudioAnalysisResult = Result<proto::audio::analysis::AudioAnalysisResult, AudioAnalysisError>;
+pub type AudioAnalysisResultReceiver = broadcast::Receiver<AudioAnalysisResult>;
+pub type AudioAnalysisResultSender = broadcast::Sender<AudioAnalysisResult>;
+
 pub type AudioInputCallback<T> =
     Box<dyn FnMut(Result<Array2<T>>, u32, u16) -> () + Send + Sync + 'static>;
 
-pub type AudioOutputCallback<T> =
-    Box<dyn FnMut() -> Result<Array2<T>> + Send + Sync + 'static>;
+// pub type AudioOutputCallback<T> = Box<dyn FnMut() -> Result<Array2<T>> + Send + Sync + 'static>;
+pub type AudioOutputCallback<T> = Box<dyn FnMut() -> Option<T> + Send + Sync + 'static>;
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct AudioStreamInfo {
+    pub sample_rate: u32,
+    // pub buffer_size: usize,
+    pub nchannels: u16,
+}
 
 // pub trait Recorder<T, F>
 // pub trait AudioBackend<T>
@@ -136,8 +217,6 @@ pub trait AudioBackend<T>
     // where
     //     Self: Sized;
 
-    // fn input_name(&self) -> Result<String>;
-
     // fn output_name(&self) -> Result<String>;
 
     // fn descriptor(&self) -> Result<AudioStreamDescriptor>;
@@ -146,10 +225,23 @@ pub trait AudioBackend<T>
 pub trait AudioOutput<T>
 where
     // F: Fn(Result<Array2<T>>, u32, u16) -> () + Send + 'static,
-    T: NumCast + Clone + Zero + Send + Sync + 'static,
-    // T: NumCast + Clone + Zero + Send + 'static,
-    // T: NumCast + Zero + Send + 'static,
+    T: Sample,
 {
+    // fn new(input_stream: AudioBufferReceiver<T>, config: AudioOutputConfig) -> Result<Self>
+
+    fn new(
+        // input_stream: &dyn std::ops::Deref<Target = AudioInputNode<T>>,
+        // input_stream: &dyn AudioInputNode<T>,
+        // input_stream: AudioInputNode<T>,
+        config: AudioOutputConfig,
+    ) -> Result<Self>
+    where
+        Self: Sized;
+
+    fn descriptor(&self) -> Result<proto::grpc::AudioOutputDescriptor>;
+    fn input_stream_params(&self) -> AudioStreamInfo;
+    fn output_stream_params(&self) -> AudioStreamInfo;
+
     fn stream_to_output(
         &mut self,
         // input_config: Option<StreamConfig>,
@@ -157,33 +249,50 @@ where
         // callback: &'static (dyn Fn(Result<Array2<T>>, u32, u16) -> () + Send + Sync),
         callback: AudioOutputCallback<T>,
     ) -> Result<()>;
+}
 
-    fn new(config: AudioOutputConfig) -> Result<Self>
+#[async_trait]
+pub trait AudioNode<T>
+where
+    T: Sample,
+{
+    async fn start(&mut self) -> Result<()>;
+}
+
+pub trait AudioOutputNode<T>: AudioNode<T>
+where
+    T: Sample,
+{
+    fn new(input_node: &AudioInputNode<T>, config: AudioOutputConfig) -> Result<Self>
     where
         Self: Sized;
 
-    fn descriptor(&self) -> Result<AudioStreamDescriptor>;
+    fn descriptor(&self) -> proto::grpc::AudioOutputDescriptor;
+    fn input_stream_params(&self) -> AudioStreamInfo;
+    fn output_stream_params(&self) -> AudioStreamInfo;
+    // fn connect(&self) -> Result<AudioBufferReceiver<T>>;
 }
 
 pub trait AudioInput<T>
 where
     // F: Fn(Result<Array2<T>>, u32, u16) -> () + Send + 'static,
-    T: NumCast + Clone + Zero + Send + Sync + 'static,
-    // T: NumCast + Clone + Zero + Send + 'static,
+    // T: NumCast + Clone + Zero + Send + Sync + 'static,
+    T: Sample,
 {
     // fn new(config: AudioInputConfig) -> Result<Self>
     fn new(config: AudioInputConfig) -> Result<Self>
     where
         Self: Sized;
 
-    fn descriptor(&self) -> Result<AudioStreamDescriptor>;
-
     fn stream_from_input(
-        &mut self,
+        &self,
         // playback: bool,
         // callback: &'static (dyn Fn(Result<Array2<T>>, u32, u16) -> () + Send + Sync),
         callback: AudioInputCallback<T>,
     ) -> Result<()>;
+
+    fn descriptor(&self) -> Result<proto::grpc::AudioInputDescriptor>;
+    fn input_stream_params(&self) -> AudioStreamInfo;
     // where
     // Self: Sized;
     // where
@@ -198,6 +307,25 @@ where
     // ) -> Result<()>;
     // where
     //     Self: Sized;
+}
+
+pub trait AudioInputNode<T>: AudioNode<T>
+where
+    T: Sample,
+{
+    // fn new(
+    //     config: AudioOutputConfig,
+    // ) -> Result<Self>
+    // where
+    //     Self: Sized;
+    fn new(config: AudioInputConfig) -> Result<Self>
+    where
+        Self: Sized;
+
+    // fn start(&self) -> Result<()>;
+    fn descriptor(&self) -> proto::grpc::AudioInputDescriptor;
+    fn input_stream_params(&self) -> AudioStreamInfo;
+    fn connect(&self) -> AudioBufferReceiver<T>;
 }
 
 // // pub trait Recorder<T, F>

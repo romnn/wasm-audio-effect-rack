@@ -44,8 +44,8 @@ pub struct Viewer<VU> {
     // connection: Arc<RwLock<mpsc::Sender<Result<VU, Status>>>>,
     // connection: Arc<RwLock<SendOut<VU, tonic::transport::Status>>>,
     connection: Arc<RwLock<mpsc::Sender<Result<VU, Status>>>>,
-    tx: mpsc::Sender<Result<VU, String>>,
-    alive: Arc<RwLock<bool>>,
+    pub tx: mpsc::Sender<Result<VU, String>>,
+    pub alive: Arc<RwLock<bool>>,
 
     pub config: Config,
     pub session_token: proto::grpc::SessionToken,

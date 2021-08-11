@@ -22,7 +22,12 @@ mod filters {
 pub trait Analyzer<T> {
     // no threading here as this should be transparent to the user
     // fn analyze_samples(&mut self, samples: T) -> Result<AnalysisResult>;
+    /// analyzes samples of size [window_size, nchannels]
     fn analyze_samples(&mut self, samples: T) -> Result<AudioAnalysisResult>;
+    /// the buffer window size for the analysis
+    // fn window_size() -> usize;
+    fn window_size(&self) -> usize;
+    fn descriptor(&self) -> proto::grpc::AudioAnalyzerDescriptor;
     // fn analyze_stream(
     //     &self,
     //     input: mpsc::Receiver<Array<T, D>>,

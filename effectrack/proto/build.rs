@@ -8,14 +8,11 @@ fn main() {
     println!("cargo:rerun-if-changed=../../proto/audio/analysis/spectral.proto");
 
     tonic_build::configure()
-        .type_attribute(
-            "proto.grpc.InstanceId",
-            "#[derive(Hash, Eq)]",
-        )
-        .type_attribute(
-            "proto.grpc.SessionToken",
-            "#[derive(Hash, Eq)]",
-        )
+        .type_attribute("proto.grpc.InstanceId", "#[derive(Hash, Eq)]")
+        .type_attribute("proto.grpc.SessionToken", "#[derive(Hash, Eq)]")
+        .type_attribute("proto.grpc.AudioInputDescriptor", "#[derive(Hash, Eq)]")
+        .type_attribute("proto.grpc.AudioOutputDescriptor", "#[derive(Hash, Eq)]")
+        .type_attribute("proto.grpc.AudioAnalyzerDescriptor", "#[derive(Hash, Eq)]")
         // .type_attribute("routeguide.Point", "#[derive(Hash)]")
         .build_server(true)
         .build_client(false)

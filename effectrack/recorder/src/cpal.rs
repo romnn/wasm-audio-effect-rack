@@ -1,7 +1,7 @@
 use crate::{
-    AudioBackend, AudioBackendConfig, AudioInput, AudioInputCallback, AudioInputConfig,
-    AudioOutput, AudioOutputCallback, AudioOutputConfig, AudioStreamDescriptor, AudioStreamKind,
-    Sample,
+    AudioBackend, AudioBackendConfig, AudioBuffer, AudioBufferReceiver, AudioInput,
+    AudioInputCallback, AudioInputConfig, AudioInputNode, AudioOutput, AudioOutputCallback,
+    AudioOutputConfig, AudioStreamInfo, Sample,
 };
 use anyhow::Result;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -15,6 +15,7 @@ use rodio::{source::Source, Decoder, OutputStream};
 use std::fs::File;
 use std::io::{BufReader, Read, Seek};
 use std::marker::PhantomData;
+use std::ops::Deref;
 use std::path::PathBuf;
 use std::thread;
 
@@ -33,6 +34,16 @@ use std::thread;
 //     // pub latency: f32,
 // }
 
+impl From<cpal::SupportedStreamConfig> for AudioStreamInfo {
+    fn from(config: cpal::SupportedStreamConfig) -> AudioStreamInfo {
+        AudioStreamInfo {
+            sample_rate: config.sample_rate().0,
+            // buffer_size: config.buffer_size(),
+            nchannels: config.channels(),
+        }
+    }
+}
+
 #[derive()]
 pub struct CpalAudioInput<T> {
     /// audio backend configuration
@@ -42,9 +53,13 @@ pub struct CpalAudioInput<T> {
     /// audio input device to stream from
     // pub input_device: Option<cpal::Device>,
     pub input_device: cpal::Device,
+    /// input configuration
+    pub input_config: cpal::SupportedStreamConfig,
     /// output device that is used to stream audio files
     // pub output_device: Option<cpal::Device>,
     pub output_device: cpal::Device,
+    /// output configuration
+    pub output_config: cpal::SupportedStreamConfig,
     phantom: PhantomData<T>,
     // latency to buffer in case the input and output devices aren't synced
     // pub latency: f32,
@@ -58,8 +73,14 @@ pub struct CpalAudioOutput<T> {
     pub host: cpal::Host,
     /// audio input device to stream from
     pub input_device: cpal::Device,
+    /// input configuration
+    pub input_config: cpal::SupportedStreamConfig,
+    // /// input stream descriptor
+    // pub input_descriptor: proto::grpc::AudioInputDescriptor,
     /// output device that is used to stream audio files
     pub output_device: cpal::Device,
+    /// output configuration
+    pub output_config: cpal::SupportedStreamConfig,
     // pub input_device: Option<cpal::Device>,
     // pub output_device: Option<cpal::Device>,
     phantom: PhantomData<T>,
@@ -177,21 +198,37 @@ pub trait CpalAudioBackend {
 
 impl<T> CpalAudioOutput<T>
 where
-    T: NumCast + Zero + Send + 'static,
+    // T: NumCast + Zero + Send + 'static,
+    T: Sample,
 {
     // todo: general functions
 }
 
+// impl<T> AudioOutput<T> for CpalAudioOutput<T>
 impl<T> AudioOutput<T> for CpalAudioOutput<T>
+// impl<T> CpalAudioOutput<T>
 where
     // T: NumCast + Clone + Zero + Send + 'static,
-    T: NumCast + Clone + Zero + Send + Sync + 'static,
+    // T: NumCast + Clone + Zero + Send + Sync + 'static,
+    T: Sample,
     // T: NumCast + Clone + Zero + Send + Sync + 'static,
 {
-    fn new(config: AudioOutputConfig) -> Result<Self> {
+    // fn new(input_stream: AudioBufferReceiver<T>, config: AudioOutputConfig) -> Result<Self> {
+    fn new(
+        // input_stream: &dyn std::ops::Deref<Target = AudioInputNode<T>>,
+        // input_stream: &dyn Deref<Target=&dyn AudioInputNode<T>>,
+        // input_stream: &dyn AudioInputNode<T>,
+        config: AudioOutputConfig,
+    ) -> Result<Self> {
+        // fn new(config: AudioOutputConfig) -> Result<Self> {
         let host = Self::get_host(&config.backend_config)?;
         let input_device = Self::get_input_device(&host, &config.input_device)?;
         let output_device = Self::get_output_device(&host, &config.output_device)?;
+        let input_config = input_device.default_input_config()?;
+        let output_config = output_device.default_output_config()?;
+
+        // let input_descriptor = input_stream.descriptor()?;
+
         // let output_device = if let Some(device) = &config.output_device {
         //     host.output_devices()?
         //         .find(|x| x.name().map(|y| y == *device).unwrap_or(false))
@@ -212,17 +249,30 @@ where
             config,
             host,
             input_device,
+            input_config,
+            // input_descriptor,
             output_device,
+            output_config,
             phantom: PhantomData,
         })
     }
 
-    fn descriptor(&self) -> Result<AudioStreamDescriptor> {
-        Ok(AudioStreamDescriptor {
-            kind: AudioStreamKind::OUTPUT,
+    fn descriptor(&self) -> Result<proto::grpc::AudioOutputDescriptor> {
+        Ok(proto::grpc::AudioOutputDescriptor {
+            // kind: proto::grpc::audio_output_descriptor::AudioStreamKind::Output.into(),
+            backend: "cpal".to_string(),
             device: self.output_device.name()?,
             host: self.host.id().name().to_string(),
+            input: None,
         })
+    }
+
+    fn input_stream_params(&self) -> AudioStreamInfo {
+        AudioStreamInfo::from(self.input_config.clone())
+    }
+
+    fn output_stream_params(&self) -> AudioStreamInfo {
+        AudioStreamInfo::from(self.output_config.clone())
     }
 
     // we really only ever want exactly one to run
@@ -237,61 +287,60 @@ where
     ) -> Result<()> {
         // println!("Using input device: \"{}\"", self.input_device.name()?);
         // println!("Using output device: \"{}\"", self.output_device.name()?);
-        let input_config = self.input_device.default_input_config()?.config();
         // let input_config = match input_config {
         //     Some(input_config) => input_config,
         //     None => self.input_device.default_input_config()?.into(),
         // };
-        let output_config = self.output_device.default_output_config()?;
 
         // delay in case the input and output devices aren't synced
-        let latency_frames = (self.config.latency / 1_000.0) * input_config.sample_rate.0 as f32;
-        let latency_samples = latency_frames as usize * input_config.channels as usize;
+        // let latency_frames =
+        //     (self.config.latency / 1_000.0) * self.input_config.sample_rate().0 as f32;
+        // let latency_samples = latency_frames as usize * self.input_config.channels() as usize;
 
-        // ring buffer to keep samples
-        let ring = RingBuffer::<T>::new(latency_samples * 2);
-        let (mut producer, mut consumer) = ring.split();
+        // // ring buffer to keep samples
+        // let ring = RingBuffer::<T>::new(latency_samples * 2);
+        // let (mut producer, mut consumer) = ring.split();
 
-        for _ in 0..latency_samples {
-            let _ = producer.push(T::zero());
-        }
+        // for _ in 0..latency_samples {
+        //     let _ = producer.push(T::zero());
+        // }
 
-        let builder = thread::Builder::new();
-        let audio_receiver_thread = builder
-            .name("audio output stream thread".to_string())
-            .spawn(move || {
-                println!(
-                    "streaming audio to output \"{}\"",
-                    "default" // recorder.input_name().unwrap_or("unknown".to_string())
-                );
-                // call the callback for new data and push to the producer
-                let mut output_fell_behind = false;
-                loop {
-                    if let Ok(ref data) = callback() {
-                        println!("got data");
-                        for sample in data {
-                            if producer.push(sample.clone()).is_err() {
-                                output_fell_behind = true;
-                            }
-                        }
-                    }
-                    // println!("got data: {:?}", data);
-                    // println!("got data: {}", data);
-                }
-                // if let Err(err) = input.stream_from_input(
-                // config.monitor_input.unwrap_or(false),
-                // callback,
-                // Box::new(move |samples: Result<Array2<T>>, sample_rate, nchannels| {
-                // todo: send to all subscribed analyzers
-                // if let Err(err) = rec_tx.send((samples, sample_rate, nchannels)) {
-                //     panic!("{}", err);
-                // }
-                // }),
-                // ) {
-                //     eprintln!("failed to stream input: {}", err);
-                // }
-                println!("input stream is over");
-            })?;
+        // let builder = thread::Builder::new();
+        // let audio_receiver_thread = builder
+        //     .name("audio output stream thread".to_string())
+        //     .spawn(move || {
+        //         println!(
+        //             "streaming audio to output \"{}\"",
+        //             "default" // recorder.input_name().unwrap_or("unknown".to_string())
+        //         );
+        //         // call the callback for new data and push to the producer
+        //         let mut output_fell_behind = false;
+        //         loop {
+        //             if let Ok(ref data) = callback() {
+        //                 println!("got data");
+        //                 for sample in data {
+        //                     if producer.push(sample.clone()).is_err() {
+        //                         output_fell_behind = true;
+        //                     }
+        //                 }
+        //             }
+        //             // println!("got data: {:?}", data);
+        //             // println!("got data: {}", data);
+        //         }
+        //         // if let Err(err) = input.stream_from_input(
+        //         // config.monitor_input.unwrap_or(false),
+        //         // callback,
+        //         // Box::new(move |samples: Result<Array2<T>>, sample_rate, nchannels| {
+        //         // todo: send to all subscribed analyzers
+        //         // if let Err(err) = rec_tx.send((samples, sample_rate, nchannels)) {
+        //         //     panic!("{}", err);
+        //         // }
+        //         // }),
+        //         // ) {
+        //         //     eprintln!("failed to stream input: {}", err);
+        //         // }
+        //         println!("input stream is over");
+        //     })?;
         // self.threads.push(audio_receiver_thread);
         // let input_callback = Box::new(move |data: Result<Array2<T>>, sample_rate, nchannels| {
         //     let mut output_fell_behind = false;
@@ -312,8 +361,12 @@ where
         let output_callback = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
             let mut input_fell_behind = false;
             for sample in data {
-                *sample = match consumer.pop() {
-                    Some(s) => NumCast::from(s).unwrap(),
+                // *sample = match callback() { // consumer.pop() {
+                *sample = match callback() { // consumer.pop() {
+                    Some(s) => {
+                        // println!("success!: {:?}", s);
+                        NumCast::from(s).unwrap()
+                    }
                     None => {
                         input_fell_behind = true;
                         0.0
@@ -350,7 +403,7 @@ where
         // }?;
 
         let output_stream = self.output_device.build_output_stream(
-            &input_config.into(),
+            &self.input_config.clone().into(),
             output_callback,
             |err| eprintln!("an error occurred on output stream: {}", err),
         )?;
@@ -374,7 +427,8 @@ where
 impl<T> CpalAudioInput<T>
 where
     // T: NumCast + Clone + Zero + Send + 'static,
-    T: NumCast + Zero + Send + 'static,
+    // T: NumCast + Zero + Send + 'static,
+    T: Sample,
 {
     // fn build_input_stream<S, T, F>(
     // fn build_input_stream<S, T>(
@@ -400,7 +454,7 @@ where
                 let num_samples = data.len();
                 let (r, c) = (num_samples / (nchannels as usize), nchannels as usize);
                 let samples = Array::from_iter(data.iter())
-                    .mapv(|v| T::from(*v).unwrap())
+                    .mapv(|v| NumCast::from(*v).unwrap())
                     .into_shape([r, c])
                     .map_err(|e| e.into());
 
@@ -414,7 +468,8 @@ where
 
 impl<T> AudioInput<T> for CpalAudioInput<T>
 where
-    T: NumCast + Clone + Zero + Send + Sync + 'static,
+    // T: NumCast + Clone + Zero + Send + Sync + 'static,
+    T: Sample,
 {
     fn new(config: AudioInputConfig) -> Result<Self> {
         // cfg_if::cfg_if! {
@@ -433,7 +488,9 @@ where
         // }
         let host = Self::get_host(&config.backend_config)?;
         let input_device = Self::get_input_device(&host, &config.input_device)?;
+        let input_config = input_device.default_input_config()?;
         let output_device = Self::get_output_device(&host, &config.output_device)?;
+        let output_config = output_device.default_output_config()?;
         // {
         // let input_device = if let Some(device) = &config.input_device {
         //     host.input_devices()?
@@ -471,21 +528,28 @@ where
             config,
             host,
             input_device,
+            input_config,
             output_device,
+            output_config,
             phantom: PhantomData,
         })
     }
 
-    fn descriptor(&self) -> Result<AudioStreamDescriptor> {
-        Ok(AudioStreamDescriptor {
-            kind: AudioStreamKind::INPUT,
+    fn descriptor(&self) -> Result<proto::grpc::AudioInputDescriptor> {
+        Ok(proto::grpc::AudioInputDescriptor {
+            // kind: proto::grpc::audio_stream_descriptor::AudioStreamKind::Input.into(),
+            backend: "cpal".to_string(),
             device: self.input_device.name()?,
             host: self.host.id().name().to_string(),
         })
     }
 
+    fn input_stream_params(&self) -> AudioStreamInfo {
+        AudioStreamInfo::from(self.input_config.clone())
+    }
+
     fn stream_from_input(
-        &mut self,
+        &self,
         // playback: bool,
         mut callback: AudioInputCallback<T>,
         // callback: &'static (dyn Fn(Result<Array2<T>>, u32, u16) -> () + Sync + Send),
@@ -494,10 +558,8 @@ where
         // Self: Sized, //     F: Fn(Result<Array2<T>>, u32, u16) -> () + Send + 'static,
                      //     T: NumCast + Zero + Send + Clone + 'static
     {
-        println!("Using input device: \"{}\"", self.input_device.name()?);
+        // println!("Using input device: \"{}\"", self.input_device.name()?);
         // println!("Using output device: \"{}\"", self.output_device.name()?);
-
-        let input_config = self.input_device.default_input_config()?;
 
         // delay in case the input and output devices aren't synced
         // let latency_frames = (self.config.latency / 1_000.0) * input_config.sample_rate().0 as f32;
@@ -543,25 +605,25 @@ where
         //     }
         // };
 
-        let (input_stream, sample_rate, nchannels) = match input_config.sample_format() {
+        let (input_stream, sample_rate, nchannels) = match self.input_config.sample_format() {
             // cpal::SampleFormat::F32 => Self::build_input_stream::<f32, T>(
             cpal::SampleFormat::F32 => Self::build_input_stream::<f32>(
                 &self.input_device,
-                &input_config.clone().into(),
+                &self.input_config.clone().into(),
                 // input_callback,
                 callback,
             ),
             // cpal::SampleFormat::I16 => Self::build_input_stream::<i16, T>(
             cpal::SampleFormat::I16 => Self::build_input_stream::<i16>(
                 &self.input_device,
-                &input_config.clone().into(),
+                &self.input_config.clone().into(),
                 // input_callback,
                 callback,
             ),
             // cpal::SampleFormat::U16 => Self::build_input_stream::<u16, T>(
             cpal::SampleFormat::U16 => Self::build_input_stream::<u16>(
                 &self.input_device,
-                &input_config.clone().into(),
+                &self.input_config.clone().into(),
                 // input_callback,
                 callback,
             ),
@@ -586,6 +648,7 @@ where
         std::thread::sleep(std::time::Duration::from_secs(60 * 60));
         drop(input_stream);
         // drop(output_stream);
+        // Ok((input_stream))
         Ok(())
     }
 }

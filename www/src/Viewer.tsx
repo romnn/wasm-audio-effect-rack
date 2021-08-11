@@ -106,15 +106,39 @@ export default class Viewer extends React.Component<
   };
 
   setup = async (): Promise<void> => {
-    console.log("connecting...");
     try {
+      console.log("connecting...");
       await this.remote.connect();
+      console.log("adding an audio input stream...");
+      const inputStream = await this.controller.addAudioInputStream();
+      console.log("connecting the audio input stream to an output stream...");
+      const inputDescriptor = inputStream.getDescriptor();
+      if (inputDescriptor) {
+        const outputStream = await this.controller.addAudioOutputStream(
+          inputDescriptor
+        );
+      }
+      console.log("connecting an analyzer to the audio input stream");
+      if (inputDescriptor) {
+        const audioAnalyzer = await this.controller.addAudioAnalyzer(
+          inputDescriptor
+        );
+        console.log("subscribe this viewer instance to the analyzer");
+        const audioAnalyzerDescriptor = audioAnalyzer.getDescriptor();
+        const instance = this.state.instance;
+        if (audioAnalyzerDescriptor && instance) {
+          const subscriptions = await this.controller.subscribeToAudioAnalyzer(
+             audioAnalyzerDescriptor, instance
+          );
+        }
+
+      }
+      
     } catch (err) {
-      console.log("viewer failed to connect:", err);
+      // console.log("viewer failed to connect:", err);
+      console.log(err);
       return;
     }
-    console.log("adding an audio input stream...");
-    const inputStream = await this.controller.addAudioInputStream();
   };
 
   componentDidMount = () => {

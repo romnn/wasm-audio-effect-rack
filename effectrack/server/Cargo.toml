@@ -14,6 +14,7 @@ nanoid = "0.4.0"
 uuid = { version = "0.4", features = ["serde", "v4"] }
 # libp2p = { version = "0.39", features = ["tcp-tokio", "mdns-tokio"] }
 libp2p = { version = "0.39", optional = true, features = ["tcp-tokio"] }
+ringbuf = "0.2"
 tonic = "0.5"
 tonic-web = "0.1"
 prost = "0.8"
@@ -32,6 +33,7 @@ anyhow = "1.0.42"
 cfg-if = "0.1"
 ndarray = { version = "0.15.0" , features = ["approx", "rayon"]}
 num = "0.4.0"
+async-trait = "0.1.51"
 recorder = { path = "../recorder" }
 analysis = { path = "../analysis" }
 proto = { path = "../proto" }

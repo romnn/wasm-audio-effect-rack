@@ -80,7 +80,8 @@ export default class TTFVisualization extends
   protected fontLoader = new THREE.FontLoader();
   protected text!: THREE.Group;
   protected characters!: TTFCharGeometry[];
-  protected background!: THREE.Mesh<THREE.PlaneGeometry>;
+  protected background!:
+      THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
 
   // protected currentCharWidthFracs: number[] = [];
   // protected targetCharWidthFracs: number[] = [];
@@ -94,11 +95,24 @@ export default class TTFVisualization extends
       return;
     // console.log("rendering frame");
     this.camera.lookAt(this.scene.position);
+    // this.orbiter.autoRotate = true;
+    // this.orbiter.autoRotateSpeed = 2;
+
+    // if (this.orbiter.getAzimuthalAngle() >= Math.PI / 5 ||
+    //     this.orbiter.getAzimuthalAngle() <= -Math.PI / 5) {
+    //   this.orbiter.autoRotateSpeed *= -1;
+    // }
+    // console.log(this.orbiter.getAzimuthalAngle());
+    this.orbiter.update();
+
     // if (!this.characters || !this.text)
     //   return;
 
     const baseCharWidths = this.characters.map((ch) => ch.width);
     const targetWidth = sum(baseCharWidths);
+
+    this.background.material.color.set(this.parameters.backgroundColor);
+    // let color = this.background.material.color;
     // const gen = seedrandom("42");
     // const gen = seedrandom((100 * Math.random()).toString());
     // gen = seedrandom(Math.floor(frame/ (0.5 * 60)).toString());
@@ -168,7 +182,7 @@ export default class TTFVisualization extends
       //     JSON.stringify(this.parameters.chars[0].colors))
       //   debugger;
       if (this.parameters.chars[chIdx].colors.length !==
-          3 * this.config.resolution)
+          4 * this.config.resolution)
         debugger;
       if (ch.positions.length / this.config.resolution !==
           3 * ch.pointsPerSegment)
@@ -232,19 +246,19 @@ export default class TTFVisualization extends
         ch.transformed[pointIdx + 0] = x;
         ch.transformed[pointIdx + 1] = y;
         ch.transformed[pointIdx + 2] = z;
-        let [r, g, b] = this.parameters.chars[chIdx].colors.slice(
-            3 * fsegment, 3 * (fsegment + 1));
-        colors.push(r, g, b);
+        let [r, g, b, a] = this.parameters.chars[chIdx].colors.slice(
+            4 * fsegment, 4 * (fsegment + 1));
+        colors.push(r, g, b, a);
       }
       width += this.parameters.spacing + currentCharWidths[chIdx] * correction;
 
       console.assert(ch.transformed.length === ch.positions.length);
-      console.assert(colors.length === ch.transformed.length);
+      // console.assert(colors.length === ch.transformed.length);
       ch.mesh.geometry.setAttribute(
           "position", new THREE.Float32BufferAttribute(ch.transformed, 3));
 
       ch.mesh.geometry.setAttribute(
-          "color", new THREE.Float32BufferAttribute(colors, 3));
+          "color", new THREE.Float32BufferAttribute(colors, 4));
     });
     this.background.position.z = -(depth + 10);
     this.text.position.x = -width / 2;
@@ -401,7 +415,8 @@ export default class TTFVisualization extends
         // colors.push(color.r, color.g, color.b);
         // colors.push(color.r, color.g, color.b);
       }
-      console.assert(vertices3d.length === (extrudeIdx + 1) * (numPoints2d * 3));
+      console.assert(vertices3d.length ===
+                     (extrudeIdx + 1) * (numPoints2d * 3));
 
       if (extrudeIdx > 0) {
         console.assert(numPoints2d % 3 === 0);
@@ -445,11 +460,12 @@ export default class TTFVisualization extends
     geometry.normalizeNormals();
 
     let textMaterial = new THREE.MeshBasicMaterial({
-      // color : new THREE.Color(0xffffff),
+      color : new THREE.Color(0xffffff),
       side : THREE.DoubleSide,
       depthTest : true,
       wireframe : false,
       vertexColors : true,
+      transparent : true,
     });
 
     const text = new THREE.Mesh(geometry, textMaterial);

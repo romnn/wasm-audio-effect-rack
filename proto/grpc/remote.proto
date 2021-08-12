@@ -22,6 +22,9 @@ service RemoteController {
   rpc SubscribeToAudioAnalyzer(SubscribeToAudioAnalyzerRequest)
       returns (InstanceSubscriptions) {}
 
+  rpc ConnectLightsToAudioAnalyzer(ConnectLightsToAudioAnalyzerRequest)
+      returns (InstanceSubscriptions) {}
+
   /* rpc RemoveAudioInputStream(RemoveAudioInputStreamRequest) returns
    * (AudioInputStream) {} */
   /* rpc AddAudioAnalyzer(AddAudioAnalyzerRequest) returns (AudioAnalyzer) {}
@@ -100,6 +103,21 @@ message SubscribeToAudioAnalyzerRequest {
   AudioAnalyzerDescriptor audio_analyzer_descriptor = 10;
 }
 
+message LightStrip {
+  uint32 num_lights = 1;
+  uint32 pin = 2;
+}
+
+message Lights {
+  string serial_port = 1;
+  repeated LightStrip strips = 10;
+}
+
+message ConnectLightsToAudioAnalyzerRequest {
+  Lights lights = 1;
+  AudioAnalyzerDescriptor audio_analyzer_descriptor = 10;
+}
+
 message InstanceSubscriptions {}
 
 message AddAudioInputStreamRequest {
@@ -108,7 +126,8 @@ message AddAudioInputStreamRequest {
 
 message AddAudioAnalyzerRequest {
   // todo: all the audio analyzer options
-  AudioInputDescriptor input_descriptor = 1;
+  proto.audio.analysis.AudioAnalyzer analyzer = 1;
+  AudioInputDescriptor input_descriptor = 10;
 }
 
 message AddAudioOutputStreamRequest {

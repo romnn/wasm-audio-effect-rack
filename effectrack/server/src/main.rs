@@ -6,6 +6,7 @@ mod cli;
 mod controller;
 mod session;
 mod viewer;
+pub extern crate hardware;
 pub extern crate common;
 pub extern crate proto;
 

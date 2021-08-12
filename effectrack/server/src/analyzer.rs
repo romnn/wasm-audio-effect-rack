@@ -213,8 +213,8 @@ where
                         // println!("size of buffer: {:?}", buffer.shape());
                         // todo: maybe measure the processing time here and try to keep the real time
                         let buffer_size = buffer.len_of(Axis(0));
-                        if buffer_size > NumCast::from(sample_rate * 1).unwrap() {
-                            panic!("more than one second in the buffer");
+                        if buffer_size > NumCast::from(window_size * 10).unwrap() {
+                            panic!("more than 10 windows in the buffer");
                         }
 
                         let ready_buffers = buffer_size / window_size;

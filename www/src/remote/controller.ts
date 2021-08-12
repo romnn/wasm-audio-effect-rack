@@ -1,5 +1,7 @@
 // import {ClientReadableStream, Error, Metadata, Status} from "grpc-web";
-
+import {
+  AudioAnalyzer,
+} from "../generated/proto/audio/analysis/analysis_pb";
 import {
   AddAudioAnalyzerRequest,
   AddAudioInputStreamRequest,
@@ -7,8 +9,11 @@ import {
   AudioAnalyzerDescriptor,
   AudioInputDescriptor,
   AudioInputStream,
-  SubscribeToAudioAnalyzerRequest,
+  ConnectLightsToAudioAnalyzerRequest,
   InstanceId,
+  Lights,
+  LightStrip,
+  SubscribeToAudioAnalyzerRequest,
 } from "../generated/proto/grpc/remote_pb";
 import {
   RemoteControllerClient,
@@ -59,9 +64,10 @@ export default class RemoteController extends
       }
 
   public addAudioAnalyzer =
-      (descriptor: AudioInputDescriptor) => {
+      (analyzer: AudioAnalyzer, descriptor: AudioInputDescriptor) => {
         const req = new AddAudioAnalyzerRequest();
         req.setInputDescriptor(descriptor);
+        req.setAnalyzer(analyzer);
         return this.client.addAudioAnalyzer(req, null);
         // .then((stream) => {
         //   console.log("added new audio input stream", stream);
@@ -81,5 +87,22 @@ export default class RemoteController extends
         //   console.log("added new audio input stream", stream);
         // })
         // .catch((err) => { console.log("failed to start analysis", err); });
+      }
+
+  public connectLightsToAudioAnalyzer =
+      (descriptor: AudioAnalyzerDescriptor, serialPort: string,
+       config: {numLights: number, pin: number}[]) => {
+        const req = new ConnectLightsToAudioAnalyzerRequest();
+        const lights = new Lights();
+        lights.setSerialPort(serialPort);
+        lights.setStripsList(config.map((c) => {
+          const strip = new LightStrip();
+          strip.setNumLights(c.numLights);
+          strip.setPin(c.pin);
+          return strip
+        }));
+        req.setAudioAnalyzerDescriptor(descriptor);
+        req.setLights(lights);
+        return this.client.connectLightsToAudioAnalyzer(req, null);
       }
 }

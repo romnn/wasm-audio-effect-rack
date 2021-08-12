@@ -42,6 +42,8 @@ export class TTFParams implements Parameters {
   // updateIntervalFrames = 30;
   fixedWidth = true;
   spacing = 10;
+  backgroundColor = new THREE.Color("black");
+  // strobeSpeed = true;
   // weightCenters = 2;
   // amplification = 1;
   // weightCenterAmps = [ 20, 50 ];
@@ -51,7 +53,7 @@ export class TTFParams implements Parameters {
       new Array(defaultConfig.text.length).fill(0).map(() => {
         return {
           widthFrac: 1, depth: 500,
-              colors: new Array(3 * defaultConfig.resolution).fill(1.0),
+              colors: new Array(4 * defaultConfig.resolution).fill(1.0),
               // cannot really set that because we allow full customization over
               // the colors so it would be the users job to animate the colors
               // in a different speed colorLongitudinalVelocityFactor: 1.0,
@@ -83,9 +85,11 @@ export class TTFParameterizer extends BaseParameterizer<
     Parameterizer<TTFStartConfig, AudioAnalysisResult, TTFTemp, TTFParams> {
 
   protected minVolumeThreshold = 1e-2;
+  protected strobeIntervalFrames = 2;
   protected prideColors!: THREE.Color[];
   protected effects: {
     pride?: {start: number},
+    strobe?: {start: number},
   } = {};
   // {
   // r: number[],
@@ -122,6 +126,21 @@ export class TTFParameterizer extends BaseParameterizer<
 
         const outParams = new TTFParams();
         const outTemp = new TTFTemp();
+
+        // strobe light effect
+        let strobe = false;
+        if (strobe) {
+          if (this.effects.strobe) {
+            outParams.backgroundColor = new THREE.Color(
+                (frame % this.strobeIntervalFrames === 0) ? "black" : "white");
+          } else {
+            this.effects.strobe = {
+              start : frame,
+            }
+          }
+        } else {
+          outParams.backgroundColor = new THREE.Color("black");
+        }
 
         if (!input)
           return [ inParams, inTemp ];
@@ -163,7 +182,7 @@ export class TTFParameterizer extends BaseParameterizer<
                                      .map((prob) => prob * config.text.length);
           // console.log("computed", targetCharWidthFracs);
 
-          let [r, g, b] = [ 0, 0, 0 ];
+          let [r, g, b, a] = [ 0, 0, 0, 1.0];
           if (this.effects.pride) {
             const color = this.prideColors[this.effects.pride.start %
                                            this.prideColors.length];
@@ -194,15 +213,15 @@ export class TTFParameterizer extends BaseParameterizer<
 
           Array.from(config.text).forEach((_, chIdx) => {
             const previous = inTemp.params.chars[chIdx].colors.slice(
-                0, (config.resolution - 1) * 3);
-            console.assert(previous.length ==
-                           inTemp.params.chars[chIdx].colors.length - 3);
+                0, (config.resolution - 1) * 4);
+            // console.assert(previous.length ==
+            //                inTemp.params.chars[chIdx].colors.length - 4);
 
             outParams.chars[chIdx].colors =
                 gaussianFilter1d(outParams.chars[chIdx].colors, 0.3);
-            outParams.chars[chIdx].colors.splice(3, config.resolution * 3,
+            outParams.chars[chIdx].colors.splice(4, config.resolution * 4,
                                                  ...previous);
-            outParams.chars[chIdx].colors.splice(0, 3, r, g, b);
+            outParams.chars[chIdx].colors.splice(0, 4, r, g, b, a);
 
             // set the char width frac
             // console.log(bins[chIdx]);
@@ -228,10 +247,13 @@ export class TTFParameterizer extends BaseParameterizer<
           for (let segment = 0; segment < config.resolution; segment++) {
             const fadeout =
                 easeFunc ? 1 - easeFunc(segment / config.resolution) : 1;
-            outParams.chars[chIdx].colors[3 * segment + 0] *= fadeout;
-            outParams.chars[chIdx].colors[3 * segment + 1] *= fadeout;
-            outParams.chars[chIdx].colors[3 * segment + 2] *= fadeout;
+            // console.log(segment, fadeout);
+            outParams.chars[chIdx].colors[4 * segment + 3] = fadeout;
+            // outParams.chars[chIdx].colors[3 * segment + 0] *= fadeout;
+            // outParams.chars[chIdx].colors[3 * segment + 1] *= fadeout;
+            // outParams.chars[chIdx].colors[3 * segment + 2] *= fadeout;
           }
+          // debugger;
         });
 
         return [ outParams, outTemp ];

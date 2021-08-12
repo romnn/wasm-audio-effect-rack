@@ -36,6 +36,7 @@ num = "0.4.0"
 async-trait = "0.1.51"
 recorder = { path = "../recorder" }
 analysis = { path = "../analysis" }
+hardware = { path = "../hardware" }
 proto = { path = "../proto" }
 common = { path = "../common" }
 

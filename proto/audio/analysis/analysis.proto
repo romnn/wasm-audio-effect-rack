@@ -2,11 +2,20 @@ syntax = "proto3";
 package proto.audio.analysis;
 
 import "proto/audio/analysis/spectral.proto";
+import "proto/audio/analysis/bpm.proto";
 
 message AudioAnalysisResult {
   uint64 seq_num = 1;
   uint32 window_size = 2;
   oneof result {
     proto.audio.analysis.SpectralAudioAnalysisResult spectral = 100;
+    proto.audio.analysis.BpmDetectionAudioAnalysisResult bpm = 101;
+  }
+}
+
+message AudioAnalyzer {
+  oneof analyzer {
+    proto.audio.analysis.SpectralAudioAnalyzer spectral = 1;
+    proto.audio.analysis.BpmDetectionAudioAnalyzer bpm = 2;
   }
 }

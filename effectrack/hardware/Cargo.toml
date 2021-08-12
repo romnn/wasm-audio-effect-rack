@@ -1,0 +1,24 @@
+[package]
+name = "hardware"
+version = "0.1.0"
+authors = ["romnn <contact@romnn.com>"]
+edition = "2018"
+
+[dependencies]
+ringbuf = "0.2"
+tokio = { version = "1.0", features = ["signal", "rt-multi-thread", "macros", "sync", "time", "fs", "rt", "io-util", "io-std"] }
+tokio-stream = "0.1"
+async-stream = "0.2"
+anyhow = "1.0.42"
+cfg-if = "0.1"
+ndarray = { version = "0.15.0" , features = ["approx", "rayon"]}
+num = "0.4.0"
+async-trait = "0.1.51"
+serial = "0.4.0"
+proto = { path = "../proto" }
+common = { path = "../common" }
+
+[features]
+
+[build-dependencies]
+build = { path = "../build" }

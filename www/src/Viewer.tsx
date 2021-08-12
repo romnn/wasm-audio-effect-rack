@@ -1,5 +1,10 @@
 import React from "react";
-import { AudioAnalysisResult } from "./generated/proto/audio/analysis/analysis_pb";
+import {
+  AudioAnalyzer,
+  AudioAnalysisResult,
+} from "./generated/proto/audio/analysis/analysis_pb";
+import { SpectralAudioAnalyzer } from "./generated/proto/audio/analysis/spectral_pb";
+import { BpmDetectionAudioAnalyzer } from "./generated/proto/audio/analysis/bpm_pb";
 
 import { RouteComponentProps } from "react-router-dom";
 import { Error, Metadata, Status } from "grpc-web";
@@ -118,22 +123,51 @@ export default class Viewer extends React.Component<
           inputDescriptor
         );
       }
-      console.log("connecting an analyzer to the audio input stream");
+      console.log("connecting the spectral analyzer to the audio input stream");
       if (inputDescriptor) {
-        const audioAnalyzer = await this.controller.addAudioAnalyzer(
-          inputDescriptor
-        );
+        const audioAnalyzer = new AudioAnalyzer();
+        const spectralAnalyzer = new SpectralAudioAnalyzer();
+        audioAnalyzer.setSpectral(spectralAnalyzer);
+
+        const audioAnalyzerDescriptor = (
+          await this.controller.addAudioAnalyzer(audioAnalyzer, inputDescriptor)
+        ).getDescriptor();
         console.log("subscribe this viewer instance to the analyzer");
-        const audioAnalyzerDescriptor = audioAnalyzer.getDescriptor();
+        const instance = this.state.instance;
+        if (audioAnalyzerDescriptor && instance) {
+          await this.controller.subscribeToAudioAnalyzer(
+            audioAnalyzerDescriptor,
+            instance
+          );
+        }
+        console.log("connect lights to the analyzer");
+        if (audioAnalyzerDescriptor) {
+          await this.controller.connectLightsToAudioAnalyzer(
+            audioAnalyzerDescriptor,
+            "/dev/ttyACM0",
+            [{ numLights: 300, pin: 1 }]
+            // [{numLights: 300, pin: 1 }, {numLights: 300, pin: 1 }],
+          );
+        }
+      }
+      console.log("connecting the bpm analyzer to the audio input stream");
+      if (false || inputDescriptor) {
+        const audioAnalyzer = new AudioAnalyzer();
+        const bpmAnalyzer = new BpmDetectionAudioAnalyzer();
+        audioAnalyzer.setBpm(bpmAnalyzer);
+        // const bpmAnalyzer = new AudioAnalyzer();
+        const audioAnalyzerDescriptor = (
+          await this.controller.addAudioAnalyzer(audioAnalyzer, inputDescriptor)
+        ).getDescriptor();
+        console.log("subscribe this viewer instance to the analyzer");
         const instance = this.state.instance;
         if (audioAnalyzerDescriptor && instance) {
           const subscriptions = await this.controller.subscribeToAudioAnalyzer(
-             audioAnalyzerDescriptor, instance
+            audioAnalyzerDescriptor,
+            instance
           );
         }
-
       }
-      
     } catch (err) {
       // console.log("viewer failed to connect:", err);
       console.log(err);

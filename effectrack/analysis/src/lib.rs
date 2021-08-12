@@ -5,6 +5,7 @@ use std::sync::mpsc::*;
 pub mod fft;
 pub mod mel;
 pub mod spectral;
+pub mod bpm;
 pub mod windows;
 
 mod filters {

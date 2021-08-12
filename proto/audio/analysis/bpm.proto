@@ -1,0 +1,8 @@
+syntax = "proto3";
+package proto.audio.analysis;
+
+message BpmDetectionAudioAnalyzerConfig {}
+
+message BpmDetectionAudioAnalyzer { BpmDetectionAudioAnalyzerConfig config = 1; }
+
+message BpmDetectionAudioAnalysisResult { float bpm = 1; }

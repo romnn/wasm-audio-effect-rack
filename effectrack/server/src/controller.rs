@@ -1,6 +1,7 @@
 use crate::analyzer::{AudioAnalyzerNode, AudioAnalyzerNodeTrait, AudioInputNode, AudioOutputNode};
 use crate::cli::Config;
 use crate::{ControllerUpdateMsg, EffectRack, MyCustomError, ViewerUpdateMsg};
+use analysis::bpm::{BpmDetectionAnalyzer, BpmDetectionAnalyzerConfig};
 #[cfg(feature = "analyze")]
 use analysis::spectral::{SpectralAnalyzer, SpectralAnalyzerOptions};
 use analysis::{mel::Hz, mel::Mel, Analyzer};
@@ -8,6 +9,7 @@ use anyhow::Result;
 use clap::Clap;
 use common::errors::FeatureDisabledError;
 use futures::{Future, Stream};
+use hardware::led;
 use ndarray::prelude::*;
 use ndarray::{
     concatenate, indices, Array, IntoDimension, Ix, NdIndex, RemoveAxis, ScalarOperand, Slice, Zip,
@@ -176,9 +178,7 @@ impl proto::grpc::remote_controller_server::RemoteController
         // ));
 
         if input_streams.contains_key(&descriptor) {
-            return Err(Status::internal(
-                "failed to create audio input stream descriptor",
-            ));
+            return Err(Status::ok("the specified input stream already exists"));
         } else {
             input_streams.insert(descriptor.clone(), RwLock::new(audio_input))
         };
@@ -286,6 +286,10 @@ impl proto::grpc::remote_controller_server::RemoteController
         let request = request.into_inner();
         println!("new analyzer: {} {}", session_token, instance_id);
 
+        let requested_analyzer = request.analyzer.map(|a| a.analyzer);
+        let requested_analyzer =
+            requested_analyzer.ok_or(Status::invalid_argument("missing audio analyzer"))?;
+
         let input_stream_desc = request.input_descriptor;
         let input_stream_desc =
             input_stream_desc.ok_or(Status::invalid_argument("missing input stream descriptor"))?;
@@ -311,21 +315,43 @@ impl proto::grpc::remote_controller_server::RemoteController
         let input_node: &(dyn recorder::AudioInputNode<_> + Sync) = input_stream.deref();
 
         // create the analyzer
-        let analyzer_opts = SpectralAnalyzerOptions {
-            // window_size: buffer_window_size,
-            mel_bands: 24,
-            // nchannels: nchannels,
-            // sample_rate: sample_rate,
-            fps: 60,
-            ..SpectralAnalyzerOptions::default()
-        };
-        // let analyzer: &(dyn analysis::Analyzer<_> + Send + Sync) =
-        let analyzer = Box::new(
-            SpectralAnalyzer::<crate::Sample>::new(analyzer_opts)
-                .map_err(|_| Status::internal("failed to create analyzer"))?,
-        );
-        let audio_analyzer_node = AudioAnalyzerNode::<crate::Sample>::new(input_node, analyzer)
-            .map_err(|_| Status::internal("failed to create analyzer"))?;
+        let audio_analyzer_node = match requested_analyzer {
+            Some(proto::audio::analysis::audio_analyzer::Analyzer::Spectral(a)) => {
+                let analyzer_opts = SpectralAnalyzerOptions {
+                    // window_size: buffer_window_size,
+                    mel_bands: 24,
+                    // nchannels: nchannels,
+                    // sample_rate: sample_rate,
+                    fps: 60,
+                    ..SpectralAnalyzerOptions::default()
+                };
+                // let analyzer: &(dyn analysis::Analyzer<_> + Send + Sync) =
+                let analyzer = Box::new(
+                    SpectralAnalyzer::<crate::Sample>::new(analyzer_opts)
+                        .map_err(|_| Status::internal("failed to create spectral analyzer"))?,
+                );
+                AudioAnalyzerNode::<crate::Sample>::new(input_node, analyzer)
+                    .map_err(|_| Status::internal("failed to create analyzer"))
+            }
+            Some(proto::audio::analysis::audio_analyzer::Analyzer::Bpm(a)) => {
+                let analyzer_opts = BpmDetectionAnalyzerConfig {
+                    // window_size: buffer_window_size,
+                    // mel_bands: 24,
+                    // nchannels: nchannels,
+                    // sample_rate: sample_rate,
+                    // fps: 60,
+                    ..BpmDetectionAnalyzerConfig::default()
+                };
+                let analyzer = Box::new(
+                    BpmDetectionAnalyzer::new(analyzer_opts)
+                        .map_err(|_| Status::internal("failed to create bpm analyzer"))?,
+                );
+                AudioAnalyzerNode::<crate::Sample>::new(input_node, analyzer)
+                    .map_err(|_| Status::internal("failed to create analyzer"))
+            }
+            None => Err(Status::invalid_argument("missing analyzer")),
+        }?;
+
         let descriptor = audio_analyzer_node.descriptor();
 
         // check if the analyzer already exists
@@ -344,6 +370,122 @@ impl proto::grpc::remote_controller_server::RemoteController
         Ok(Response::new(proto::grpc::AudioAnalyzer {
             descriptor: Some(descriptor),
         }))
+    }
+
+    async fn connect_lights_to_audio_analyzer(
+        &self,
+        request: Request<proto::grpc::ConnectLightsToAudioAnalyzerRequest>,
+    ) -> Result<Response<proto::grpc::InstanceSubscriptions>, Status> {
+        let (session_token, controller_instance_id) =
+            Self::extract_session_instance(&request).await?;
+        let request = request.into_inner();
+        let lights = request
+            .lights
+            .ok_or(Status::invalid_argument("missing lights"))?;
+        if lights.serial_port.len() < 1 {
+            return Err(Status::invalid_argument(
+                "missing light serial connection port",
+            ));
+        }
+        if lights.strips.len() < 1 {
+            return Err(Status::invalid_argument("no light strips"));
+        }
+        let min_led_count = lights
+            .strips
+            .iter()
+            .fold(0, |acc, strip| acc.min(strip.num_lights));
+
+        let analyzer_desc = request.audio_analyzer_descriptor;
+        let analyzer_desc = analyzer_desc.ok_or(Status::invalid_argument(
+            "missing audio analyzer descriptor",
+        ))?;
+
+        println!(
+            "connect leds to analyzer: {} {}",
+            session_token, analyzer_desc
+        );
+        let sessions = self.sessions.read().await;
+        let session = sessions
+            .get(&session_token)
+            .ok_or(Status::not_found(format!(
+                "session {} does not exist",
+                session_token
+            )))?;
+
+        let analyzers = session.analyzers.read().await;
+        let analyzer = analyzers
+            .get(&analyzer_desc)
+            .ok_or(Status::not_found(format!(
+                "no audio analyzer {} found",
+                analyzer_desc
+            )))?
+            .read()
+            .await;
+        if lights.serial_port.len() < 1 {
+            return Err(Status::invalid_argument(
+                "missing light serial connection port",
+            ));
+        }
+        if lights.strips.len() < 1 {
+            return Err(Status::invalid_argument("no light strips"));
+        }
+        let min_light_count = lights
+            .strips
+            .iter()
+            .fold(u32::MAX, |acc, strip| acc.min(strip.num_lights));
+
+        println!("light serial port: {}", lights.serial_port);
+        println!("num light strips: {}", lights.strips.len());
+        println!("min light count: {}", min_light_count);
+
+        thread::spawn(move || {
+            let mut controller = match led::LEDSerialController::new(lights, led::arduino_settings)
+            {
+                Ok(controller) => controller,
+                Err(err) => {
+                    println!("error: {}", err);
+                    return;
+                }
+            };
+            if let Err(err) = controller.connect() {
+                println!("connect failed: {}", err);
+            };
+            thread::sleep(Duration::from_secs(60 * 10));
+        });
+        // let ring = RingBuffer::<T>::new(10);
+        // let (mut producer, mut consumer) = ring.split();
+
+        // for _ in 0..latency_samples {
+        //     let _ = producer.push(T::zero());
+        // }
+
+        let mut rx = analyzer.connect();
+        tokio::task::spawn(async move {
+            let mut seq_num = 0;
+            loop {
+                match rx.recv().await {
+                    Ok(Ok(mut result)) => {
+                        result.seq_num = seq_num;
+                        // todo: send via serial here after doing some color magic
+                        // let update = proto::grpc::ViewerUpdate {
+                        //     update: Some(proto::grpc::viewer_update::Update::AudioAnalysisResult(
+                        //         result,
+                        //     )),
+                        // };
+                        // match viewer_tx.send(Ok(update)).await {
+                        //     Ok(()) => {
+                        //         seq_num = seq_num + 1;
+                        //     }
+                        //     Err(err) => {}
+                        // }
+                    }
+                    Ok(Err(err)) => {}
+                    Err(err) => {}
+                }
+            }
+        });
+
+        Ok(Response::new(proto::grpc::InstanceSubscriptions {}))
     }
 
     async fn subscribe_to_audio_analyzer(

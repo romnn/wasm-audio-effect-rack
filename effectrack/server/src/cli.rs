@@ -25,6 +25,15 @@ pub struct StartOpts {
     #[cfg(feature = "record")]
     #[clap(long = "no-sound")]
     pub no_sound: bool,
+    #[cfg(feature = "led")]
+    #[clap(long = "led-serial-device")]
+    pub led_serial_device: Option<String>,
+    #[cfg(feature = "led")]
+    #[clap(long = "leds-per-strip")]
+    pub leds_per_strip: Option<u32>,
+    #[cfg(feature = "led")]
+    #[clap(long = "num-led_strips")]
+    pub num_led_strips: Option<u32>,
 }
 
 #[cfg(feature = "record")]

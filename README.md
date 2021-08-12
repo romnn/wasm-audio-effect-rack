@@ -13,6 +13,18 @@ For some common tasks, utility functions are provided
 invoke to-wav ./path/to/audio.mp3 ./path/to/output.wav
 ```
 
+#### Connecting an arduino
+
+Communication with an arduino microchip is currently implemented via serial connection. To check for a connected arduino and send instructions to it run the following:
+
+```bash
+# check if there is a device and check the permissions
+ls -l /dev/ttyACM*
+
+# if needed, change the permissions
+sudo chown $(id -run) /dev/ttyACM0
+```
+
 #### TODO
 
 - goal for today
@@ -45,8 +57,8 @@ invoke to-wav ./path/to/audio.mp3 ./path/to/output.wav
 
 done
 
-  - add parameterizer options as well
-    - for ttf: exponential, linear, eased, or no fadeout
+- add parameterizer options as well
+  - for ttf: exponential, linear, eased, or no fadeout
 - pass the cli config object to the server instance so that it can use the cli arguments
 - remove the requirement to have the debug flag in the params
   - debug, show fps and show controls should be part of the class

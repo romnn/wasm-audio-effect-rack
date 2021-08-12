@@ -1,6 +1,10 @@
 syntax = "proto3";
 package proto.audio.analysis;
 
+message SpectralAudioAnalyzerConfig {}
+
+message SpectralAudioAnalyzer { SpectralAudioAnalyzerConfig config = 1; }
+
 message SpectralAudioAnalysisResult {
   uint32 num_mel_bands = 1;
   float volume = 2;

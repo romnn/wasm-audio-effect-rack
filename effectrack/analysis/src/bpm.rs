@@ -9,6 +9,7 @@ use num::{traits::FloatConst, Float, Num, NumCast, One};
 use std::cmp;
 use std::error;
 use std::fmt;
+use std::time::{Duration, Instant};
 // use wasm_bindgen::prelude::*;
 
 type Peak = i16;
@@ -73,7 +74,8 @@ pub struct BpmDetectionAnalyzer
     // padding: usize,
     // mel_filterbank: mel::FilterBank<T, Array2<T>>,
     // buffer: Array1<Peak>,
-    buffer: Vec<Peak>,
+    buffer: Array1<f64>,
+    // buffer: Vec<Peak>,
 }
 
 struct PeakIntervalGroup {
@@ -91,15 +93,17 @@ impl BpmDetectionAnalyzer
         let sample_rate: f32 = NumCast::from(config.sample_rate).unwrap();
         // the larger the total window the more precise the bpm
         let chunk_size: usize = NumCast::from(sample_rate * 0.5).unwrap();
-        let buffer_window_size = chunk_size;
+        // let buffer_window_size: usize = NumCast::from(sample_rate * 10.0).unwrap();
+        let buffer_window_size: usize = NumCast::from(sample_rate * 10.0).unwrap();
+        // let buffer_window_size = 20 * chunk;
         // let buffer_window_size: usize = NumCast::from(5.0 * sample_rate).unwrap();
         // let buffer_window_size: usize = NumCast::from(0.5 * sample_rate).unwrap();
         Ok(Self {
             config,
             chunk_size,
             buffer_window_size,
-            // buffer: Array1::<T>::zeros(0),
-            buffer: Vec::new(),
+            buffer: Array1::zeros(0),
+            // buffer: Vec::new(),
         })
     }
 
@@ -116,12 +120,17 @@ impl BpmDetectionAnalyzer
 
         // peaks.forEach(function(peak, index) {
         // for (idx, (position, peak)) in peaks.enumerate() {
+        // println!("peaks are: {:?}", peaks);
         for (idx, peak) in peaks.iter().enumerate() {
             // for (var i = 1; (index + i) < peaks.len() && i < 10; i++) {
+            // println!("idx: {}", idx);
             for i in (idx + 1)..(peaks.len().min(idx + 10)) {
+                // println!("i: {}", i);
                 // (var i = 1; (index + i) < peaks.len() && i < 10; i++) {
 
                 let minute: f32 = NumCast::from(60 * self.config.sample_rate).unwrap();
+                // println!("peaks[i={}]: {:?}", i, peaks[i]);
+                // println!("peaks[idx={}]: {:?}", idx, peaks[idx]);
                 let distance: f32 = NumCast::from(peaks[i].0 - peaks[idx].0).unwrap();
                 let tempo = minute / distance;
                 let mut group = PeakIntervalGroup { tempo, count: 1 };
@@ -158,7 +167,7 @@ impl BpmDetectionAnalyzer
 
     fn detect_peaks(&self, samples: Array1<Peak>) -> Vec<(usize, Peak)> {
         // let part_size: f32 = self.config.sample_rate as f32 / 2.0f32;
-        let part_size = self.buffer_window_size;
+        let part_size = self.chunk_size;
         let parts: f32 = samples.len() as f32 / part_size as f32;
         // let parts: usize = parts as usize;
         let parts: usize = NumCast::from(parts).unwrap();
@@ -195,7 +204,7 @@ impl BpmDetectionAnalyzer
                 };
             }
             if let Some((idx, peak)) = max {
-                peaks.push((idx, *peak));
+                peaks.push((part * part_size + idx, *peak));
             }
             // let max = chunk.fold(0, |acc, v| acc.max(*v));
             // let max = chunk.indexed_iter().fold(0, |acc, v| {
@@ -246,7 +255,7 @@ impl BpmDetectionAnalyzer
         let mut loudest_peaks = loudest_peaks.to_vec();
 
         // ...and re-sort it back based on position.
-        loudest_peaks.sort_by(|a, b| b.0.cmp(&a.0));
+        loudest_peaks.sort_by(|a, b| a.0.cmp(&b.0));
         // println!("peaks sorted back by position: {:?}", loudest_peaks);
         loudest_peaks
 
@@ -323,13 +332,38 @@ where
     ) -> Result<proto::audio::analysis::AudioAnalysisResult> {
         // todo: make this nicer with some chaining of processing
         // e.g. make mono, perform fft etc
-        let samples = samples.mapv(|v| {
+        // println!("got {:?} samples", samples);
+        let mut samples = samples.mapv(|v| {
             let v: f64 = NumCast::from(v.abs()).unwrap();
             v
         });
         // combine channels and choose the maximum
-        let mut samples: Array1<f64> =
-            samples.map_axis(Axis(1), |row| row.iter().fold(0f64, |acc, v| acc.max(*v)));
+        let samples = samples.map_axis(Axis(1), |row| row.iter().fold(0f64, |acc, v| acc.max(*v)));
+        // combine channels and choose the maximum
+        // let mut samples: Array1<f64> =
+        //     samples.map_axis(Axis(1), |row| row.iter().fold(0f64, |acc, v| acc.max(*v)));
+
+        // if let Err(err) = self.buffer.append(Axis(0), samples.view()) {
+        //     eprintln!("failed to extend buffer: {}", err);
+        // }
+
+        // limit the buffer size
+        // let start_idx: i64 = NumCast::from(self.buffer_window_size).unwrap() * 20;
+        // println!("got {} samples", samples.len());
+        // let start_idx = self.buffer_window_size as i64 * 20;
+        // let start_idx = self.buffer.len() as i64 - start_idx;
+        // let start_idx: usize = NumCast::from(start_idx.max(0)).unwrap();
+        // // let start_idx = (-(self.buffer_window_size as i64) * 20).max(0) as usize;
+        // self.buffer = self
+        //     .buffer
+        //     .slice_axis(
+        //         Axis(0),
+        //         // Slice::from(((-self.buffer_window_size) * 20).max(0)..),
+        //         Slice::from(start_idx..),
+        //     )
+        //     .to_owned();
+
+        let start = Instant::now();
         // println!("input sample size: {}", samples.len());
         // compute the bpm from it
         let filter = bandpass_filter(
@@ -352,10 +386,15 @@ where
 
         let peaks = self.detect_peaks(filtered_samples);
         // println!("found {:?} peaks", peaks.len());
+        // println!("found {:?} peaks: {:?}", peaks.len(), peaks);
         let mut intervals = self.find_intervals(peaks);
+        // println!("found {:?} intervals", intervals.len());
         intervals.sort_by(|a, b| b.count.cmp(&a.count));
+        let duration = start.elapsed();
+        // println!("computing bpm took: {:?}", duration);
         if intervals.len() > 0 {
             let top_guess = &intervals[0];
+            println!("guessed {} BPM", top_guess.tempo);
             let result = proto::audio::analysis::BpmDetectionAudioAnalysisResult {
                 bpm: top_guess.tempo,
             };

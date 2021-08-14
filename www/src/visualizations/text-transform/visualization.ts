@@ -227,10 +227,12 @@ export default class TTFVisualization extends
           [x, y, z] = ch.interpolated.slice(pointIdx, pointIdx + 3);
           const [xPrev, yPrev] =
               ch.interpolated.slice(prevPointIdx, prevPointIdx + 2);
+          // console.log(this.parameters.bpm);
           let speed =
-              100 * baseSpeed *
+              // this.parameters.bpm * baseSpeed *
+              80 * baseSpeed *
               this.parameters.chars[chIdx].textLongitudinalVelocityFactor;
-          speed = 20;
+          speed = 5;
           const interp = ((frame % speed) + 1) / speed;
           // ((frame % this.parameters.speed) + 1) / this.parameters.speed;
           // const interp = 1;
@@ -288,7 +290,7 @@ export default class TTFVisualization extends
         // );
         this.camera.position.z = 1000;
         // this.camera.position.x = 100;
-        this.camera.position.y = 1000;
+        this.camera.position.y = -1000;
         this.orbiter = new OrbitControls(this.camera, this.renderer.domElement);
         // this.scene.fog = new THREE.FogExp2(0x000000, 0.001);
 
@@ -330,7 +332,7 @@ export default class TTFVisualization extends
         this.container?.appendChild(this.renderer.domElement);
 
         // create stats
-        this.stats = new Stats(this.container);
+        // this.stats = new Stats(this.container);
         // this.stats?.setVisible(this.parameters.debug);
 
         // create controls
@@ -465,7 +467,7 @@ export default class TTFVisualization extends
       depthTest : true,
       wireframe : false,
       vertexColors : true,
-      transparent : true,
+      transparent : true, // this.config.transparency,
     });
 
     const text = new THREE.Mesh(geometry, textMaterial);

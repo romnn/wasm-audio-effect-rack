@@ -67,8 +67,8 @@ export default class RemoteViewer extends RemoteClient<RemoteViewerClient> {
       () => {
         const req = new ViewerDisconnectRequest();
         this.client.disconnect(req, null)
-            .then(() => { console.log("DisConnected"); })
-            .catch((err) => { console.log("failed to Disconnect", err); });
+            .then(() => { console.log("disconnected"); })
+            .catch((err) => { console.log("failed to disconnect", err); });
       }
 
   // public connect = async (instance: InstanceId|undefined, callback?: () =>

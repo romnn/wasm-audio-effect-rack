@@ -24,6 +24,7 @@ use recorder::{
     AudioInputNode as AudioInputNodeTrait, AudioNode, AudioOutput, AudioOutputConfig,
     AudioOutputNode as AudioOutputNodeTrait, Sample,
 };
+use ringbuf::RingBuffer;
 
 // use recorder::{backend::portaudio::PortaudioAudioBackend, portaudio::PortaudioRecorder};
 
@@ -81,6 +82,10 @@ where
     //         id: "1".to_string(),
     //     }))
     // }
+}
+
+pub fn map(value: f32, x1: f32, y1: f32, x2: f32, y2: f32) -> f32 {
+    (value - x1) * (y2 - x2) / (y1 - x1) + x2
 }
 
 #[tonic::async_trait]
@@ -376,6 +381,10 @@ impl proto::grpc::remote_controller_server::RemoteController
         &self,
         request: Request<proto::grpc::ConnectLightsToAudioAnalyzerRequest>,
     ) -> Result<Response<proto::grpc::InstanceSubscriptions>, Status> {
+        // if self.lights_running {
+        //     return Ok(Response::new(proto::grpc::InstanceSubscriptions {}));
+        // }
+        // self.lights_running = true;
         let (session_token, controller_instance_id) =
             Self::extract_session_instance(&request).await?;
         let request = request.into_inner();
@@ -429,14 +438,18 @@ impl proto::grpc::remote_controller_server::RemoteController
         if lights.strips.len() < 1 {
             return Err(Status::invalid_argument("no light strips"));
         }
-        let min_light_count = lights
-            .strips
-            .iter()
-            .fold(u32::MAX, |acc, strip| acc.min(strip.num_lights));
 
         println!("light serial port: {}", lights.serial_port);
         println!("num light strips: {}", lights.strips.len());
-        println!("min light count: {}", min_light_count);
+        // println!("min light count: {}", min_light_count);
+
+        let latency = 30;
+        let ring = RingBuffer::<(u8, u8, u8)>::new(latency);
+        let (mut producer, mut consumer) = ring.split();
+
+        for _ in 0..latency {
+            let _ = producer.push((0, 0, 0));
+        }
 
         thread::spawn(move || {
             let mut controller = match led::LEDSerialController::new(lights, led::arduino_settings)
@@ -450,37 +463,112 @@ impl proto::grpc::remote_controller_server::RemoteController
             if let Err(err) = controller.connect() {
                 println!("connect failed: {}", err);
             };
-            thread::sleep(Duration::from_secs(60 * 10));
-        });
-        // let ring = RingBuffer::<T>::new(10);
-        // let (mut producer, mut consumer) = ring.split();
 
-        // for _ in 0..latency_samples {
-        //     let _ = producer.push(T::zero());
-        // }
+            // this has to be protected as well
+            // self.controller.wait_for_ready();
+            if let Err(err) = controller.configure() {
+                println!("configure failed: {}", err);
+            };
+            // self.controller
+            //     .write_instruction(LEDSerialControllerInstruction::ACK);
+
+            // let mut c: u8 = 0;
+            loop {
+                // self.controller.wait_for_ready();
+                if let Some(color) = consumer.pop() {
+                    // println!("color is {:?}", color);
+                    if let Err(err) = controller.update_color(color) {
+                        println!("failed to update color: {}", err);
+                    }
+                }
+                // self.controller
+                //     .write_instruction(LEDSerialControllerInstruction::ACK);
+
+                // c = (c + 1).rem_euclid(255);
+                // let colors: Vec<u8> = vec![c; 3 * controller.total_light_count as usize];
+                // println!("colors: {:?}", colors);
+                // thread::sleep(Duration::from_secs(1));
+            }
+        });
 
         let mut rx = analyzer.connect();
         tokio::task::spawn(async move {
-            let mut seq_num = 0;
+            // let mut seq_num = 0;
             loop {
                 match rx.recv().await {
-                    Ok(Ok(mut result)) => {
-                        result.seq_num = seq_num;
-                        // todo: send via serial here after doing some color magic
-                        // let update = proto::grpc::ViewerUpdate {
-                        //     update: Some(proto::grpc::viewer_update::Update::AudioAnalysisResult(
-                        //         result,
-                        //     )),
-                        // };
-                        // match viewer_tx.send(Ok(update)).await {
-                        //     Ok(()) => {
-                        //         seq_num = seq_num + 1;
-                        //     }
-                        //     Err(err) => {}
-                        // }
+                    // Ok((Ok(samples), sample_rate, nchannels)) => {
+                    Ok(Ok(result)) => {
+                        match result.result {
+                            Some(
+                                proto::audio::analysis::audio_analysis_result::Result::Spectral(
+                                    spectral,
+                                ),
+                            ) => {
+                                let volume = spectral.volume;
+                                let split_idx: f32 =
+                                    NumCast::from(spectral.mel_bands.len()).unwrap();
+                                let split_idx = (split_idx / 3.0).ceil();
+                                let split_idx: usize = NumCast::from(split_idx).unwrap();
+                                let mut r = spectral.mel_bands[0..split_idx]
+                                    .iter()
+                                    .fold(f32::MIN, |acc, band| acc.max(*band));
+                                let mut g = spectral.mel_bands[split_idx..2 * split_idx]
+                                    .iter()
+                                    .fold(f32::MIN, |acc, band| acc.max(*band));
+                                let mut b = spectral.mel_bands[2 * split_idx..3 * split_idx]
+                                    .iter()
+                                    .fold(f32::MIN, |acc, band| acc.max(*band));
+
+                                let min_volume_threshold = 1e-2;
+                                let intensity =
+                                    map(volume, min_volume_threshold, 0.8, 0.0, 1.0).powf(2.0);
+                                r *= intensity * 255.0;
+                                g *= intensity * 255.0;
+                                b *= intensity * 255.0;
+
+                                // todo: compute the speed param here
+
+                                let r: u8 = NumCast::from(r).unwrap_or(0);
+                                let g: u8 = NumCast::from(g).unwrap_or(0);
+                                let b: u8 = NumCast::from(b).unwrap_or(0);
+                                let color = (r, g, b);
+                                match producer.push(color) {
+                                    Ok(()) => {
+                                        // println!("success!: {:?}", sample.clone());
+                                    }
+                                    Err(err) => {
+                                        // println!("failed to produce: {:?}", err);
+                                        // output_fell_behind = true;
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
                     }
-                    Ok(Err(err)) => {}
-                    Err(err) => {}
+                    // Ok((Err(err), _, _)) => {
+                    Ok(Err(err)) => {
+                        println!("output receive error: {:?}", err);
+                    }
+                    Err(err) => {
+                        println!("output receive error: {:?}", err);
+                    } // Ok(Ok(mut result)) => {
+                      // result.seq_num = seq_num;
+                      // let volume = result.result.and_then(|res| res.result::Spectral(spec).volume);
+                      // todo: send via serial here after doing some color magic
+                      // let update = proto::grpc::ViewerUpdate {
+                      //     update: Some(proto::grpc::viewer_update::Update::AudioAnalysisResult(
+                      //         result,
+                      //     )),
+                      // };
+                      // match viewer_tx.send(Ok(update)).await {
+                      //     Ok(()) => {
+                      //         seq_num = seq_num + 1;
+                      //     }
+                      //     Err(err) => {}
+                      // }
+                      // }
+                      // Ok(Err(err)) => {}
+                      // Err(err) => {}
                 }
             }
         });

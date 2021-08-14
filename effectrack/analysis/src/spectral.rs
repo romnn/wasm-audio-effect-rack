@@ -190,7 +190,7 @@ where
         }
     }
 
-    fn analyze_samples(&mut self, samples: Array2<T>) -> Result<AudioAnalysisResult> {
+    fn analyze_samples(&mut self, mut samples: Array2<T>) -> Result<AudioAnalysisResult> {
         // todo: make this nicer with some chaining of processing
         // e.g. make mono, perform fft etc
         let samples = samples.mapv(|v| v.abs());
@@ -472,7 +472,7 @@ mod tests {
     use ndarray::Array;
     use ndarray::{concatenate, stack, RemoveAxis, Slice};
 
-    fn gen_samples<F>(length: usize, func: F) -> Array2<f32>
+    fn gen_samples<F>(length: usize, func: F) -> Array1<f32>
     where
         F: Fn(f32) -> f32,
     {

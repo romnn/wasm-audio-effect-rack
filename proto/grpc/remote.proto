@@ -104,8 +104,8 @@ message SubscribeToAudioAnalyzerRequest {
 }
 
 message LightStrip {
-  uint32 num_lights = 1;
-  uint32 pin = 2;
+  int32 num_lights = 1;
+  int32 pin = 2;
 }
 
 message Lights {
@@ -168,6 +168,7 @@ message ControllerUpdate {
   oneof update {
     // todo: add status messages or notifications
     Heartbeat heartbeat = 1;
+    Assignment assignment = 2;
   }
 }
 

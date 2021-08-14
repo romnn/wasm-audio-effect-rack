@@ -348,6 +348,7 @@ where
     pub sessions: Arc<RwLock<HashMap<proto::grpc::SessionToken, Session<VU, CU>>>>,
     // pub state: DeprEffectRackStateType<VU, CU>,
     pub shutdown_rx: watch::Receiver<bool>,
+    // pub lights_running: bool,
 }
 
 // impl<VU, CU, S> EffectRack<VU, CU, S>

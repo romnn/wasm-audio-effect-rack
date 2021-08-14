@@ -10,7 +10,7 @@ export interface Parameterizer<C extends StartConfig, I extends Input, T extends
                                    Temporary, P extends Parameters> {
   debug: boolean;
   update(frame: number): void;
-  parameterize(frame: number, config: C, current: P|undefined,
+  parameterize(frame: number, config: C, previous: P[], current: P|undefined,
                temp: T|undefined, input: I|null): [ P, T ];
 }
 
@@ -37,8 +37,9 @@ export abstract class BaseParameterizer<
       (current: number, target: number): number => { return current }
   //
   // this base class is only useful if we provide a lot of helpers in here
-  public abstract parameterize(frame: number, config: C, current: P|undefined,
-                               temp: T|undefined, input: I|null): [ P, T ];
+  public abstract parameterize(frame: number, config: C, previous: P[],
+                               current: P|undefined, temp: T|undefined,
+                               input: I|null): [ P, T ];
 }
 
 export interface ParameterizerClass<

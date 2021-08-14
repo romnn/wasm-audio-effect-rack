@@ -13,7 +13,7 @@ use ndarray::{
 };
 use num::traits::{Float, FloatConst, NumCast, Zero};
 use ringbuf::RingBuffer;
-use std::sync::mpsc::channel;
+use std::sync::{mpsc::channel, RwLock as SyncRwLock};
 // use tokio::time::{sleep, Duration as TokioDuration};
 
 #[cfg(feature = "portaudio")]
@@ -190,8 +190,19 @@ where
     async fn start(&self) -> Result<()> {
         let rx = self.rx.clone();
         let window_size = self.window_size;
-        let mut buffer = Array2::<T>::zeros((0, self.input_params.nchannels as usize));
-        let (ready_tx, ready_rx) = channel();
+        // let mut buffer = Array2::<T>::zeros((0, self.input_params.nchannels as usize));
+        let buffer = Arc::new(SyncRwLock::new(Array2::<T>::zeros((
+            window_size,
+            self.input_params.nchannels as usize,
+        ))));
+        // let ring = RingBuffer::<Array1<T>>::new(self.window_size);
+        // let (mut producer, mut consumer) = ring.split();
+
+        // for _ in 0..self.window_size {
+        //     let _ = producer.push(T::zero());
+        // }
+
+        // let (ready_tx, ready_rx) = channel();
         // let config = self.config.clone();
         // let input = self.input.clone();
         // let test = {
@@ -199,51 +210,155 @@ where
         //     let buffer_window_size = analyzer.window_size();
         // };
 
+        let buffer_clone = buffer.clone();
         tokio::task::spawn(async move {
             let mut rx = rx.lock().await;
+            let mut output_fell_behind = false;
             loop {
-                match rx.recv().await {
-                    Ok((Ok(samples), sample_rate, nchannels)) => {
-                        // println!("new samples: {:?}", samples.shape());
-                        // analyzer.options.nchannels = nchannels;
-                        // analyzer.options.sample_rate = sample_rate;
-                        if let Err(err) = buffer.append(Axis(0), samples.view()) {
-                            eprintln!("failed to extend buffer: {}", err);
-                        }
-                        // println!("size of buffer: {:?}", buffer.shape());
-                        // todo: maybe measure the processing time here and try to keep the real time
-                        let buffer_size = buffer.len_of(Axis(0));
-                        if buffer_size > NumCast::from(window_size * 10).unwrap() {
-                            panic!("more than 10 windows in the buffer");
-                        }
+                tokio::select! {
+                                    // _ = &mut self.shutdown_signal => {
+                                    //     println!("shutdown from open connection");
+                                    //     return;
+                                    // }
+                                    received = rx.recv() => {
+                                        match received {
+                Ok((Ok(samples), sample_rate, nchannels)) => {
+                                        // let samples = samples.mapv(|v| v.abs());
+                                        // // combine channels to mono and choose the maximum
+                                        // let mut samples: Array1<T> = samples.map_axis(Axis(1), |row| {
+                                        //     row.iter().fold(T::zero(), |acc, v| acc.max(*v))
+                                        // });
 
-                        let ready_buffers = buffer_size / window_size;
-                        let mut processed = 0;
+                                        // samples.axis_iter(Axis(0)).for_each(|sample| {
+                                        //     // println!("producing {:?}", sample);
+                                        //     let sample = sample
+                                        //     match producer.push(sample.clone()) {
+                                        //         Ok(()) => {}
+                                        //         Err(err) => {
+                                        //             // println!("failed to produce: {:?}", err);
+                                        //             output_fell_behind = true;
+                                        //         }
+                                        //     }
+                                        // });
+                                        // println!("new samples: {:?}", samples.shape());
+                                        // analyzer.options.nchannels = nchannels;
+                                        // analyzer.options.sample_rate = sample_rate;
 
-                        // process the chunks
-                        for i in (0..ready_buffers) {
-                            let start = i * window_size;
-                            let end = (i + 1) * window_size;
-                            // println!("analyzing from {} to {}", start, end);
-                            let chunk = buffer
-                                .slice_axis(Axis(0), Slice::from(start..end))
-                                .to_owned();
-                            if let Err(err) = ready_tx.send(chunk) {
-                                eprintln!("failed to send ready buffer for analysis: {}", err);
-                            }
-                            processed += 1;
-                        }
-                        buffer
-                            .slice_axis_inplace(Axis(0), Slice::from((processed * window_size)..));
-                    }
-                    Ok((Err(err), _, _)) => {
-                        println!("output receive error: {:?}", err);
-                    }
-                    Err(err) => {
-                        println!("output receive error: {:?}", err);
-                    }
-                }
+                                        if let Ok(mut wbuffer) = buffer_clone.write() {
+                                            if let Err(err) = wbuffer.append(Axis(0), samples.view()) {
+                                                eprintln!("failed to extend buffer: {}", err);
+                                            }
+                                            // println!("size of buffer: {:?}", wbuffer.shape());
+                                            // let buffer_size = buffer.len_of(Axis(0));
+                                            // if buffer_size > NumCast::from(window_size * 10).unwrap() {
+                                            //     panic!("more than 10 windows in the buffer");
+                                            // }
+
+                                            // let ready_buffers = buffer_size / window_size;
+                                            // let mut processed = 0;
+
+                                            // // process the chunks
+                                            // for i in (0..ready_buffers) {
+                                            //     let start = i * window_size;
+                                            //     let end = (i + 1) * window_size;
+                                            //     // println!("analyzing from {} to {}", start, end);
+                                            //     let chunk = buffer
+                                            //         .slice_axis(Axis(0), Slice::from(start..end))
+                                            //         .to_owned();
+                                            //     if let Err(err) = ready_tx.send(chunk) {
+                                            //         eprintln!("failed to send ready buffer for analysis: {}", err);
+                                            //     }
+                                            //     processed += 1;
+                                            // }
+                                            wbuffer
+                                                // .write()
+                                                // .slice_axis_inplace(Axis(0), Slice::from((processed * window_size)..));
+                                                .slice_axis_inplace(
+                                                    Axis(0),
+                                                    Slice::from(-(window_size as isize)..),
+                                                );
+                                            drop(wbuffer);
+                                        }
+                                    }
+                                    Ok((Err(err), _, _)) => {
+                                        println!("output receive error: {:?}", err);
+                                    }
+                                    Err(err) => {
+                                        println!("output receive error: {:?}", err);
+                                        // break;
+                                    }
+                                        }
+                                    }
+                                }
             }
+
+            // // todo: add a shutdown here!
+            // match rx.recv().await {
+            //     Ok((Ok(samples), sample_rate, nchannels)) => {
+            //         // let samples = samples.mapv(|v| v.abs());
+            //         // // combine channels to mono and choose the maximum
+            //         // let mut samples: Array1<T> = samples.map_axis(Axis(1), |row| {
+            //         //     row.iter().fold(T::zero(), |acc, v| acc.max(*v))
+            //         // });
+
+            //         // samples.axis_iter(Axis(0)).for_each(|sample| {
+            //         //     // println!("producing {:?}", sample);
+            //         //     let sample = sample
+            //         //     match producer.push(sample.clone()) {
+            //         //         Ok(()) => {}
+            //         //         Err(err) => {
+            //         //             // println!("failed to produce: {:?}", err);
+            //         //             output_fell_behind = true;
+            //         //         }
+            //         //     }
+            //         // });
+            //         // println!("new samples: {:?}", samples.shape());
+            //         // analyzer.options.nchannels = nchannels;
+            //         // analyzer.options.sample_rate = sample_rate;
+
+            //         if let Ok(mut wbuffer) = buffer_clone.write() {
+            //             if let Err(err) = wbuffer.append(Axis(0), samples.view()) {
+            //                 eprintln!("failed to extend buffer: {}", err);
+            //             }
+            //             // println!("size of buffer: {:?}", wbuffer.shape());
+            //             // let buffer_size = buffer.len_of(Axis(0));
+            //             // if buffer_size > NumCast::from(window_size * 10).unwrap() {
+            //             //     panic!("more than 10 windows in the buffer");
+            //             // }
+
+            //             // let ready_buffers = buffer_size / window_size;
+            //             // let mut processed = 0;
+
+            //             // // process the chunks
+            //             // for i in (0..ready_buffers) {
+            //             //     let start = i * window_size;
+            //             //     let end = (i + 1) * window_size;
+            //             //     // println!("analyzing from {} to {}", start, end);
+            //             //     let chunk = buffer
+            //             //         .slice_axis(Axis(0), Slice::from(start..end))
+            //             //         .to_owned();
+            //             //     if let Err(err) = ready_tx.send(chunk) {
+            //             //         eprintln!("failed to send ready buffer for analysis: {}", err);
+            //             //     }
+            //             //     processed += 1;
+            //             // }
+            //             wbuffer
+            //                 // .write()
+            //                 // .slice_axis_inplace(Axis(0), Slice::from((processed * window_size)..));
+            //                 .slice_axis_inplace(
+            //                     Axis(0),
+            //                     Slice::from(-(window_size as isize)..),
+            //                 );
+            //         }
+            //     }
+            //     Ok((Err(err), _, _)) => {
+            //         println!("output receive error: {:?}", err);
+            //     }
+            //     Err(err) => {
+            //         println!("output receive error: {:?}", err);
+            //     }
+            // }
+            // }
         });
         let analyzer = self.analyzer.clone();
         let tx = self.tx.clone();
@@ -254,18 +369,38 @@ where
                 .spawn(move || {
                     let mut analyzer = analyzer.lock().unwrap();
                     loop {
-                        match ready_rx.recv() {
-                            Ok(buffer) => {
-                                let analyzed = analyzer
-                                    .analyze_samples(buffer)
-                                    .map_err(|err| AudioAnalysisError::Unknown(err.to_string()));
-                                tx.send(analyzed);
-                                // if let Err(err) = result_tx.send() {
-                                //     println
-                                // }
-                            }
-                            Err(err) => {}
+                        // let mut samples = vec![T::zero(); window_size].as_slice();
+                        // if consumer.pop_slice(&mut samples) == window_size {
+                        // let samples = Array1::<T>::from(samples.to_vec());
+                        // zeros((0, self.input_params.nchannels as usize));
+                        if let Ok(rbuffer) = buffer.read() {
+                            let rbuffer_copy = rbuffer.to_owned();
+                            drop(rbuffer);
+                            // println!("analyzing");
+                            let analyzed = analyzer
+                                .analyze_samples(rbuffer_copy)
+                                .map_err(|err| AudioAnalysisError::Unknown(err.to_string()));
+                            tx.send(analyzed);
                         }
+                        // }
+
+                        // for 0..window_size {
+                        // }
+                        // let sample = consumer.pop();
+                        // let samples = ring.iter().collect();
+                        // let samples = ring.iter().collect();
+                        // match ready_rx.recv() {
+                        //     Ok(buffer) => {
+                        //         let analyzed = analyzer
+                        //             .analyze_samples(buffer)
+                        //             .map_err(|err| AudioAnalysisError::Unknown(err.to_string()));
+                        //         tx.send(analyzed);
+                        //         // if let Err(err) = result_tx.send() {
+                        //         //     println
+                        //         // }
+                        //     }
+                        //     Err(err) => {}
+                        // }
                     }
                 });
 
@@ -488,9 +623,9 @@ where
         });
         let output_callback: AudioOutputCallback<T> = Box::new(move || {
             // Some(T::zero())
-            let test = consumer.pop();
-            // println!("popped {:?}", test);
-            test
+            let sample = consumer.pop();
+            // println!("popped {:?}", sample);
+            sample
             // Some(match consumer.pop() {
             //     Some(s) => s,
             //     None => 0.0,

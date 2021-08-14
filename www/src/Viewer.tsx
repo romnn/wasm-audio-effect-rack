@@ -145,13 +145,13 @@ export default class Viewer extends React.Component<
           await this.controller.connectLightsToAudioAnalyzer(
             audioAnalyzerDescriptor,
             "/dev/ttyACM0",
-            [{ numLights: 300, pin: 1 }]
+            [{ numLights: 300, pin: 5 }]
             // [{numLights: 300, pin: 1 }, {numLights: 300, pin: 1 }],
           );
         }
       }
       console.log("connecting the bpm analyzer to the audio input stream");
-      if (false || inputDescriptor) {
+      if (inputDescriptor) {
         const audioAnalyzer = new AudioAnalyzer();
         const bpmAnalyzer = new BpmDetectionAudioAnalyzer();
         audioAnalyzer.setBpm(bpmAnalyzer);

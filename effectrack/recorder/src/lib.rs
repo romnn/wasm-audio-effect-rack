@@ -6,7 +6,7 @@ use ndarray::prelude::*;
 use ndarray::{
     concatenate, indices, Array, IntoDimension, Ix, NdIndex, RemoveAxis, ScalarOperand, Slice, Zip,
 };
-use num::traits::{Float, FloatConst, NumCast, ToPrimitive, Zero};
+use num::traits::{Float, real::Real, FloatConst, NumCast, ToPrimitive, Zero};
 use rodio;
 use std::convert::From;
 use std::error;

@@ -84,6 +84,7 @@ export class BaseParameterizedVisualization<
         ParameterControls<P>> extends BaseVisualization<C, P, PC> {
 
   protected parameters!: P;
+  protected previous: P[] = [];
   protected temp!: T;
 
   public getTemp = (): T => { return this.temp; }
@@ -100,8 +101,12 @@ export class BaseParameterizedVisualization<
       frame: number, input: I|null, parameterizer: Parameterizer<C, I, T, P>,
       options?: UpdateParameterOptions): [ P|undefined, any|undefined ] {
     const [parameters, temp] = parameterizer.parameterize(
-        frame, this.config, this.parameters, this.temp, input);
+        frame, this.config, this.previous, this.parameters, this.temp, input);
     this.temp = clone(temp);
+    if (this.previous.length > 3) {
+      this.previous.shift();
+    }
+    this.previous.push(clone(parameters));
     this.updateParameters(clone(parameters), options);
     return [ parameters, temp ];
   }

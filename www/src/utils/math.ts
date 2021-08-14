@@ -1,5 +1,11 @@
 import {binary_search_with_guess} from "./search";
 
+export const mod = (x: number, m: number): number => {
+  while (x < 0)
+    x += m;
+  return x % m;
+};
+
 export const softmax = (arr: number[]):
     number[] => {
       return arr.map((value, index) => {

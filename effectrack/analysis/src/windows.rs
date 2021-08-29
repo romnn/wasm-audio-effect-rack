@@ -1,5 +1,5 @@
 use ndarray::prelude::*;
-use num::{traits::FloatConst, Float, Num};
+use num::{traits::FloatConst, Float};
 use std::ops::Mul;
 
 #[derive(Debug)]

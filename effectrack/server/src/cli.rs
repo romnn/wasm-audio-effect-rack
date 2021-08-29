@@ -1,5 +1,4 @@
 use clap::Clap;
-// use recorder::{AudioBackendConfig, Audio;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -82,17 +81,3 @@ pub struct Opts {
     #[clap(subcommand)]
     pub commands: Option<Commands>,
 }
-
-// impl Into<RecorderConfig> for Opts {
-//     fn into(self) -> RecorderConfig {
-//         RecorderConfig {
-//             #[cfg(use_jack)]
-//             use_jack: self.use_jack,
-//             #[cfg(use_portaudio)]
-//             use_portaudio: self.use_portaudio.clone(),
-//             input_device: self.input_device.clone(),
-//             output_device: self.output_device.clone(),
-//             // latency: NumCast::from(self.config.default.latency).unwrap(),
-//         }
-//     }
-// }

@@ -197,7 +197,7 @@ void get_messages_from_serial()
           }
           // put the first element in the last slot
           FastLED.setCorrection(TypicalLEDStrip);
-          // FastLED.setBrightness(20);
+          FastLED.setBrightness(10);
           FastLED.show();
           break;
           /*

@@ -13,17 +13,12 @@ members = [
   "server"
 ]
 
-# [[bin]]
-# name = "effect-rack-server"
-# path = "server/main.rs"
-
 [build-dependencies]
 tonic-build = { version = "0.5", features = ["prost", "compression"] }
 
 [profile.release]
 debug-assertions = false
 panic = "abort"
-#debug = 1
 codegen-units = 1
 lto = "fat"
 opt-level = "s"

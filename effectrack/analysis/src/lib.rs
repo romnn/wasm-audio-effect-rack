@@ -1,6 +1,5 @@
 use anyhow::Result;
-use proto::audio::analysis::{AudioAnalysisResult, SpectralAudioAnalysisResult};
-use std::sync::mpsc::*;
+use proto::audio::analysis::{AudioAnalysisResult};
 
 pub mod fft;
 pub mod mel;

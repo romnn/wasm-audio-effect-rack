@@ -1,4 +1,3 @@
-use num::traits::{Bounded, FromPrimitive, Num, ToPrimitive, Zero};
 use std::f64::consts::PI;
 
 pub fn blackman_window(size: usize) -> Vec<f64> {

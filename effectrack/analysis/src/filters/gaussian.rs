@@ -1,17 +1,10 @@
-use anyhow::Result;
-use common::sorting::DebugMinMax;
 use ndarray::parallel::prelude::*;
 use ndarray::prelude::*;
 use ndarray::{
-    concatenate, indices, Array, IntoDimension, Ix, NdIndex, RemoveAxis, ScalarOperand, Slice, Zip,
+    indices, Array, IntoDimension, NdIndex, RemoveAxis, Zip,
 };
-use num::traits::{Float, FloatConst, NumCast, NumOps, One};
 use num::pow::pow;
-
-pub enum Symmetry {
-    Symmetric,
-    Antisymmetric,
-}
+use num::traits::{Float, FloatConst, NumCast};
 
 #[derive(Default, Debug)]
 pub struct GaussianFilter1d<T> {
@@ -23,13 +16,12 @@ where
     T: Float + FloatConst + std::fmt::Debug + Sync + Send,
     // T: Float + FloatConst + std::fmt::Debug + Send,
 {
-    pub fn apply(&self, array: &Array1<T>, axis: Axis, sigma: T) -> Array1<T> {
+    pub fn apply(&self, array: &Array1<T>, sigma: T) -> Array1<T> {
         // see: https://github.com/scipy/scipy/blob/v0.15.1/scipy/ndimage/filters.py#L181
         let truncate = self.truncate.unwrap_or(T::from(4.0).unwrap());
         let sd = sigma; // standard deviation
         let lw = truncate * sd + T::from(0.5).unwrap(); // the +0.5 is just ceil?
         let lw: usize = NumCast::from(lw).unwrap();
-        let mut weights = Array1::<T>::zeros(2 * lw + 1);
         let mut weights = Array1::<T>::zeros(2 * lw + 1);
         weights[lw] = T::one();
         let mut sum = T::one();
@@ -53,39 +45,6 @@ where
         // println!("weights: {:?}", weights);
         // todo: implement the derivations for the order of the filter
         Self::correlate(array, weights)
-    }
-
-    // deprecated
-    pub fn correlate1d<D: Dimension + RemoveAxis>(
-        array: &Array<T, D>,
-        w: Array1<T>,
-        axis: Axis,
-        sigma: T,
-    ) -> &Array<T, D> {
-        // see: https://github.com/scipy/scipy/blob/701ffcc8a6f04509d115aac5e5681c538b5265a2/scipy/ndimage/src/ni_filters.c#L38
-
-        // test for symmetry or anti-symmetry
-        let filter_size = w.len();
-        // size left and right are around a center, e.g.
-        // -3 -2 -1 - 0 - 1 2 3
-        let size1 = filter_size / 2; // e.g. 6 / 2 = 3
-        let size2 = filter_size - size1 - 1;
-        let mut symmetry: Option<Symmetry> = None;
-        let side1_idx = Array1::from_iter(1..size1);
-        if (size1 == size2) {
-            if side1_idx
-                .par_iter()
-                .all(|i| w[size1 + i] - w[size1 - i] < T::epsilon())
-            {
-                symmetry = Some(Symmetry::Symmetric);
-            } else if side1_idx
-                .par_iter()
-                .all(|i| w[size1 + i] + w[size1 - i] < T::epsilon())
-            {
-                symmetry = Some(Symmetry::Antisymmetric);
-            };
-        }
-        array
     }
 
     pub fn correlate<D>(array: &Array<T, D>, weights: Array<T, D>) -> Array<T, D>

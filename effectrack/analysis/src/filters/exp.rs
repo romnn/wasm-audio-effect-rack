@@ -1,7 +1,7 @@
 use anyhow::Result;
 use ndarray::prelude::*;
-use ndarray::{concatenate, Array, Zip, Ix, RemoveAxis, Slice};
-use num::{traits::FloatConst, Float, NumCast};
+use ndarray::{Array, Zip};
+use num::{traits::FloatConst, Float};
 use std::error;
 use std::fmt;
 

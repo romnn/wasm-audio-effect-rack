@@ -1,59 +1,38 @@
 use crate::analyzer::{AudioAnalyzerNode, AudioAnalyzerNodeTrait, AudioInputNode, AudioOutputNode};
 use crate::cli::Config;
-use crate::{ControllerUpdateMsg, EffectRack, MyCustomError, ViewerUpdateMsg};
+use crate::{ControllerUpdateMsg, EffectRack, ViewerUpdateMsg};
 use analysis::bpm::{BpmDetectionAnalyzer, BpmDetectionAnalyzerConfig};
 #[cfg(feature = "analyze")]
 use analysis::spectral::{SpectralAnalyzer, SpectralAnalyzerOptions};
-use analysis::{mel::Hz, mel::Mel, Analyzer};
 use anyhow::Result;
-use clap::Clap;
-use common::errors::FeatureDisabledError;
-use futures::{Future, Stream};
+use futures::{Stream};
 use hardware::led;
-use ndarray::prelude::*;
-use ndarray::{
-    concatenate, indices, Array, IntoDimension, Ix, NdIndex, RemoveAxis, ScalarOperand, Slice, Zip,
-};
-use num::traits::{Float, FloatConst, NumCast, Zero};
+use num::traits::{NumCast};
 #[cfg(feature = "portaudio")]
 use recorder::portaudio::PortaudioRecorder;
 #[cfg(feature = "record")]
 // todo: simplify the required traits by having trait inheritance
 use recorder::{
-    cpal::CpalAudioBackend, cpal::CpalAudioInput, AudioInput, AudioInputConfig,
-    AudioInputNode as AudioInputNodeTrait, AudioNode, AudioOutput, AudioOutputConfig,
-    AudioOutputNode as AudioOutputNodeTrait, Sample,
+    AudioInputConfig,
+    AudioInputNode as AudioInputNodeTrait, AudioNode, AudioOutputConfig,
+    AudioOutputNode as AudioOutputNodeTrait, 
 };
 use ringbuf::RingBuffer;
-
-// use recorder::{backend::portaudio::PortaudioAudioBackend, portaudio::PortaudioRecorder};
-
-use std::collections::HashMap;
-use std::error::Error;
 use std::marker::Send;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::ops::Deref;
-use std::path::PathBuf;
 use std::pin::Pin;
-use std::rc::Rc;
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
-use tokio::signal;
-use tokio::sync::{mpsc, oneshot, watch, RwLock};
-use tokio::time;
+use tokio::sync::{mpsc, RwLock};
 use tokio_stream::wrappers::ReceiverStream;
-use tonic::{transport::Server as TonicServer, Code, Request, Response, Status};
+use tonic::{Request, Response, Status};
 
 #[derive(Debug)]
-// pub struct Controller<VU, CU> {
 pub struct Controller<CU> {
     config: Config,
     connection: Arc<RwLock<mpsc::Sender<CU>>>,
-    // analyzers: Vec<Arc<RwLock<mpsc::Sender<U>>>,
 }
 
-// impl<VU, CU> Controller<VU, CU> {
 impl<CU> Controller<CU> {
     pub fn new(config: Config, connection: mpsc::Sender<CU>) -> Self {
         Self {
@@ -63,38 +42,13 @@ impl<CU> Controller<CU> {
     }
 }
 
-// impl<VU> EffectRack<VU, ControllerUpdateMsg, MyCustomErro>
-impl<VU> EffectRack<VU, ControllerUpdateMsg>
-where
-    // B: AudioBackend + Clone + Sync + Send + 'static,
-    VU: Clone + Send + 'static,
-{
-    // async fn new_controller_instance_id(
-    //     &self,
-    //     request: Request<proto::grpc::NewInstanceIdRequest>,
-    // ) -> Result<Response<proto::grpc::InstanceId>, Status> {
-    //     let session_token = Self::extract_session_token(&request).await?;
-    //     println!(
-    //         "[controller] new instance token for session: {:?}",
-    //         session_token
-    //     );
-    //     Ok(Response::new(proto::grpc::InstanceId {
-    //         id: "1".to_string(),
-    //     }))
-    // }
-}
-
 pub fn map(value: f32, x1: f32, y1: f32, x2: f32, y2: f32) -> f32 {
     (value - x1) * (y2 - x2) / (y1 - x1) + x2
 }
 
 #[tonic::async_trait]
-// impl<VU, B> RemoteController for EffectRack<VU, ControllerUpdateMsg, B>
 impl proto::grpc::remote_controller_server::RemoteController
     for EffectRack<ViewerUpdateMsg, ControllerUpdateMsg>
-// where
-// B: AudioBackend + Clone + Sync + Send + 'static,
-// VU: Clone + Send + Sync + 'static,
 {
     type ConnectStream = Pin<
         Box<
@@ -104,14 +58,6 @@ impl proto::grpc::remote_controller_server::RemoteController
                 + 'static,
         >,
     >;
-
-    // register_visualization
-    // async fn query_current_visualization(
-    //     &self,
-    //     request: Request<QueryCurrentVisualizationRequest>,
-    // ) -> Result<Response<Visualization>, Status> {
-    //             Ok(Response::new(Visualization{}))
-    // }
 
     async fn disconnect(
         &self,
@@ -124,11 +70,12 @@ impl proto::grpc::remote_controller_server::RemoteController
 
     async fn connect(
         &self,
-        request: Request<proto::grpc::ControllerConnectRequest>,
+        _request: Request<proto::grpc::ControllerConnectRequest>,
     ) -> Result<Response<Self::ConnectStream>, Status> {
-        let (stream_tx, stream_rx) = mpsc::channel(1);
+        let (_stream_tx, stream_rx) = mpsc::channel(1);
         let pinned_stream = Box::pin(ReceiverStream::new(stream_rx));
 
+        // TODO
         Ok(Response::new(pinned_stream))
     }
 
@@ -164,23 +111,10 @@ impl proto::grpc::remote_controller_server::RemoteController
         let mut audio_input = AudioInputNode::<f32>::new(input_config)
             .map_err(|_| Status::internal("failed to create input stream"))?;
         let descriptor = audio_input.descriptor();
-        // let descriptor = audio_input
-        //     .input
-        //     .descriptor()
-        //     .map_err(|_| Status::internal("failed to create audio stream descriptor"))?;
         audio_input
             .start()
             .await
             .map_err(|_| Status::internal("failed to start input stream"))?;
-        // audio_input.stream_from_input(Box::new(
-        //     move |samples: Result<Array2<f32>>, sample_rate, nchannels| {
-        //         // todo: send to all subscribed analyzers
-        //         println!("got samples: {:?}", samples);
-        //         // if let Err(err) = rec_tx.send((samples, sample_rate, nchannels)) {
-        //         //     panic!("{}", err);
-        //         // }
-        //     },
-        // ));
 
         if input_streams.contains_key(&descriptor) {
             return Err(Status::ok("the specified input stream already exists"));
@@ -226,10 +160,7 @@ impl proto::grpc::remote_controller_server::RemoteController
         // todo: check if the stream is already active
         // todo: this requires differet descriptors based on in/out
 
-        // todo: find the right input stream to connect it with
         let input_streams = session.input_streams.read().await;
-        // let input_stream: recorder::AudioInputNode<_> = input_streams
-        // let input_stream: recorder::AudioInputNode<_> = input_streams
         let input_stream = input_streams
             .get(&input_stream_desc)
             .ok_or(Status::not_found(format!(
@@ -238,40 +169,14 @@ impl proto::grpc::remote_controller_server::RemoteController
             )))?
             .read()
             .await;
-        // let test: &dyn recorder::AudioInputNode<_> = input_stream.deref();
         let input_node: &(dyn recorder::AudioInputNode<_> + Sync) = input_stream.deref();
-        // .await as &dyn Deref<Target = recorder::AudioInputNode<_>>;
-        // .deref();
-        // .tx
-        // .subscribe();
-
-        // let mut audio_output: AudioOutputNode<crate::Sample> =
         let mut audio_output = AudioOutputNode::<crate::Sample>::new(input_node, output_config)
             .map_err(|_| Status::internal("failed to create input stream"))?;
         let descriptor = audio_output.descriptor();
-        // let descriptor = audio_output
-        //     .output
-        //     .descriptor()
-        //     .map_err(|_| Status::internal("failed to create audio output stream descriptor"))?;
         audio_output
             .start()
             .await
             .map_err(|_| Status::internal("failed to start output stream"))?;
-        // audio_output.stream_to_output(
-        //     // None,
-        //     Box::new(
-        //         // move |samples: Result<Array2<Sample>>, sample_rate, nchannels| {
-        //         move || {
-        //             // todo: send to all subscribed analyzers
-        //             let data = Array2::<crate::Sample>::zeros((10, 10));
-        //             // println!("got samples: {:?}", samples);
-        //             Ok(data)
-        //             // if let Err(err) = rec_tx.send((samples, sample_rate, nchannels)) {
-        //             //     panic!("{}", err);
-        //             // }
-        //         },
-        //     ),
-        // );
 
         if output_streams.contains_key(&descriptor) {
             return Err(Status::internal("failed to create audio stream descriptor"));
@@ -321,7 +226,7 @@ impl proto::grpc::remote_controller_server::RemoteController
 
         // create the analyzer
         let audio_analyzer_node = match requested_analyzer {
-            Some(proto::audio::analysis::audio_analyzer::Analyzer::Spectral(a)) => {
+            Some(proto::audio::analysis::audio_analyzer::Analyzer::Spectral(_spectral_analyzer)) => {
                 let analyzer_opts = SpectralAnalyzerOptions {
                     // window_size: buffer_window_size,
                     mel_bands: 24,
@@ -338,7 +243,7 @@ impl proto::grpc::remote_controller_server::RemoteController
                 AudioAnalyzerNode::<crate::Sample>::new(input_node, analyzer)
                     .map_err(|_| Status::internal("failed to create analyzer"))
             }
-            Some(proto::audio::analysis::audio_analyzer::Analyzer::Bpm(a)) => {
+            Some(proto::audio::analysis::audio_analyzer::Analyzer::Bpm(_bpm_analyzer)) => {
                 let analyzer_opts = BpmDetectionAnalyzerConfig {
                     // window_size: buffer_window_size,
                     // mel_bands: 24,
@@ -381,10 +286,6 @@ impl proto::grpc::remote_controller_server::RemoteController
         &self,
         request: Request<proto::grpc::ConnectLightsToAudioAnalyzerRequest>,
     ) -> Result<Response<proto::grpc::InstanceSubscriptions>, Status> {
-        // if self.lights_running {
-        //     return Ok(Response::new(proto::grpc::InstanceSubscriptions {}));
-        // }
-        // self.lights_running = true;
         let (session_token, controller_instance_id) =
             Self::extract_session_instance(&request).await?;
         let request = request.into_inner();
@@ -399,7 +300,7 @@ impl proto::grpc::remote_controller_server::RemoteController
         if lights.strips.len() < 1 {
             return Err(Status::invalid_argument("no light strips"));
         }
-        let min_led_count = lights
+        let _min_led_count = lights
             .strips
             .iter()
             .fold(0, |acc, strip| acc.min(strip.num_lights));
@@ -410,8 +311,8 @@ impl proto::grpc::remote_controller_server::RemoteController
         ))?;
 
         println!(
-            "connect leds to analyzer: {} {}",
-            session_token, analyzer_desc
+            "[{}] connect leds to analyzer {} in session {}",
+            controller_instance_id, analyzer_desc, session_token,
         );
         let sessions = self.sessions.read().await;
         let session = sessions
@@ -441,7 +342,6 @@ impl proto::grpc::remote_controller_server::RemoteController
 
         println!("light serial port: {}", lights.serial_port);
         println!("num light strips: {}", lights.strips.len());
-        // println!("min light count: {}", min_light_count);
 
         let latency = 30;
         let ring = RingBuffer::<(u8, u8, u8)>::new(latency);
@@ -452,7 +352,7 @@ impl proto::grpc::remote_controller_server::RemoteController
         }
 
         thread::spawn(move || {
-            let mut controller = match led::LEDSerialController::new(lights, led::arduino_settings)
+            let mut controller = match led::LEDSerialController::new(lights, led::ARDUINO_SETTINGS)
             {
                 Ok(controller) => controller,
                 Err(err) => {
@@ -464,39 +364,22 @@ impl proto::grpc::remote_controller_server::RemoteController
                 println!("connect failed: {}", err);
             };
 
-            // this has to be protected as well
-            // self.controller.wait_for_ready();
             if let Err(err) = controller.configure() {
                 println!("configure failed: {}", err);
             };
-            // self.controller
-            //     .write_instruction(LEDSerialControllerInstruction::ACK);
-
-            // let mut c: u8 = 0;
             loop {
-                // self.controller.wait_for_ready();
                 if let Some(color) = consumer.pop() {
-                    // println!("color is {:?}", color);
                     if let Err(err) = controller.update_color(color) {
                         println!("failed to update color: {}", err);
                     }
                 }
-                // self.controller
-                //     .write_instruction(LEDSerialControllerInstruction::ACK);
-
-                // c = (c + 1).rem_euclid(255);
-                // let colors: Vec<u8> = vec![c; 3 * controller.total_light_count as usize];
-                // println!("colors: {:?}", colors);
-                // thread::sleep(Duration::from_secs(1));
             }
         });
 
         let mut rx = analyzer.connect();
         tokio::task::spawn(async move {
-            // let mut seq_num = 0;
             loop {
                 match rx.recv().await {
-                    // Ok((Ok(samples), sample_rate, nchannels)) => {
                     Ok(Ok(result)) => {
                         match result.result {
                             Some(
@@ -527,48 +410,23 @@ impl proto::grpc::remote_controller_server::RemoteController
                                 b *= intensity * 255.0;
 
                                 // todo: compute the speed param here
-
                                 let r: u8 = NumCast::from(r).unwrap_or(0);
                                 let g: u8 = NumCast::from(g).unwrap_or(0);
                                 let b: u8 = NumCast::from(b).unwrap_or(0);
                                 let color = (r, g, b);
-                                match producer.push(color) {
-                                    Ok(()) => {
-                                        // println!("success!: {:?}", sample.clone());
-                                    }
-                                    Err(err) => {
-                                        // println!("failed to produce: {:?}", err);
-                                        // output_fell_behind = true;
-                                    }
+                                if let Err(err) = producer.push(color) {
+                                    eprintln!("failed to produce: {:?}", err);
                                 }
                             }
                             _ => {}
                         }
                     }
-                    // Ok((Err(err), _, _)) => {
                     Ok(Err(err)) => {
-                        println!("output receive error: {:?}", err);
+                        eprintln!("output receive error: {:?}", err);
                     }
                     Err(err) => {
-                        println!("output receive error: {:?}", err);
-                    } // Ok(Ok(mut result)) => {
-                      // result.seq_num = seq_num;
-                      // let volume = result.result.and_then(|res| res.result::Spectral(spec).volume);
-                      // todo: send via serial here after doing some color magic
-                      // let update = proto::grpc::ViewerUpdate {
-                      //     update: Some(proto::grpc::viewer_update::Update::AudioAnalysisResult(
-                      //         result,
-                      //     )),
-                      // };
-                      // match viewer_tx.send(Ok(update)).await {
-                      //     Ok(()) => {
-                      //         seq_num = seq_num + 1;
-                      //     }
-                      //     Err(err) => {}
-                      // }
-                      // }
-                      // Ok(Err(err)) => {}
-                      // Err(err) => {}
+                        eprintln!("output receive error: {:?}", err);
+                    }
                 }
             }
         });
@@ -591,7 +449,10 @@ impl proto::grpc::remote_controller_server::RemoteController
             "missing audio analyzer descriptor",
         ))?;
 
-        println!("subscribe to analyzer: {} {}", session_token, instance_id);
+        println!(
+            "[{}] subscribe to analyzer: {} {}",
+            controller_instance_id, session_token, instance_id
+        );
         let sessions = self.sessions.read().await;
         let session = sessions
             .get(&session_token)
@@ -623,8 +484,6 @@ impl proto::grpc::remote_controller_server::RemoteController
         // spawn a tokio task that waits for updates and sends them to the viewer
         let mut rx = analyzer.connect();
         let viewer_tx = viewer.tx.clone();
-        // let viewers = viewers.clone();
-        // let viewer = viewer.clone();
         tokio::task::spawn(async move {
             let mut seq_num = 0;
             loop {
@@ -640,80 +499,26 @@ impl proto::grpc::remote_controller_server::RemoteController
                             Ok(()) => {
                                 seq_num = seq_num + 1;
                             }
-                            Err(err) => {}
+                            Err(err) => {
+                                eprintln!(
+                                    "[{}] failed to send update to viewer {} in session {}: {}",
+                                    controller_instance_id, instance_id, session_token, err
+                                );
+                            }
                         }
-
-                        // match viewers.get(&instance_id) {
-                        //     Some(viewer) => match viewer.read().await.tx.send(Ok(update)).await {
-                        //         Ok(()) => {
-                        //             seq_num = seq_num + 1;
-                        //         }
-                        //         Err(err) => {}
-                        //     },
-                        //     None => {
-                        //         return;
-                        //     }
-                        // }
                     }
-                    Ok(Err(err)) => {}
-                    Err(err) => {}
+                    Ok(Err(_)) => {
+                        // ignore errors of the audio analyzer for now
+                    }
+                    Err(err) => {
+                        eprintln!(
+                            "[{}] failed to receive update in session {}: {}",
+                            controller_instance_id, session_token, err
+                        );
+                    }
                 }
             }
         });
-
-        // check if the analyzer already exists
-        // get a receiver handle of the analyzer
-        // let mut analyzers = session.analyzers.write().await;
-        // if analyzers.contains_key(&descriptor) {
-        //     return Err(Status::already_exists("audio analyzer already exists"));
-        // } else {
-        //     analyzers.insert(descriptor.clone(), RwLock::new(audio_analyzer_node))
-        // };
-
-        // let analyzer_node: &(dyn analysis::Analyzer<_> + Sync) = analyzer.deref();
-        // let analyzer_node = analyzer.deref();
-
         Ok(Response::new(proto::grpc::InstanceSubscriptions {}))
     }
-
-    // async fn start_analysis(
-    //     &self,
-    //     request: Request<StartAnalysisRequest>,
-    // ) -> Result<Response<Empty>, Status> {
-    //     let (session_token, instance_id) = Self::extract_session_instance(&request)?;
-    // let audio_backend = &self.state.read().await.audio_backend;
-    // let sessions = self.sessions.read().await;
-    // sessions.get(
-
-    // match self.state.read().await.connected.get(&session_token) {
-    //     Some(user) => {
-    //         // check if the user is already running an analysis first
-    //         if user.read().await.is_analyzing {
-    //             println!("already running an analysis");
-    //             // or use status already exists?
-    //             return Err(Status::ok(format!(
-    //                 "user {} is alreay running an analysis",
-    //                 session_token
-    //             )));
-    //         }
-    //         // this will not block
-    //         if let Err(err) = user
-    //             .write()
-    //             .await
-    //             .start_analysis::<f32, _>(&audio_backend)
-    //             .await
-    //         {
-    //             eprintln!("failed to start the analysis: {}", err);
-    //             return Err(Status::ok(format!("failed to start the analysis")));
-    //         }
-
-    //         Ok(Response::new(Empty {}))
-    //     }
-    //     None => Err(Status::not_found(format!(
-    //         "user {} is not (yet) connected",
-    //         user_token
-    //     ))),
-    // }
-    // Ok(Response::new(Empty {}))
-    // }
 }

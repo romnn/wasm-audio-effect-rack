@@ -1,27 +1,9 @@
-use anyhow::Result;
 use ndarray::prelude::*;
-use ndarray::{concatenate, Array, Ix, RemoveAxis, Slice};
-use num::{traits::FloatConst, Float, NumCast, Zero};
-use std::error;
-use std::fmt;
+use ndarray::{Array};
+use num::{Float, NumCast, Zero};
 
 // some inspiration from https://github.com/songww/mel-filter/blob/main/src/lib.rs
 // also from the python implementation
-
-#[derive(Debug)]
-enum MelFilterBankError {
-    MissingParameter(String),
-}
-
-impl fmt::Display for MelFilterBankError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::MissingParameter(param) => write!(f, "missing parameter: {}", param),
-        }
-    }
-}
-
-impl error::Error for MelFilterBankError {}
 
 #[derive(Debug)]
 pub enum NormalizationFactor {
@@ -105,7 +87,6 @@ impl Mel for f64 {}
 pub trait FilterBankMat<Mel> {
     fn zeros(shape: &[usize; 2]) -> Self;
 
-    // todo: dont call them rows, better mel / freq or so
     fn row_mut(&mut self, idx: usize) -> &mut [Mel];
     fn shape(&self) -> &[usize];
     fn to_vec(self) -> Vec<Mel>;
@@ -141,51 +122,24 @@ pub struct FilterBankParameters<F: Hz> {
     pub freq_max: F,
     /// Number of samples of frequency-domain data
     pub fft_window_size: usize,
-    // /// Size of the fft.
-    // pub fft_size: usize,
-    // /// Number of fft-frequency bands. Otherwise (fft_size/2)+1 is chosen.
-    // pub num_fft_bands: Option<usize>,
-    // /// Sample rate for the signals that will be used.
+    /// Sample rate for the signals that will be used.
     pub sample_rate: u32,
     /// Use HTK formula for converting mel and hz
     pub htk: bool,
     /// Normalization
     pub norm: Option<NormalizationFactor>,
-    // /// Number of mel bands. Number of rows in melmat.
-    // pub num_mel_bands: Option<usize>,
-    // /// Minimum frequency for the first band.
-    // pub freq_min: Option<F>,
-    // /// Maximum frequency for the last band.
-    // pub freq_max: Option<F>,
-    // /// Size of the fft.
-    // // pub fft_size: Option<usize>,
-    // /// Number of fft-frequency bands. This ist (fft_size/2)+1 !
-    // pub num_fft_bands: Option<usize>,
-    // /// Sample rate for the signals that will be used.
-    // pub sample_rate: Option<usize>,
-    // /// Use HTK formula for converting mel and hz
-    // pub htk: Option<bool>,
 }
 
 impl<F: Hz> Default for FilterBankParameters<F> {
     fn default() -> Self {
         Self {
-            num_mel_bands: 128,               // or 128
-            freq_min: F::from(64).unwrap(),   // or 64
-            freq_max: F::from(8000).unwrap(), // or 8000
+            num_mel_bands: 128,
+            freq_min: F::from(64).unwrap(),
+            freq_max: F::from(8000).unwrap(),
             fft_window_size: 1024,
-            // fft_size: 1024,
-            // num_fft_bands: None, // (fft_size/2)+1, so 513 in this case
-            sample_rate: 44100, // or 16000
+            sample_rate: 44100,
             htk: false,
             norm: Some(NormalizationFactor::One),
-            // num_mel_bands: Some(12), // or 128
-            // freq_min: Some(F::from(64).unwrap()),
-            // freq_max: Some(F::from(8000).unwrap()),
-            // // fft_size: Some(1024),
-            // num_fft_bands: Some(513), // (fft_size/2)+1
-            // sample_rate: Some(16000),
-            // htk: Some(true),
         }
     }
 }
@@ -215,7 +169,6 @@ where
         let params = parameters.unwrap_or(default_params);
 
         let num_fft_bands = 1 + params.fft_window_size / 2;
-        // let num_fft_bands = params.num_fft_bands.unwrap_or(default_num_fft_bands);
 
         let mut weights = Mat::zeros(&[params.num_mel_bands, num_fft_bands]);
 
@@ -241,7 +194,7 @@ where
 
         // fdiff is the width between each pair of adjacent mel centers
         let mut fdiff = mel_freqs.slice(s![..-1]).to_owned();
-        fdiff.zip_mut_with(&mel_freqs.slice(s![1..]), |mut x, y| *x = *y - *x);
+        fdiff.zip_mut_with(&mel_freqs.slice(s![1..]), |x, y| *x = *y - *x);
         // println!(
         //     "fdiff are {:?} {:?}",
         //     fdiff.shape(),
@@ -274,13 +227,11 @@ where
         }
 
         if let Some(norm) = params.norm {
-            panic!("todo");
             match norm {
                 NormalizationFactor::One => {
                     // Slaney-style mel is scaled to be approx constant energy per channel
                     // enorm = 2.0 / (mel_f[2:n_mels+2] - mel_f[:n_mels])
                     // weights *= enorm[:, np.newaxis]
-
                     let two = F::from(2.).unwrap();
                     let mut enorms = mel_freqs.slice(s![2..]).to_owned();
                     enorms.zip_mut_with(&mel_freqs.slice(s![..-2]), |x, y| {
@@ -288,7 +239,7 @@ where
                     });
 
                     for (idx, enorm) in enorms.indexed_iter() {
-                        weights
+                        let _ = weights
                             .row_mut(idx)
                             .iter_mut()
                             .map(|v| *v = *v * *enorm)
@@ -323,23 +274,3 @@ pub fn mel_frequencies<T: Mel + Hz>(n_mels: usize, fmin: T, fmax: T, htk: bool) 
     let max_mel = fmax.to_mel(htk);
     Array::linspace(min_mel, max_mel, n_mels).map(|mel| mel.to_hz(htk))
 }
-
-// Returns centerfrequencies and band edges for a mel filter bank
-// fn mel_frequencies_py<F: Hz>(
-//     num_bands: usize,
-//     freq_min: F,
-//     freq_max: F,
-//     num_fft_bands: usize,
-//     htk: bool,
-// ) -> (Array1<F>, Array1<F>, Array1<F>) {
-//     let mel_max = freq_max.to_mel(htk);
-//     let mel_min = freq_min.to_mel(htk);
-//     let delta_mel = (mel_max - mel_min).abs();
-//     let delta_mel = delta_mel / F::from(num_bands + 1).unwrap();
-//     let mut mel_freqs = Array::range(F::zero(), F::from(num_bands + 2).unwrap(), F::one());
-//     mel_freqs.mapv_inplace(|v| v * delta_mel + mel_min);
-//     let lower_edges_mel = mel_freqs.slice(s![..-2]).to_owned();
-//     let upper_edges_mel = mel_freqs.slice(s![2..]).to_owned();
-//     let center_mel_freqs = mel_freqs.slice(s![1..-1]).to_owned();
-//     (center_mel_freqs, lower_edges_mel, upper_edges_mel)
-// }

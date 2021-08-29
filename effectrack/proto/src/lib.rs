@@ -1,6 +1,4 @@
 pub mod audio {
-    use std::fmt;
-
     pub mod analysis {
         tonic::include_proto!("proto.audio.analysis");
     }

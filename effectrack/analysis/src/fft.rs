@@ -1,9 +1,8 @@
 use anyhow::Result;
-use core::convert::{TryFrom, TryInto};
+use core::convert::{TryInto};
 use microfft::real;
 use microfft::Complex32;
 use ndarray::prelude::*;
-use ndarray::{concatenate, Array, Ix, RemoveAxis, Slice};
 use num::{traits::FloatConst, Float, NumCast};
 use std::error;
 use std::fmt;

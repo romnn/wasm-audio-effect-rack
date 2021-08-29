@@ -1,6 +1,6 @@
 use ndarray::prelude::*;
-use ndarray::{Data, RemoveAxis, Zip};
-use num::{traits::FloatConst, Float, NumCast, Zero};
+use ndarray::{Data};
+use num::{traits::FloatConst, Float};
 use std::cmp::Ordering;
 
 pub trait DebugMinMax<T> {

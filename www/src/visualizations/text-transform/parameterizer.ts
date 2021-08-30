@@ -18,7 +18,8 @@ export class TTFTemp {
 
 // todo: make a proto so that it can be changed from the remote
 export class TTFStartConfig {
-  text = "ADRIANA";
+  text = "OFF23";
+  // text = "ADRIANA";
   // text = "SOPHIE";
   resolution = 50;
   size = 80;

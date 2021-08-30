@@ -332,14 +332,11 @@ export default class TTFVisualization extends
         this.container?.appendChild(this.renderer.domElement);
 
         // create stats
-        // this.stats = new Stats(this.container);
-        // this.stats?.setVisible(this.parameters.debug);
+        this.stats = new Stats(this.container);
+        this.stats?.setVisible(super.isDebug);
 
         // create controls
         this.controls = new TTFControls(this.parameters, this.container);
-        // this.controls.onChange =
-        //     () => { this.stats?.setVisible(this.parameters.debug); };
-        // this.controls?.setVisible(this.parameters.debug);
       }
 
   public configure = (config: TTFStartConfig): void => {
@@ -347,7 +344,6 @@ export default class TTFVisualization extends
     this.configured = false;
 
     const fontDescriptor = Fonts[config.font];
-    // debugger;
     if (!fontDescriptor) {
       throw new Error("font not found");
     }

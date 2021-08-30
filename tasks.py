@@ -55,10 +55,21 @@ def pack(c, upgrade=False):
         c.run("mkdir -p {}".format(WWW_PUBLIC_WASM_DIR / p.name))
         c.run("rm -rf {}".format(WWW_PUBLIC_WASM_DIR / p.name))
         c.run("cp -R {} {}".format(p / "pkg", WWW_PUBLIC_WASM_DIR / p.name))
-        # if upgrade:
-        # c.run("yarn --cwd {} upgrade {}".format(WWW_DIR, p.name), pty=True)
-    # os.environ["RUSTFLAGS"] = ""
 
+@task
+def start_standalone(c):
+    c.run("cd {} && yarn build".format(WWW_DIR))
+    c.run("yarn tauri dev")
+
+@task
+def debug_build_standalone(c):
+    c.run("cd {} && yarn build".format(WWW_DIR))
+    c.run("yarn tauri build --debug")
+
+@task
+def build_standalone(c):
+    c.run("cd {} && yarn build".format(WWW_DIR))
+    c.run("yarn tauri build")
 
 @task
 def to_wav(c, audio_file, output_file):

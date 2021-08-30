@@ -4,6 +4,15 @@ This is very much a work in progress and only worked on for special occasions.
 
 It might be very cool one day though...
 
+#### Usage
+
+Start the standalone application
+```bash
+invoke start-standalone
+invoke build-standalone
+invoke debug-build-standalone
+```
+
 #### Utils
 
 For some common tasks, utility functions are provided
@@ -25,38 +34,49 @@ ls -l /dev/ttyACM*
 sudo chown $(id -run) /dev/ttyACM0
 ```
 
-#### TODO
+#### TODO backend
 
-- goal for today
-  - rename subscribe/unsubscribe to connect/disconnect
-  - animate parameter changes
-  - implement a pride mode
-  - use HSL for generating colors
-  - implement a strobe mode
-  - iplement a nice colorful background
-  - play with the energy and spectrum effects to try to come up with something
-  - overlay the spectrum based transform of text with weight center based approach
-  - make it so that the playback does not stop after one hour but actually wait for an event
-  - make parameterized options in grpc so those should also be grpc based so that they can be synced
-  - allow the backend to have multiple connections open and terminate them after some amount of failed send events/ time
-    - log how many people are currently connected
-    - redirect every controller and viewer page to a custom instance url
-    - only if the instance matches connections should be re-attached
-  - create a very simple controller page that allows to select the current effect and shows the options for the current effect
-  - allow running multiple analyzers at the same time
-    - analyzer should define its preferred buffer size and push its own updates
-    - the real time requirement should be dependent on the buffer size
-  - allow parameterization of the color and position moving speed for each char
-  - fix the bug with the scroll
-  - limit the amount of messages sent by the backend to be max 60fps
-  - add a custom orbiter that keeps more visible
-  - make the frontend linter happy
-  - remove unnecessary stuff in rust and make the linter happy
-  - allow multiple connections to both the controllers and the viewers
-  - select the current parameterizer via the controller page
+- limit the amount of messages sent by the backend to be max 60fps
+- make it so that the playback does not stop after one hour but actually wait for an event
+- package the backend in an easy to install gui application for osx, linux and windows
+  - allow auto update
+  - do not use electron because it is such an overkill
+- package wrapper libraries for python, node and rust
+- expose all rust math util functions for use in the frontend via wasm
+
+#### TODO text transform visualization
+
+- allow parameterization of the color and position moving speed for each char
+- move the position logic to the paramterizer
+- animate parameter changes
+- fix the bug with the scroll
+- use HSL for generating colors
+- implement a strobe mode
+- implement a nice colorful background
+- play with the energy and spectrum effects to try to come up with something
+- overlay the spectrum based transform of text with weight center based approach
+- make parameterized options in grpc so those should also be grpc based so that they can be synced
+- add a custom orbiter that keeps more visible
+
+#### TODO controller
+
+- create a very simple controller page that allows to select the current effect and shows the options for the current effect
+- make the linter happy
+- select the current parameterizer via the controller page
 
 done
 
+- remove unnecessary stuff in rust and make the linter happy
+- allow multiple connections to both the controllers and the viewers
+- allow running multiple analyzers at the same time
+  - analyzer should define its preferred buffer size and push its own updates
+  - the real time requirement should be dependent on the buffer size
+- allow the backend to have multiple connections open and terminate them after some amount of failed send events/ time
+  - log how many people are currently connected
+  - redirect every controller and viewer page to a custom instance url
+  - only if the instance matches connections should be re-attached
+- implement a pride mode
+- rename subscribe/unsubscribe to connect/disconnect
 - add parameterizer options as well
   - for ttf: exponential, linear, eased, or no fadeout
 - pass the cli config object to the server instance so that it can use the cli arguments

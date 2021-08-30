@@ -9,3 +9,4 @@ bin/
 /wabt
 /experimental/audio-samples
 wasm-pack.log
+node_modules/

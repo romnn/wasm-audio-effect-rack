@@ -10,7 +10,8 @@ crate-type = ["cdylib", "rlib"]
 [workspace]
 members = [
   "bpm-detection",
-  "server"
+  "server",
+  "src-tauri",
 ]
 
 [build-dependencies]

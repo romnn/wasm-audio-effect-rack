@@ -19,7 +19,6 @@ pub enum NormalizationFactor {
 
 // Because the definition of the mel scale is conditioned by a finite number of subjective psychoaoustical experiments, several implementations coexist in the audio signal processing literature 1. By default, librosa replicates the behavior of the well-established MATLAB Auditory Toolbox of Slaney 2. According to this default implementation, the conversion from Hertz to mel is linear below 1 kHz and logarithmic above 1 kHz. Another available implementation replicates the Hidden Markov Toolkit 3 (HTK) according to the following formula:
 
-// pub trait Hz: Float + NumCast {
 pub trait Hz: Float {
     fn to_mel(&self, htk: bool) -> Self {
         if htk {

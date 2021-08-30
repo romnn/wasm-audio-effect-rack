@@ -21,21 +21,34 @@ use anyhow::Result;
 use clap::Clap;
 use cli::{Commands, Config, Opts};
 use nanoid::nanoid;
-use proto::grpc::remote_controller_server::{RemoteControllerServer};
-use proto::grpc::remote_viewer_server::{RemoteViewerServer};
+use proto::grpc::remote_controller_server::RemoteControllerServer;
+use proto::grpc::remote_viewer_server::RemoteViewerServer;
 #[cfg(feature = "portaudio")]
 use recorder::portaudio::PortaudioAudioInput;
 
+use futures::future;
+use futures::future::{Either, TryFutureExt};
+use http::{version::Version, Response};
+use hyper::{service::make_service_fn, Body, Request as HyperRequest, Server};
 #[cfg(feature = "record")]
 use recorder::{cpal::CpalAudioBackend, cpal::CpalAudioInput, AudioInput, AudioInputConfig};
 use session::Session;
 use std::collections::HashMap;
+use std::convert::Infallible;
+use std::marker::PhantomData;
 use std::marker::Send;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
+use std::{
+    pin::Pin,
+    task::{Context, Poll},
+};
 use tokio::signal;
 use tokio::sync::{watch, RwLock};
 use tonic::{transport::Server as TonicServer, Code, Request, Status};
+use tower::{make::Shared, service_fn, Service, ServiceBuilder};
+// use tower_http::add_extension::AddExtensionLayer;
+use warp::Filter;
 
 const INSTANCE_ID_KEY: &str = "instance-id";
 const SESSION_TOKEN_KEY: &str = "session-token";
@@ -44,7 +57,7 @@ pub type ViewerUpdateMsg = proto::grpc::ViewerUpdate;
 pub type ControllerUpdateMsg = proto::grpc::ControllerUpdate;
 
 #[derive(Clone)]
-pub struct EffectRack<VU, CU>
+pub struct DiscoServer<VU, CU>
 where
     VU: Clone,
     CU: Clone,
@@ -54,7 +67,7 @@ where
     pub shutdown_rx: watch::Receiver<bool>,
 }
 
-impl<VU, CU> EffectRack<VU, CU>
+impl<VU, CU> DiscoServer<VU, CU>
 where
     VU: Clone,
     CU: Clone,
@@ -138,7 +151,7 @@ where
     }
 }
 
-impl<VU, CU> EffectRack<VU, CU>
+impl<VU, CU> DiscoServer<VU, CU>
 where
     VU: Clone + Send,
     CU: Clone + Send,
@@ -152,45 +165,376 @@ where
     }
 }
 
-impl EffectRack<ViewerUpdateMsg, ControllerUpdateMsg> {
+type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
+
+// async fn handler(request: Request<Body>) -> Result<Response<Body>, Error> {
+//     // web.call(req)
+//     //     .map_ok(|res| res.map(EitherBody::Left))
+//     //     .map_err(Error::from)
+// }
+
+impl DiscoServer<ViewerUpdateMsg, ControllerUpdateMsg> {
     async fn serve(&self) -> Result<()> {
         let addr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
         let addr = SocketAddr::new(addr, self.config.run.port);
 
         println!("listening on {}", addr);
 
-        let remote_controller_grpc_server = RemoteControllerServer::new(self.clone());
-        let remote_controller_grpc_server = tonic_web::config()
-            // .allow_origins(vec!["localhost", "127.0.0.1"])
-            .enable(remote_controller_grpc_server);
+        // warp::serve(route).run(([127, 0, 0, 1], 3030)).await;
 
-        let remote_viewer_grpc_server = RemoteViewerServer::new(self.clone());
-        let remote_viewer_grpc_server = tonic_web::config()
-            // .allow_origins(vec!["localhost", "127.0.0.1"])
-            .enable(remote_viewer_grpc_server);
+        Server::bind(&addr)
+            .serve(make_service_fn(move |_| {
+                let remote_controller_grpc_server = RemoteControllerServer::new(self.clone());
+                let remote_controller_grpc_server = tonic_web::config()
+                    // .allow_origins(vec!["localhost", "127.0.0.1"])
+                    .enable(remote_controller_grpc_server);
 
-        TonicServer::builder()
-            .accept_http1(true)
-            .add_service(remote_controller_grpc_server)
-            .add_service(remote_viewer_grpc_server)
-            .serve_with_shutdown(addr, async {
-                self.shutdown_rx
-                    .clone()
-                    .changed()
-                    .await
-                    .expect("failed to shutdown");
-            })
+                let remote_viewer_grpc_server = RemoteViewerServer::new(self.clone());
+                let remote_viewer_grpc_server = tonic_web::config()
+                    // .allow_origins(vec!["localhost", "127.0.0.1"])
+                    .enable(remote_viewer_grpc_server);
+
+                let mut grpc_server = TonicServer::builder()
+                    .accept_http1(true)
+                    .max_concurrent_streams(128)
+                    .add_service(remote_controller_grpc_server)
+                    .add_service(remote_viewer_grpc_server)
+                    .into_service();
+
+                // let mut grpc_web_server = TonicServer::builder()
+                //     .accept_http1(true)
+                //     .max_concurrent_streams(128)
+                //     .add_service(remote_controller_grpc_web_server)
+                //     .add_service(remote_viewer_grpc_web_server)
+                //     .into_service();
+
+                let mut web = warp::service(warp::path("/").and(warp::fs::dir("www/build")));
+                // let mut web = warp::path("").and(warp::fs::dir("www/build"));
+                // let routes = warp::service(warp::get().and(web.or(warp::service(grpc_web_server))));
+                // let mut web = warp::service(warp::path("hello").map(|| {
+                //     "Test"
+                //     // grpc_web_server
+                //     //     .call(req)
+                //     //     .map_ok(|res| res.map(EitherBody::Left))
+                //     //     .map_err(Error::from);
+                // }));
+
+                // let service = ServiceBuilder::new()
+                //     .layer(AddExtensionLayer::new(Arc::new(web)))
+                //     .layer(AddExtensionLayer::new(Arc::new(grpc_web_server)))
+                //     .service_fn(handler);
+                // let mut grpc_web_server = grpc_server.accept_http1(true).into_service();
+                // let mut grpc_server = grpc_server.into_service();
+
+                // Ok::<_, Infallible>(service_fn(move |req: hyper::Request<hyper::Body>| {
+                future::ok::<_, Infallible>(service_fn(move |req: hyper::Request<hyper::Body>| {
+                    // future::ok::<_, Infallible>(service_fn(move |req| {
+                    match req.version() {
+                        // Version::HTTP_11 | Version::HTTP_10 => Either::Left((|| {
+                        Version::HTTP_11 | Version::HTTP_10 => {
+                            // if req.uri().path().starts_with("grpc") {
+                            //     return MyEither::Left(
+                            //         web.call(req)
+                            //             .map_ok(|res| res.map(EitherBody::Left))
+                            //             .map_err(Error::from),
+                            //     );
+                            // }
+                            return Either::Left(
+                                web.call(req)
+                                    .map_ok(|res| res.map(EitherBody::Left))
+                                    .map_err(Error::from),
+                            );
+                        }
+                        Version::HTTP_2 => Either::Right(
+                            grpc_server
+                                .call(req)
+                                .map_ok(|res| res.map(EitherBody::Right))
+                                .map_err(Error::from),
+                        ),
+                        _ => unimplemented!(),
+                    }
+
+                    // return Either::Left(
+                    //     web.call(req)
+                    //         .map_ok(|res| res.map(EitherBody::Left))
+                    //         .map_err(Error::from),
+                    // );
+                    //     .map_ok(|res| {
+                    //         let s: String = res;
+                    //     })
+                    //     .map_err(Error::from);
+                    // Pin<Box<(dyn futures::Future<Output = std::result::Result<http::Response<BoxBody<hyper::body::Bytes, Status>>
+                    // , Never>> + std::marker::Send + 'static)>>, fn(Never) -> Box<(dyn std::error::Error + Sync + std::marker::Send + 'static)>>
+                    //     // .map_ok(|res| res.map(EitherBody::Right))
+                    //     .map_err(Error::from).into();
+                    // return Either::Right(
+                    //     grpc_web_server
+                    //         .call(req)
+                    //         // .map_ok(|res| res.map(|res| Test::new(res)))
+                    //         .map_ok(|res| res.map(EitherBody::Right))
+                    //         .map_err(Error::from),
+                    // );
+                    // Either::Right(
+                    //     grpc_server
+                    //         .call(req)
+                    //         .map_ok(|res| res.map(EitherBody::Right))
+                    //         .map_err(Error::from),
+                    // );
+                    // .map_ok(|res| res.map(|res| Test::new(res)))
+                    // .map_err(Error::from)
+                }))
+                // async {
+                //     Ok::<_, Error>(service_fn(move |req| {
+                //         // todo:
+                //     }))
+                // }
+                // future::ok::<_, Infallible>(tower::service_fn(
+                //     move |req: hyper::Request<hyper::Body>| {
+                //         // web
+                //         //     .call(req)
+                //         //     // .map_ok(|res| res.map(EitherBody::Left))
+                //         //     // .map_ok(|res| res.map(EitherBody::Left))
+                //         //     .map_err(Error::from)
+                //         match req.version() {
+                //             // Version::HTTP_11 | Version::HTTP_10 => Either::Left((|| {
+                //             Version::HTTP_11 | Version::HTTP_10 => {
+                //                 if req.uri().path().starts_with("grpc") {
+                //                     return Either::Left(
+                //                         web.call(req)
+                //                             .map_ok(|res| res.map(EitherBody::Third))
+                //                             .map_err(Error::from),
+                //                     );
+                //                 }
+                //                 return Either::Left(
+                //                     grpc_web_server
+                //                         .call(req)
+                //                         .map_ok(|res| res.map(EitherBody::Left))
+                //                         .map_err(Error::from),
+                //                 );
+                //             }
+                //             Version::HTTP_2 => Either::Right({
+                //                 grpc_server
+                //                     .call(req)
+                //                     .map_ok(|res| res.map(EitherBody::Right))
+                //                     .map_err(Error::from)
+                //             }),
+                //             _ => unimplemented!(),
+                //         }
+                //     },
+                // ))
+            }))
             .await?;
+
+        // .serve_with_shutdown(addr, async {
+        // self.shutdown_rx
+        // .clone()
+        // .changed()
+        // .await
+        // .expect("failed to shutdown");
+        // })
+        // .await?;
         Ok(())
     }
 }
 
+pub enum MyEither<A, B, C> {
+    AA(A),
+    BB(B),
+    CC(C),
+}
+
+impl<A, B, C> MyEither<A, B, C> {
+    fn project(self: Pin<&mut Self>) -> MyEither<Pin<&mut A>, Pin<&mut B>, Pin<&mut C>> {
+        unsafe {
+            match self.get_unchecked_mut() {
+                Self::AA(a) => MyEither::AA(Pin::new_unchecked(a)),
+                Self::BB(b) => MyEither::BB(Pin::new_unchecked(b)),
+                Self::CC(c) => MyEither::CC(Pin::new_unchecked(c)),
+            }
+        }
+    }
+}
+
+impl<A, B, C> futures::Future for MyEither<A, B, C>
+where
+    A: futures::Future,
+    B: futures::Future<Output = A::Output>,
+    C: futures::Future<Output = A::Output>,
+{
+    type Output = A::Output;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        match self.project() {
+            MyEither::AA(x) => x.poll(cx),
+            MyEither::BB(x) => x.poll(cx),
+            MyEither::CC(x) => x.poll(cx),
+        }
+    }
+}
+
+// impl http_body::Body for EitherBody<A, B, C>
+struct Test<R> {
+    // struct Test {
+    // lol: R,
+    phantom: PhantomData<R>,
+}
+
+impl<R> Test<R> {
+    fn new(r: R) -> Self {
+        Self {
+            phantom: PhantomData,
+        }
+    }
+}
+
+// impl<R> http_body::Body for Test<R>
+impl<R> http_body::Body for Test<R>
+// impl<R> http_body::Body for warp::filter::service::FilteredFuture
+where
+    R: http_body::Body + Send + Unpin,
+{
+    type Data = R::Data;
+    type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
+
+    fn is_end_stream(&self) -> bool {
+        // self.lol.is_end_stream()
+        self.is_end_stream()
+    }
+
+    fn poll_data(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<Self::Data, Self::Error>>> {
+        Pin::new(self.get_mut())
+            .poll_data(cx)
+            .map(|e| e.map(|e| e.map_err(Into::into)))
+    }
+
+    fn poll_trailers(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Option<http::HeaderMap>, Self::Error>> {
+        Pin::new(self.get_mut())
+            .poll_trailers(cx)
+            .map_err(Into::into)
+    }
+}
+
+enum EitherBody<A, B> {
+    Left(A),
+    Right(B),
+}
+
+impl<A, B> http_body::Body for EitherBody<A, B>
+where
+    A: http_body::Body + Send + Unpin,
+    B: http_body::Body<Data = A::Data> + Send + Unpin,
+    A::Error: Into<Error>,
+    B::Error: Into<Error>,
+{
+    type Data = A::Data;
+    type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
+
+    fn is_end_stream(&self) -> bool {
+        match self {
+            EitherBody::Left(b) => b.is_end_stream(),
+            EitherBody::Right(b) => b.is_end_stream(),
+        }
+    }
+
+    fn poll_data(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<Self::Data, Self::Error>>> {
+        match self.get_mut() {
+            EitherBody::Left(b) => Pin::new(b)
+                .poll_data(cx)
+                .map(|e| e.map(|e| e.map_err(Into::into))),
+            EitherBody::Right(b) => Pin::new(b)
+                .poll_data(cx)
+                .map(|e| e.map(|e| e.map_err(Into::into))),
+        }
+    }
+
+    fn poll_trailers(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Option<http::HeaderMap>, Self::Error>> {
+        match self.get_mut() {
+            EitherBody::Left(b) => Pin::new(b).poll_trailers(cx).map_err(Into::into),
+            EitherBody::Right(b) => Pin::new(b).poll_trailers(cx).map_err(Into::into),
+        }
+    }
+}
+
+// enum EitherBody<A, B, C> {
+//     Left(A),
+//     Right(B),
+//     Third(C),
+// }
+
+// impl<A, B, C> http_body::Body for EitherBody<A, B, C>
+// where
+//     A: http_body::Body + Send + Unpin,
+//     B: http_body::Body<Data = A::Data> + Send + Unpin,
+//     C: http_body::Body<Data = A::Data> + Send + Unpin,
+//     A::Error: Into<Error>,
+//     B::Error: Into<Error>,
+//     C::Error: Into<Error>,
+// {
+//     type Data = A::Data;
+//     type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
+
+//     fn is_end_stream(&self) -> bool {
+//         match self {
+//             EitherBody::Left(b) => b.is_end_stream(),
+//             EitherBody::Right(b) => b.is_end_stream(),
+//             EitherBody::Third(b) => b.is_end_stream(),
+//         }
+//     }
+
+//     fn poll_data(
+//         self: Pin<&mut Self>,
+//         cx: &mut Context<'_>,
+//     ) -> Poll<Option<Result<Self::Data, Self::Error>>> {
+//         match self.get_mut() {
+//             EitherBody::Left(b) => Pin::new(b)
+//                 .poll_data(cx)
+//                 .map(|e| e.map(|e| e.map_err(Into::into))),
+//             EitherBody::Right(b) => Pin::new(b)
+//                 .poll_data(cx)
+//                 .map(|e| e.map(|e| e.map_err(Into::into))),
+//             EitherBody::Third(b) => Pin::new(b)
+//                 .poll_data(cx)
+//                 .map(|e| e.map(|e| e.map_err(Into::into))),
+//         }
+//     }
+
+//     fn poll_trailers(
+//         self: Pin<&mut Self>,
+//         cx: &mut Context<'_>,
+//     ) -> Poll<Result<Option<http::HeaderMap>, Self::Error>> {
+//         match self.get_mut() {
+//             EitherBody::Left(b) => Pin::new(b).poll_trailers(cx).map_err(Into::into),
+//             EitherBody::Right(b) => Pin::new(b).poll_trailers(cx).map_err(Into::into),
+//             EitherBody::Third(b) => Pin::new(b).poll_trailers(cx).map_err(Into::into),
+//         }
+//     }
+// }
+
 pub type Sample = f32;
+const SPLASH_LOGO: &str = "
+   __  ___  __   _   _  
+   ) )  )  (_ ` / ` / ) 
+  /_/ _(_ .__) (_. (_/  
+";
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
+
+    println!("{}", SPLASH_LOGO);
 
     if let Some(ref subcommand) = opts.commands {
         match subcommand {
@@ -220,10 +564,10 @@ async fn main() -> Result<()> {
                     default: opts.clone(),
                 };
 
-                let rack = Arc::new(EffectRack::new_with_shutdown(config, shutdown_rx));
+                let disco = Arc::new(DiscoServer::new_with_shutdown(config, shutdown_rx));
 
                 let _running = tokio::task::spawn(async move {
-                    rack.serve().await.expect("failed to run rack");
+                    disco.serve().await.expect("failed to run disco");
                 });
 
                 signal::ctrl_c().await.ok().map(|_| {

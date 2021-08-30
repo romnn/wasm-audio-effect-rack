@@ -1,6 +1,6 @@
 use crate::cli::Config;
 use crate::session::Session;
-use crate::{EffectRack, ViewerUpdateMsg, INSTANCE_ID_KEY, SESSION_TOKEN_KEY};
+use crate::{DiscoServer, ViewerUpdateMsg, INSTANCE_ID_KEY, SESSION_TOKEN_KEY};
 #[cfg(feature = "analyze")]
 use anyhow::Result;
 use futures::{Stream};
@@ -38,7 +38,7 @@ impl<VU> Viewer<VU> {
     pub fn start(&self) {}
 }
 
-impl<CU> EffectRack<ViewerUpdateMsg, CU>
+impl<CU> DiscoServer<ViewerUpdateMsg, CU>
 where
     CU: Clone + Send + 'static,
 {
@@ -81,7 +81,7 @@ where
 }
 
 #[tonic::async_trait]
-impl<CU> proto::grpc::remote_viewer_server::RemoteViewer for EffectRack<ViewerUpdateMsg, CU>
+impl<CU> proto::grpc::remote_viewer_server::RemoteViewer for DiscoServer<ViewerUpdateMsg, CU>
 where
     CU: Send + Clone + 'static,
 {

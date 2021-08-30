@@ -47,7 +47,10 @@ export class BaseVisualization<
 
   public getConfig() { return this.config }
 
-  public toggleStats(enabled: boolean) { this.stats?.setVisible(enabled); }
+  public toggleStats(enabled: boolean) { 
+    console.log("stats", this.stats);
+    this.stats?.setVisible(enabled); 
+  }
 
   public toggleControls(enabled: boolean) {
     this.controls?.setVisible(enabled);
@@ -124,9 +127,6 @@ export interface VisualizationController<C, I extends Input> {
   useParameterizerAtIndex(idx: number): void;
   useParameterizerNamed(name: string): void;
   setDebug(enabled: boolean): void;
-  // controls and stats are only relevant for the visualization
-  // toggleControls(enabled: boolean): void;
-  // toggleStats(enabled: boolean): void;
 }
 
 // we dont want to restrict to use reactive visualization

@@ -176,15 +176,15 @@ export default class Viewer extends React.Component<
   };
 
   componentDidMount = () => {
-    // subscribe to updates from the remote
     this.setup()
       .then(() => console.log("setup completed"))
       .catch((err) => console.log("setup failed", err));
-    // this.visualization = new TextTransformVisualization();
     const container = document.getElementById("Viewer");
     if (container) {
       this.visualization.init(container);
       const config = this.visualization.visualization.getConfig();
+      this.visualization.visualization.toggleStats(true);
+      this.visualization.visualization.toggleControls(true);
       this.visualization.configure(config);
       this.visualization.start();
     }

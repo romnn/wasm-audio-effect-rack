@@ -11,7 +11,9 @@ type AppProps = {};
 export default class App extends React.Component<AppProps, AppState> {
   constructor(props: AppProps) {
     super(props);
-    this.state = {};
+    this.state = {
+      "hi": 1,
+    };
   }
 
   componentDidMount = () => {};

@@ -1,0 +1,70 @@
+syntax = "proto3";
+package proto.grpc;
+
+import "google/protobuf/any.proto";
+
+message VisualizationStartConfig { google.protobuf.Any config = 1; }
+message VisualizationParameters { google.protobuf.Any parameters = 1; }
+
+message GenericVisualizationConfig {
+  map<string, int32> ints = 1;
+  map<string, uint32> uints = 2;
+  map<string, float> floats = 3;
+  map<string, string> strings = 4;
+}
+
+enum Font {
+  MOTOYALMARU_W3_MONO = 0;
+  LYNO_WALT_REGULAR = 1;
+  LYNO_JEAN_REGULAR = 2;
+  LYNO_STAN_REGULAR = 3;
+  LYNO_ULYS_REGULAR = 4;
+  INTER_EXTRA_BOLD_REGULAR = 5;
+}
+
+message TextTransformStartConfig {
+  string text = 1;
+  uint32 resolution = 2;
+  uint32 size = 3;
+  Font font = 4;
+  uint32 text_resolution = 5;
+}
+
+message RGBColor {
+  uint32 r = 1;
+  uint32 g = 2;
+  uint32 b = 3;
+}
+
+message HSLColor {
+  uint32 h = 1;
+  uint32 s = 2;
+  uint32 l = 3;
+}
+
+message Color {
+  oneof color {
+    RGBColor rgb = 1;
+    HSLColor hsl = 2;
+  }
+}
+
+message TextTransformChar {
+  float width_frac = 1;
+  float depth = 2;
+  repeated float color = 3;
+  float text_longitudinal_velocity_factor = 4;
+  float text_lateral_velocity_factor = 5;
+}
+
+message TextTransformParameters {
+  int32 bpm = 1;
+  bool transparency = 2;
+  bool fixed_width = 3;
+  int32 spacing = 4;
+  Color background_color = 5;
+  int32 text_lateral_velocity_interval_seconds = 6;
+  bool strobe_enabled = 7;
+  int32 strobe_duration = 8;
+  repeated TextTransformChar char = 100;
+}

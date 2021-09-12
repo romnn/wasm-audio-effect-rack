@@ -5,12 +5,19 @@ import {
   InternalVisualizationController,
 } from "../visualization";
 
-import {TTFParameterizer, TTFParams, TTFStartConfig} from "./parameterizer";
+import {
+  TextTransformParameterizer as TTFParameterizer,
+  // TextTransformParameterizer as TTFParameterizer,
+  TTFParams,
+  TTFStartConfig
+} from "./parameterizer";
 import Visualization from "./visualization";
 
 export {
-  TTFParameterizer as Parameterizer,
+  // TTFParams as Parameterizer,
+  TextTransformParameterizer as Parameterizer,
   TTFParams as Parameters
+  // TextTransformParameters as Parameters
 } from "./parameterizer";
 export {default as Visualization} from "./visualization";
 

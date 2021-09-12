@@ -177,3 +177,11 @@ def inspect_wasm(c):
     """Inspect the wasm module"""
     # c.run("twiggy top {}".format(WASM_MODULE))
     pass
+
+@task
+def rebuild_web(c):
+    """Remove all installed modules and lock files for a fresh rebuild"""
+    c.run("find %s -name 'yarn.lock' -exec rm -f {} +" % ROOT_DIR)
+    c.run("find %s -name 'node_modules' -exec rm -fr {} +" % ROOT_DIR)
+
+

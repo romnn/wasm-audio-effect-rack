@@ -1,6 +1,14 @@
 import {AudioAnalysisResult} from "@disco/core/audio/analysis";
+import {
+  Color,
+  Font,
+  RGBColor,
+  TextTransformChar as TTFChar,
+  TextTransformParameters as TTFParams,
+  TextTransformStartConfig as TTFStartConfig,
+} from "@disco/core/grpc";
 import {gaussianFilter1d} from "@disco/core/utils/filters";
-import {bin, map, sum} from "@disco/core/utils/functions";
+import {bin, map, rgb, sum} from "@disco/core/utils/functions";
 import {
   gaussianProb,
   interpolate,
@@ -15,84 +23,123 @@ import * as THREE from "three";
 
 import {BaseParameterizer, Parameterizer, Parameters} from "../parameterizer";
 
-export class TTFTemp {
-  params = new TTFParams();
-  targetState = new TTFParams();
-}
+export {
+  TextTransformParameters as TTFParams,
+  TextTransformStartConfig as TTFStartConfig,
+} from "@disco/core/grpc";
 
 // todo: make a proto so that it can be changed from the remote
-export class TTFStartConfig {
-  text = "GEORGE";
-  // text = "ADRIANA";
-  // text = "SOPHIE";
-  resolution = 50;
-  size = 80;
-  // font = "lynojeanregular";
-  font = "interextraboldregular";
-  textResolution: number|undefined = 3;
+// export class TTFStartConfig {
+//   text = "GEORGE";
+//   // text = "ADRIANA";
+//   // text = "SOPHIE";
+//   resolution = 50;
+//   size = 80;
+//   // font = "lynojeanregular";
+//   font = "interextraboldregular";
+//   textResolution: number|undefined = 3;
+// }
+
+const defaultConfig = (() => {
+  const c = new TTFStartConfig();
+  c.setText("DISCO");
+  c.setResolution(50);
+  c.setSize(80);
+  c.setFont(Font.INTER_EXTRA_BOLD_REGULAR);
+  c.setTextResolution(3);
+  return c;
+})();
+
+const defaultParams = (() => {
+  const c = new TTFParams();
+  c.setBpm(120);
+  c.setTransparency(false);
+  c.setFixedWidth(true);
+  c.setSpacing(10);
+  c.setBackgroundColor(rgb(0, 0, 0));
+  c.setTextLateralVelocityIntervalSeconds(20);
+  c.setStrobeEnabled(true);
+  c.setStrobeDuration(1);
+  c.setCharList(new Array(defaultConfig.getText().length).fill(0).map(() => {
+    const ch = new TTFChar();
+    ch.setWidthFrac(1.0);
+    ch.setDepth(700.0);
+    ch.setColorList(new Array(4 * defaultConfig.getResolution()).fill(1.0));
+    ch.setTextLongitudinalVelocityFactor(1.0);
+    ch.setTextLateralVelocityFactor(1.0);
+    return ch;
+  }));
+  return c;
+})();
+
+class TTFTemp {
+  params = defaultParams;
+  targetState = defaultParams;
 }
 
-const defaultConfig = new TTFStartConfig();
+export {TTFTemp as TextTransformTemporary};
 
-export interface TTFCharParams {
-  widthFrac: number;
-  depth: number;
-  colors: number[];
-  textLongitudinalVelocityFactor: number;
-  textLateralVelocityFactor: number;
-  // textLateralVelocityIntervalSeconds: number;
-}
+// export class TTFParams implements Parameters {
+//  bpm = 120;
+//  // transformSpeed = 30;
+//  // updateIntervalFrames = 30;
+//  transparency = false;
+//  fixedWidth = true;
+//  spacing = 10;
+//  backgroundColor = new THREE.Color("black");
+//  textLateralVelocityIntervalSeconds = 20;
+//  strobeEnabled = true;
+//  strobeDuration = 1;
 
-export class TTFParams implements Parameters {
-  bpm = 120;
-  // transformSpeed = 30;
-  // updateIntervalFrames = 30;
-  transparency = false;
-  fixedWidth = true;
-  spacing = 10;
-  backgroundColor = new THREE.Color("black");
-  textLateralVelocityIntervalSeconds = 20;
-  strobeEnabled = true;
-  strobeDuration = 1;
-  // strobeSpeed = true;
-  // weightCenters = 2;
-  // amplification = 1;
-  // weightCenterAmps = [ 20, 50 ];
-  // weightCenterVariances = [ 0.1, 0.1 ];
+//  chars: TTFCharParams[] =
+//      new Array(defaultConfig.text.length).fill(0).map(() => {
+//        return {
+//          widthFrac: 1, depth: 700,
+//              colors: new Array(4 * defaultConfig.resolution).fill(1.0),
+//              // cannot really set that because we allow full customization
+//              // over the colors so it would be the users job to animate the
+//              // colors in a different speed
+//              // colorLongitudinalVelocityFactor: 1.0,
+//              textLongitudinalVelocityFactor: 1.0,
+//              textLateralVelocityFactor: 1.0,
+//        }
+//      });
+//  //
+//  // strobeSpeed = true;
+//  // weightCenters = 2;
+//  // amplification = 1;
+//  // weightCenterAmps = [ 20, 50 ];
+//  // weightCenterVariances = [ 0.1, 0.1 ];
 
-  chars: TTFCharParams[] =
-      new Array(defaultConfig.text.length).fill(0).map(() => {
-        return {
-          widthFrac: 1, depth: 700,
-              colors: new Array(4 * defaultConfig.resolution).fill(1.0),
-              // cannot really set that because we allow full customization
-              // over the colors so it would be the users job to animate the
-              // colors in a different speed
-              // colorLongitudinalVelocityFactor: 1.0,
-              textLongitudinalVelocityFactor: 1.0,
-              textLateralVelocityFactor: 1.0,
-        }
-      });
+//  // charWidthFrac = new Array(defaultConfig.text.length).fill(1);
+//  // depth = new Array(defaultConfig.text.length).fill(500);
+//  // color =
+//  //     array2d(defaultConfig.text.length, 3 *
+//  //     defaultConfig.resolution, 1.0);
 
-  // charWidthFrac = new Array(defaultConfig.text.length).fill(1);
-  // depth = new Array(defaultConfig.text.length).fill(500);
-  // color =
-  //     array2d(defaultConfig.text.length, 3 * defaultConfig.resolution, 1.0);
+//  // colorLongitudinalVelocityFactor =
+//  //     new Array(defaultConfig.text.length).fill(1);
+//  // textLongitudinalVelocityFactor = new
+//  // Array(defaultConfig.text.length).fill(1); textLateralVelocityFactor = new
+//  // Array(defaultConfig.text.length).fill(1);
+//}
 
-  // colorLongitudinalVelocityFactor =
-  //     new Array(defaultConfig.text.length).fill(1);
-  // textLongitudinalVelocityFactor = new
-  // Array(defaultConfig.text.length).fill(1); textLateralVelocityFactor = new
-  // Array(defaultConfig.text.length).fill(1);
-}
+// export interface TTFCharParams {
+//   widthFrac: number;
+//   depth: number;
+//   colors: number[];
+//   textLongitudinalVelocityFactor: number;
+//   textLateralVelocityFactor: number;
+//   // textLateralVelocityIntervalSeconds: number;
+// }
 
-export class TTFParameterizerConfig {
+export class TextTransformParameterizerConfig {
   fadeoutEaseDirection: EaseDirection|undefined = EaseDirection.OUT;
   fadeoutEaseStyle: EaseStyle|undefined = EaseStyle.QUART;
 }
 
 // todo: add user provided input, e.g. midi
-export class TTFParameterizer extends BaseParameterizer<
+export class TextTransformParameterizer extends BaseParameterizer<
     TTFStartConfig, AudioAnalysisResult, TTFTemp, TTFParams> implements
     Parameterizer<TTFStartConfig, AudioAnalysisResult, TTFTemp, TTFParams> {
 
@@ -109,7 +156,8 @@ export class TTFParameterizer extends BaseParameterizer<
   // g: number[],
   // b: number[],
   // };
-  public config = new TTFParameterizerConfig();
+  // public config = defaultParameters;new TTFParameterizerConfig();
+  public config = new TextTransformParameterizerConfig();
 
   constructor() {
     super();
@@ -140,10 +188,10 @@ export class TTFParameterizer extends BaseParameterizer<
                          temp: TTFTemp|undefined,
                          input: AudioAnalysisResult|
                          null): [ TTFParams, TTFTemp ] => {
-    const inParams = current ?? new TTFParams();
+    const inParams = current ?? defaultParams;
     const inTemp = temp ?? new TTFTemp();
 
-    const outParams = new TTFParams();
+    const outParams = defaultParams;
     const outTemp = new TTFTemp();
 
     // toggle mode
@@ -164,9 +212,10 @@ export class TTFParameterizer extends BaseParameterizer<
       }
       if (this.effects.strobe) {
         transparency = true;
-        outParams.backgroundColor = new THREE.Color(
-            (frame % this.strobeIntervalFrames === 0) ? "black" : "white");
-        if (frame - this.effects.strobe.start > inParams.strobeDuration) {
+        outParams.setBackgroundColor((frame % this.strobeIntervalFrames === 0)
+                                         ? rgb(0, 0, 0)
+                                         : rgb(255, 255, 255));
+        if (frame - this.effects.strobe.start > inParams.getStrobeDuration()) {
           this.effects.strobe = undefined;
         }
       }
@@ -189,28 +238,28 @@ export class TTFParameterizer extends BaseParameterizer<
     // } else {
     //   outParams.bpm = inParams.bpm
     // }
-    outParams.bpm = bpm ? bpm.getBpm() : inParams.bpm;
+    outParams.setBpm(bpm ? bpm.getBpm() : inParams.getBpm());
 
-    outParams.spacing = 10;
-    outParams.fixedWidth = true;
+    outParams.setSpacing(10);
+    outParams.setFixedWidth(true);
+    const text = config.getText();
 
     if (spectral) {
       const volume = spectral.getVolume();
       // console.log(volume);
       const melBands = spectral.getMelBandsList();
-      let binSums = bin(melBands, config.text.length).map((b) => sum(b));
+      let binSums = bin(melBands, text.length).map((b) => sum(b));
       // binSums = binSums.map((s) => Math.sqrt(s));
       // binSums = binSums.map((s) => Math.sqrt(s));
-      // bin(melBands, config.text.length).map((b) => Math.max(...b));
+      // bin(melBands, text.length).map((b) => Math.max(...b));
 
       const binFracs = softmax(binSums).map(
-          (prob) => 1 + (volume * ((prob * config.text.length) - 1)));
+          (prob) => 1 + (volume * ((prob * text.length) - 1)));
 
-      const spectrum = softmax(interpolate(melBands, config.text.length))
-                           .map((prob) => prob * config.text.length);
-      const perChannelSpectrum =
-          (interpolate(melBands, 3 * config.text.length));
-      // .map((prob) => prob * 3 * config.text.length);
+      const spectrum = softmax(interpolate(melBands, text.length))
+                           .map((prob) => prob * text.length);
+      const perChannelSpectrum = (interpolate(melBands, 3 * text.length));
+      // .map((prob) => prob * 3 * text.length);
 
       const charsWithGreatestEnergy =
           indexedSort(spectrum, true).slice(0, 1).map((c, centerIdx) => {
@@ -218,14 +267,14 @@ export class TTFParameterizer extends BaseParameterizer<
               idx : c.idx,
               amplification : volume * Math.pow(c.value * (centerIdx + 1), 3),
               // (1 - volume) * Math.pow(c.value * (centerIdx + 1), 3),
-              variance : Math.sqrt((1 - volume) * config.text.length),
+              variance : Math.sqrt((1 - volume) * text.length),
             };
           });
 
       if (frame - this.lastCharWidthFracUpdate >=
-          inParams.textLateralVelocityIntervalSeconds) {
+          inParams.getTextLateralVelocityIntervalSeconds()) {
 
-        let targetCharWidthFracs = Array.from(config.text).map((_, chIdx) => {
+        let targetCharWidthFracs = Array.from(text).map((_, chIdx) => {
           return charsWithGreatestEnergy.reduce(
               (acc, center) => acc + gaussianProb(chIdx, {
                                        mu : center.idx,
@@ -233,20 +282,21 @@ export class TTFParameterizer extends BaseParameterizer<
                                      }) * center.amplification,
               0);
         })
-        targetCharWidthFracs = softmax(targetCharWidthFracs)
-                                   .map((prob) => prob * config.text.length);
+        targetCharWidthFracs =
+            softmax(targetCharWidthFracs).map((prob) => prob * text.length);
 
         // console.log("computed", targetCharWidthFracs);
-        Array.from(config.text).forEach((_, chIdx) => {
-          outTemp.targetState.chars[chIdx].widthFrac = binFracs[chIdx];
+        Array.from(text).forEach((_, chIdx) => {
+          outTemp.targetState.getCharList()[chIdx].setWidthFrac(
+              binFracs[chIdx]);
           // targetCharWidthFracs[chIdx];
         });
         // console.log("updated char width fracs");
         this.lastCharWidthFracUpdate = frame;
       } else {
-        Array.from(config.text).forEach((_, chIdx) => {
-          outTemp.targetState.chars[chIdx].widthFrac =
-              inTemp.targetState.chars[chIdx].widthFrac;
+        Array.from(text).forEach((_, chIdx) => {
+          outTemp.targetState.getCharList()[chIdx].setWidthFrac(
+              inTemp.targetState.getCharList()[chIdx].getWidthFrac());
         });
       }
 
@@ -278,17 +328,20 @@ export class TTFParameterizer extends BaseParameterizer<
       // textLongitudinalVelocityFactor = new
       // Array(initParams.text.length).fill(1); textLateralVelocityFactor
       // = new Array(initParams.text.length).fill(1);
-      Array.from(config.text).forEach((_, chIdx) => {
+      Array.from(text).forEach((_, chIdx) => {
         // todo: implement speed here
-        const previous = inTemp.params.chars[chIdx].colors.slice(
-            0, (config.resolution - 1) * 4);
+        const previous =
+            inTemp.params.getCharList()[chIdx].getColorList().slice(
+                0, (config.getResolution() - 1) * 4);
         // console.assert(previous.length ==
-        //                inTemp.params.chars[chIdx].colors.length - 4);
+        //                inTemp.params.getCharList()[chIdx].getColorList().length
+        //                - 4);
 
-        outParams.chars[chIdx].colors =
-            gaussianFilter1d(outParams.chars[chIdx].colors, 0.3);
-        outParams.chars[chIdx].colors.splice(4, config.resolution * 4,
-                                             ...previous);
+        outParams.getCharList()[chIdx].setColorList(gaussianFilter1d(
+            outParams.getCharList()[chIdx].getColorList(), 0.3));
+        // outParams.getCharList()[chIdx].setColorList(
+        outParams.getCharList()[chIdx].getColorList().splice(
+            4, config.getResolution() * 4, ...previous);
         let cr = perChannelSpectrum[chIdx * 3 + 0];
         let cg = perChannelSpectrum[chIdx * 3 + 1];
         let cb = perChannelSpectrum[chIdx * 3 + 2];
@@ -310,20 +363,22 @@ export class TTFParameterizer extends BaseParameterizer<
         // r *= colorStrength;
         // g *= colorStrength;
         // b *= colorStrength;
-        outParams.chars[chIdx].colors.splice(0, 4, r, g, b, a);
+        // outParams.getCharList()[chIdx].setColorList(
+        outParams.getCharList()[chIdx].getColorList().splice(0, 4, r, g, b, a);
 
         // set the char width frac
         // console.log(bins[chIdx]);
-        // outParams.chars[chIdx].widthFrac = binFracs[chIdx];
-        // outParams.chars[chIdx].widthFrac =
+        // outParams.getCharList()[chIdx].widthFrac = binFracs[chIdx];
+        // outParams.getCharList()[chIdx].widthFrac =
         // clone(targetCharWidthFracs[chIdx]);
         // console.log(chIdx,
         // if (targetCharWidthFracs) {
-        //   outParams.chars[chIdx].widthFrac = targetCharWidthFracs[chIdx];
+        //   outParams.getCharList()[chIdx].widthFrac =
+        //   targetCharWidthFracs[chIdx];
         // }
         // console.log(binFracs);
-        // outParams.chars[chIdx].widthFrac = binFracs[chIdx];
-        // outParams.chars[chIdx].widthFrac = 2;
+        // outParams.getCharList()[chIdx].widthFrac = binFracs[chIdx];
+        // outParams.getCharList()[chIdx].widthFrac = 2;
       })
     }
 
@@ -335,40 +390,51 @@ export class TTFParameterizer extends BaseParameterizer<
         ? ease(this.config.fadeoutEaseDirection ?? EaseDirection.IN,
                this.config.fadeoutEaseStyle ?? EaseStyle.QUINT) : undefined;
 
-    Array.from(config.text).forEach((_, chIdx) => {
+    Array.from(text).forEach((_, chIdx) => {
       // interpolate the width fracs
-      let widthFracUpdateProgress = (frame - this.lastCharWidthFracUpdate) /
-                                    inParams.textLateralVelocityIntervalSeconds;
-      // outParams.chars[chIdx].widthFrac +=
-      outParams.chars[chIdx].widthFrac +=
-          (inTemp.targetState.chars[chIdx].widthFrac -
-           outTemp.params.chars[chIdx].widthFrac) *
-          widthFracUpdateProgress;
+      let widthFracUpdateProgress =
+          (frame - this.lastCharWidthFracUpdate) /
+          inParams.getTextLateralVelocityIntervalSeconds();
+      let widthFrac = outParams.getCharList()[chIdx].getWidthFrac();
+      widthFrac += (inTemp.targetState.getCharList()[chIdx].getWidthFrac() -
+                    outTemp.params.getCharList()[chIdx].getWidthFrac()) *
+                   widthFracUpdateProgress;
+      outParams.getCharList()[chIdx].setWidthFrac(widthFrac);
 
-      for (let segment = 0; segment < config.resolution; segment++) {
+      for (let segment = 0; segment < config.getResolution(); segment++) {
         const fadeout =
-            easeFunc ? 1 - easeFunc(segment / config.resolution) : 1;
+            easeFunc ? 1 - easeFunc(segment / config.getResolution()) : 1;
         // console.log(segment, fadeout);
         if (transparency) {
-          outParams.chars[chIdx].colors[4 * segment + 3] = fadeout;
+          outParams.getCharList()[chIdx].getColorList()[4 * segment + 3] =
+              fadeout;
         } else {
-          outParams.chars[chIdx].colors[4 * segment + 0] *= fadeout;
-          outParams.chars[chIdx].colors[4 * segment + 1] *= fadeout;
-          outParams.chars[chIdx].colors[4 * segment + 2] *= fadeout;
-          outParams.chars[chIdx].colors[4 * segment + 3] = 1.0;
+          outParams.getCharList()[chIdx].getColorList()[4 * segment + 0] *=
+              fadeout;
+          outParams.getCharList()[chIdx].getColorList()[4 * segment + 1] *=
+              fadeout;
+          outParams.getCharList()[chIdx].getColorList()[4 * segment + 2] *=
+              fadeout;
+          outParams.getCharList()[chIdx].getColorList()[4 * segment + 3] = 1.0;
         }
         if (segment == 0) {
-          outParams.chars[chIdx].colors[4 * segment + 0] += 0.1;
-          outParams.chars[chIdx].colors[4 * segment + 1] += 0.1;
-          outParams.chars[chIdx].colors[4 * segment + 2] += 0.1;
+          outParams.getCharList()[chIdx].getColorList()[4 * segment + 0] += 0.1;
+          outParams.getCharList()[chIdx].getColorList()[4 * segment + 1] += 0.1;
+          outParams.getCharList()[chIdx].getColorList()[4 * segment + 2] += 0.1;
         }
 
-        outParams.chars[chIdx].colors[4 * segment + 0] =
-            Math.min(outParams.chars[chIdx].colors[4 * segment + 0], 1.0);
-        outParams.chars[chIdx].colors[4 * segment + 1] =
-            Math.min(outParams.chars[chIdx].colors[4 * segment + 1], 1.0);
-        outParams.chars[chIdx].colors[4 * segment + 2] =
-            Math.min(outParams.chars[chIdx].colors[4 * segment + 2], 1.0);
+        outParams.getCharList()[chIdx].getColorList()[4 * segment + 0] =
+            Math.min(
+                outParams.getCharList()[chIdx].getColorList()[4 * segment + 0],
+                1.0);
+        outParams.getCharList()[chIdx].getColorList()[4 * segment + 1] =
+            Math.min(
+                outParams.getCharList()[chIdx].getColorList()[4 * segment + 1],
+                1.0);
+        outParams.getCharList()[chIdx].getColorList()[4 * segment + 2] =
+            Math.min(
+                outParams.getCharList()[chIdx].getColorList()[4 * segment + 2],
+                1.0);
       }
     });
 

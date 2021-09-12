@@ -1,5 +1,5 @@
 import {DatGuiParameterControls} from "@disco/controls"
-import {map, sum} from "@disco/core/utils/functions";
+import {map, sum, threeColor} from "@disco/core/utils/functions";
 import * as THREE from "three";
 import {OrbitControls} from "three/examples/jsm/controls/OrbitControls";
 
@@ -11,7 +11,7 @@ import {
   // UpdateParameterOptions
 } from "../visualization"
 
-// import {TTFParams, TTFStartConfig} from "./parameterizer";
+import {TTFParams, TTFStartConfig} from "./parameterizer";
 
 type TTFCharGeometry = {
   character: string; mesh : THREE.Mesh<THREE.BufferGeometry>;
@@ -107,7 +107,9 @@ export default class TTFVisualization extends
     const baseCharWidths = this.characters.map((ch) => ch.width);
     const targetWidth = sum(baseCharWidths);
 
-    this.background.material.color.set(this.parameters.backgroundColor);
+    const color = this.parameters.getBackgroundColor();
+    if (color)
+      this.background.material.color.set(threeColor(color));
     // let color = this.background.material.color;
     // const gen = seedrandom("42");
     // const gen = seedrandom((100 * Math.random()).toString());
@@ -165,22 +167,22 @@ export default class TTFVisualization extends
     //     (ch,
     //      chIdx) => { return ch.width * this.currentCharWidthFracs[chIdx]; });
     const currentCharWidths = this.characters.map((ch, chIdx) => {
-      return ch.width * this.parameters.chars[chIdx].widthFrac;
+      return ch.width * this.parameters.getCharList()[chIdx].getWidthFrac();
     });
     // console.log(currentCharWidths);
     const newTotalWidth = sum(currentCharWidths);
     const correction =
-        this.parameters.fixedWidth ? targetWidth / newTotalWidth : 1;
+        this.parameters.getFixedWidth() ? targetWidth / newTotalWidth : 1;
 
     // sanity checks
     console.assert(this.characters?.every((ch, chIdx) => {
       // if (JSON.stringify(this.parameters.chars[chIdx].colors) !=
       //     JSON.stringify(this.parameters.chars[0].colors))
       //   debugger;
-      if (this.parameters.chars[chIdx].colors.length !==
-          4 * this.config.resolution)
+      if (this.parameters.getCharList()[chIdx].getColorList().length !==
+          4 * this.config.getResolution())
         debugger;
-      if (ch.positions.length / this.config.resolution !==
+      if (ch.positions.length / this.config.getResolution() !==
           3 * ch.pointsPerSegment)
         debugger;
       return true;
@@ -189,15 +191,15 @@ export default class TTFVisualization extends
     let width = 0;
     let depth = 0;
     this.characters?.forEach((ch, chIdx) => {
-      const segmentSize =
-          this.parameters.chars[chIdx].depth / this.config.resolution;
-      depth = Math.max(depth, this.parameters.chars[chIdx].depth);
+      const segmentSize = this.parameters.getCharList()[chIdx].getDepth() /
+                          this.config.getResolution();
+      depth = Math.max(depth, this.parameters.getCharList()[chIdx].getDepth());
       const baseSpeed = 1.0 / segmentSize;
       const colors: number[] = [];
       for (let pointIdx = ch.positions.length - 3; pointIdx >= 0;
            pointIdx -= 3) {
         const segment = Math.floor(pointIdx / (3 * ch.pointsPerSegment));
-        const fsegment = this.config.resolution - segment - 1;
+        const fsegment = this.config.getResolution() - segment - 1;
 
         let [x, y, z] = ch.positions.slice(pointIdx, pointIdx + 3);
         if (segment === 0) {
@@ -227,7 +229,8 @@ export default class TTFVisualization extends
           let speed =
               // this.parameters.bpm * baseSpeed *
               80 * baseSpeed *
-              this.parameters.chars[chIdx].textLongitudinalVelocityFactor;
+              this.parameters.getCharList()[chIdx]
+                  .getTextLongitudinalVelocityFactor();
           speed = 5;
           const interp = ((frame % speed) + 1) / speed;
           // ((frame % this.parameters.speed) + 1) / this.parameters.speed;
@@ -244,11 +247,11 @@ export default class TTFVisualization extends
         ch.transformed[pointIdx + 0] = x;
         ch.transformed[pointIdx + 1] = y;
         ch.transformed[pointIdx + 2] = z;
-        let [r, g, b, a] = this.parameters.chars[chIdx].colors.slice(
+        let [r, g, b, a] = this.parameters.getCharList()[chIdx].getColorList().slice(
             4 * fsegment, 4 * (fsegment + 1));
         colors.push(r, g, b, a);
       }
-      width += this.parameters.spacing + currentCharWidths[chIdx] * correction;
+      width += this.parameters.getSpacing() + currentCharWidths[chIdx] * correction;
 
       console.assert(ch.transformed.length === ch.positions.length);
       // console.assert(colors.length === ch.transformed.length);
@@ -332,20 +335,20 @@ export default class TTFVisualization extends
         this.stats?.setVisible(super.isDebug);
 
         // create controls
-        this.controls = new TTFControls(this.parameters, this.container);
+        // this.controls = new TTFControls(this.parameters, this.container);
       }
 
   public configure = (config: TTFStartConfig): void => {
     this.config = config;
     this.configured = false;
 
-    const fontDescriptor = Fonts[config.font];
+    const fontDescriptor = Fonts[config.getFont()];
     if (!fontDescriptor) {
       throw new Error("font not found");
     }
     const font = this.fontLoader.parse(fontDescriptor.typeface);
-    this.buildText(config.text,
-                   {font, size : config.size, resolution : config.resolution})
+    this.buildText(config.getText(),
+                   {font, size : config.getSize(), resolution : config.getResolution()})
         .then(({text, characters}) => {
           this.text = text;
           this.characters = characters;
@@ -393,7 +396,7 @@ export default class TTFVisualization extends
     }
 
     // extend the planar character geometry
-    for (let extrudeIdx = 0; extrudeIdx < this.config.resolution;
+    for (let extrudeIdx = 0; extrudeIdx < this.config.getResolution();
          extrudeIdx++) {
       // console.log("extrude", extrudeIdx);
       // color.setHSL(0.1 * extrudeIdx, 1.0, 0.5);

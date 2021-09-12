@@ -1,6 +1,6 @@
 import React from "react";
 
-import {test } from "@disco/core";
+import { test } from "@disco/core";
 import {
   AudioAnalyzer,
   AudioAnalysisResult,
@@ -12,9 +12,9 @@ import { RouteComponentProps } from "react-router-dom";
 import { Error, Metadata, Status } from "grpc-web";
 import Remote, { RemoteState, RemoteURLQueryProps } from "@disco/core/remote";
 import { RemoteViewer } from "@disco/viewer";
-import {RemoteController} from "@disco/controller";
+import { RemoteController } from "@disco/controller";
 import { ViewerUpdate } from "@disco/core/grpc/viewer";
-import { TTFStartConfig } from "@disco/visuals/text-transform/parameterizer";
+
 import VisualizationGallery from "@disco/visuals/gallery";
 import { VisualizationController } from "@disco/visuals";
 
@@ -30,10 +30,7 @@ export default class Viewer extends React.Component<
   protected remote: RemoteViewer;
   protected controller: RemoteController;
 
-  protected visualization: VisualizationController<
-    TTFStartConfig,
-    AudioAnalysisResult
-  > = new VisualizationGallery.visualizations[0]();
+  protected visualization: VisualizationController = new VisualizationGallery.visualizations[0]();
 
   constructor(props: ViewerRouteProps) {
     super(props);
@@ -168,9 +165,9 @@ export default class Viewer extends React.Component<
     const container = document.getElementById("Viewer");
     if (container) {
       this.visualization.init(container);
-      const config = this.visualization.visualization.getConfig();
-      this.visualization.visualization.toggleStats(true);
-      this.visualization.visualization.toggleControls(true);
+      const config = this.visualization.getConfig();
+      this.visualization.toggleStats(true);
+      this.visualization.toggleControls(true);
       this.visualization.configure(config);
       this.visualization.start();
     }

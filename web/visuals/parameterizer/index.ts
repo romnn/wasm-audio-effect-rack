@@ -1,10 +1,21 @@
+import {AudioAnalysisResult} from "@disco/core/audio/analysis";
+import {
+  VisualizationParameters,
+  VisualizationStartConfig
+} from "@disco/core/grpc";
 import {sum} from "@disco/core/utils/functions";
+import * as pb from "google-protobuf"
 
-export interface StartConfig {}
-export interface Temporary {}
-export interface Input {}
+export type StartConfig = pb.Message;
+export type StartConfigContainer = VisualizationStartConfig;
 
-export interface Parameters {}
+export type Parameters = pb.Message;
+export type ParametersContainer = VisualizationParameters;
+
+export type Input = AudioAnalysisResult;
+export type InputContainer = AudioAnalysisResult;
+
+export type Temporary = {};
 
 export interface Parameterizer<C extends StartConfig, I extends Input, T extends
                                    Temporary, P extends Parameters> {

@@ -1,0 +1,13 @@
+[package]
+name = "pydisco"
+version = "0.1.0"
+authors = ["romnn <contact@romnn.com>"]
+edition = "2018"
+
+[dependencies]
+pyo3 = { version = "0.14", features = ["extension-module"] }
+disco = { path = "../disco" }
+
+[lib]
+name = "disco"
+crate-type = ["cdylib"]

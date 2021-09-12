@@ -1,0 +1,22 @@
+{
+    "extends": "../tsconfig.json",
+    "include": [
+        "visualizaton/**/*.ts",
+        "visualizaton/**/*.tsx",
+        "fonts/**/*.ts",
+        "fonts/**/*.tsx",
+        "gallery/**/*.ts",
+        "gallery/**/*.tsx",
+        "parameterizer/**/*.ts",
+        "parameterizer/**/*.tsx",
+        "stats/**/*.ts",
+        "stats/**/*.tsx",
+        "text-transform/**/*.ts",
+        "text-transform/**/*.tsx",
+        "types/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "deprecated"
+    ]
+}

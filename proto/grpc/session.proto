@@ -1,0 +1,40 @@
+syntax = "proto3";
+package proto.grpc;
+
+import "google/protobuf/timestamp.proto";
+
+message Assignment {
+  SessionToken session_token = 1;
+  InstanceId instance_id = 2;
+}
+
+message InstanceSubscriptions {}
+
+message InstanceId { string id = 1; }
+message SessionToken { string token = 1; }
+
+enum InstanceState {
+  ONLINE = 0;
+  OFFLINE = 1;
+  FAILED = 2;
+}
+
+message InstanceInfo {
+  SessionToken session_token = 1;
+  InstanceId instance_id = 2;
+  google.protobuf.Timestamp connected_since = 10;
+  InstanceState state = 11;
+}
+
+message ViewerInstanceInfo { InstanceInfo info = 1; }
+
+message ControllerInstanceInfo { InstanceInfo info = 1; }
+
+message SessionInfo {
+  SessionToken token = 1;
+  repeated ViewerInstanceInfo viewers = 2;
+  repeated ControllerInstanceInfo controllers = 3;
+  google.protobuf.Timestamp started = 10;
+}
+
+message Sessions { repeated SessionInfo sessions = 1; }

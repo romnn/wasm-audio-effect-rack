@@ -1,0 +1,28 @@
+{
+    "private": true,
+    "workspaces": {
+        "packages": [
+            "web/*"
+        ],
+        "nohoist": [
+            "**/babel-loader",
+            "**/babel-jest"
+        ]
+    },
+    "scripts": {
+        "pack": "invoke pack",
+        "protos": "invoke compile-protos",
+        "start": "yarn start:disco",
+        "typecheck": "yarn typecheck:disco",
+        "test": "yarn test:disco",
+        "build": "yarn build:disco",
+        "start:disco": "yarn workspace @disco/disco start",
+        "typecheck:disco": "yarn workspace @disco/disco typecheck",
+        "test:disco": "yarn workspace @disco/disco test",
+        "build:disco": "yarn workspace @disco/disco build",
+        "start:launcher": "yarn workspace @disco/launcher start",
+        "typecheck:launcher": "yarn workspace @disco/launcher typecheck",
+        "test:launcher": "yarn workspace @disco/launcher test",
+        "build:launcher": "yarn workspace @disco/launcher build"
+    }
+}

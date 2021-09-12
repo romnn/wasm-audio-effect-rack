@@ -1,0 +1,49 @@
+syntax = "proto3";
+package proto.grpc;
+
+import "proto/audio/analysis/analysis.proto";
+import "proto/grpc/connection.proto";
+import "proto/grpc/session.proto";
+import "proto/grpc/remote.proto";
+
+service RemoteViewer {
+  // Connect and Disconnect to updates
+  rpc Connect(ViewerConnectRequest) returns (stream ViewerUpdate) {}
+  rpc Disconnect(ViewerDisconnectRequest) returns (Empty) {}
+
+  // change subscription
+  rpc UpdateSubscription(UpdateSubscriptionRequest) returns (Empty) {}
+}
+
+message ViewerUpdate {
+  oneof update {
+    // todo: add status messages or notifications
+    Heartbeat heartbeat = 1;
+    Assignment assignment = 2;
+    proto.audio.analysis.AudioAnalysisResult audio_analysis_result = 100;
+  }
+}
+
+message UpdateSubscriptionRequest {
+  /* AudioSource audio_source = 1; */
+  /* string topic = 1; */
+}
+
+/* message DefaultAudioSource { */
+/*   // todo */
+/* } */
+
+/* message CustomAudioSource { */
+/*   // todo */
+/* } */
+
+/* message AudioSource { */
+/*   oneof source { */
+/*     DefaultAudioSource default = 1; */
+/*     CustomAudioSource custom = 2; */
+/*   } */
+/* } */
+
+message ViewerConnectRequest { InstanceId instance = 1; }
+
+message ViewerDisconnectRequest {}

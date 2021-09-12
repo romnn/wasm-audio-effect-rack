@@ -1,0 +1,25 @@
+syntax = "proto3";
+package proto.grpc;
+
+message AudioInputDescriptor {
+  string backend = 1;
+  string device = 2;
+  string host = 3;
+}
+
+message AudioAnalyzerDescriptor {
+  string name = 1;
+  // todo: maybe in the future we also want to key by their parameters
+  AudioInputDescriptor input = 10;
+}
+
+message AudioOutputDescriptor {
+  string backend = 1;
+  string device = 2;
+  string host = 3;
+  AudioInputDescriptor input = 10;
+}
+
+message AudioInputStream { AudioInputDescriptor descriptor = 1; }
+message AudioAnalyzer { AudioAnalyzerDescriptor descriptor = 1; }
+message AudioOutputStream { AudioOutputDescriptor descriptor = 1; }

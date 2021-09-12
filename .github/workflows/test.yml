@@ -1,0 +1,32 @@
+name: test
+
+on: [push]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v2
+    - run: |
+        pip install pipenv
+        pipenv install --dev
+    - name: Code checks
+      uses: pre-commit/action@v2.0.0
+      with:
+        extra_args: --all-files
+
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: [3.6, 3.7, 3.8]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install tox wheel
+      - name: Test
+        run: tox
+      - uses: codecov/codecov-action@v1

@@ -22,9 +22,7 @@ enum Instruction {
   INIT = 2,
   DATA = 3,
   ACK = 4,
-  READY = 5,
-  ERROR = 6,
-  NOOP = 7,
+  ERROR = 5,
 };
 typedef enum Instruction Instruction;
 
@@ -93,8 +91,8 @@ void setupLEDs() {
   int32_t offset = 0;
   for (int32_t strip = 0; strip < num_led_strips; strip++) {
     // FastLED.addLeds<WS2812, 3, GRB>(leds, offset, num_leds[strip]);
-    FastLED.addLeds<WS2812, 4, GRB>(leds, 0, 300);
     FastLED.addLeds<WS2812, 5, GRB>(leds, 0, 300);
+    FastLED.addLeds<WS2812, 6, GRB>(leds, 0, 300);
     /* switch (data_pin[strip]) {            
       case 3: {
           FastLED.addLeds<WS2812, 3, GRB>(leds, offset, num_leds[strip]);
@@ -149,10 +147,6 @@ void get_messages_from_serial()
       is_connected = true;
     } else {
       switch(instruction) {
-        case NOOP: {
-          // do nothing, this is important for the protocol
-          break;
-        }
         case INIT: {
           // remove old data
           if (data_pin != NULL) free(data_pin);
@@ -197,7 +191,7 @@ void get_messages_from_serial()
           }
           // put the first element in the last slot
           FastLED.setCorrection(TypicalLEDStrip);
-          FastLED.setBrightness(10);
+          // FastLED.setBrightness(10);
           FastLED.show();
           break;
           /*

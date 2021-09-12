@@ -1,0 +1,99 @@
+syntax = "proto3";
+package proto.grpc;
+
+import "proto/audio/analysis/analysis.proto";
+import "proto/grpc/connection.proto";
+import "proto/grpc/session.proto";
+import "proto/grpc/descriptors.proto";
+import "proto/grpc/remote.proto";
+
+service RemoteController {
+  // connect and disconnect
+  rpc Connect(ControllerConnectRequest) returns (stream ControllerUpdate) {}
+  rpc Disconnect(ControllerDisconnectRequest) returns (Empty) {}
+
+  // start and stop analyzing audio
+  rpc AddAudioInputStream(AddAudioInputStreamRequest)
+      returns (AudioInputStream) {}
+
+  rpc AddAudioAnalyzer(AddAudioAnalyzerRequest) returns (AudioAnalyzer) {}
+
+  rpc AddAudioOutputStream(AddAudioOutputStreamRequest)
+      returns (AudioOutputStream) {}
+
+  rpc SubscribeToAudioAnalyzer(SubscribeToAudioAnalyzerRequest)
+      returns (InstanceSubscriptions) {}
+
+  rpc ConnectLightsToAudioAnalyzer(ConnectLightsToAudioAnalyzerRequest)
+      returns (InstanceSubscriptions) {}
+
+  // query sessions
+  rpc GetSessions(GetSessionsRequest) returns (Sessions) {}
+
+  /* rpc RemoveAudioInputStream(RemoveAudioInputStreamRequest) returns
+   * (AudioInputStream) {} */
+  /* rpc AddAudioAnalyzer(AddAudioAnalyzerRequest) returns (AudioAnalyzer) {}
+   */
+  /* rpc RemoteAudioAnalyzer(AddAudioAnalyzerRequest) returns (AudioAnalyzer)
+   * {}
+   */
+
+  // dont really need that if we do it internally in the connection method
+  /* rpc NewInstanceId(NewInstanceIdRequest) returns (InstanceId) {} */
+
+  // controller
+  /* rpc QueryCurrentVisualization(QueryCurrentVisualizationRequest) */
+  /*     returns (Visualization) {} */
+  /* rpc RegisterVisualization(RegisterVisualizationRequest) returns (Empty)
+   * {}
+   */
+
+  // the entire parameterization is happening on the client based on the
+  // selected parameterizer but when one controls via the controller, the
+  // changes should be live so we also have to upload the entire user input
+  // includes: active visualization, active parameterizer, their user defined
+  // options (which can be changed e.g. with a midi and then have to be
+  // synced) maybe best if all the updates go to the backend and really just
+  // the updates that come back trigger something in the viewer such that they
+  // really have no shared state whatsoever
+}
+
+message GetSessionsRequest {}
+
+message ControllerUpdate {
+  oneof update {
+    // todo: add status messages or notifications
+    Heartbeat heartbeat = 1;
+    Assignment assignment = 2;
+  }
+}
+
+message SubscribeToAudioAnalyzerRequest {
+  // we assume the session is the controller session
+  InstanceId instance_id = 1;
+  AudioAnalyzerDescriptor audio_analyzer_descriptor = 10;
+}
+
+message ConnectLightsToAudioAnalyzerRequest {
+  Lights lights = 1;
+  AudioAnalyzerDescriptor audio_analyzer_descriptor = 10;
+}
+
+message AddAudioInputStreamRequest {
+  // todo: all the options about device etc.
+}
+
+message AddAudioAnalyzerRequest {
+  // todo: all the audio analyzer options
+  proto.audio.analysis.AudioAnalyzer analyzer = 1;
+  AudioInputDescriptor input_descriptor = 10;
+}
+
+message AddAudioOutputStreamRequest {
+  // todo: all the options about device etc.
+  AudioInputDescriptor input_descriptor = 1;
+}
+
+message ControllerConnectRequest { InstanceId instance = 1; }
+
+message ControllerDisconnectRequest {}

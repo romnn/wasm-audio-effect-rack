@@ -1,0 +1,17 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[dev-packages]
+# Formatting
+flake8 = "*"
+black = "==21.8b0"
+# Tools
+pre-commit = "*"
+invoke = "*"
+m2r = "*"
+bump2version = "*"
+
+[packages]
+proto-compile = ">=0.1.6"

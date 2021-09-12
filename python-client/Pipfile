@@ -1,0 +1,32 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[dev-packages]
+# Formatting
+flake8 = "*"
+black = "==21.8b0"
+# Testing
+tox = "*"
+pytest = "*"
+pytest-cov = "*"
+pytest-xdist = "*"
+pytest-sugar = "*"
+pyfakefs = "*"
+mypy = "*"
+# Coverage
+coverage = "*"
+# Tools
+pre-commit = "*"
+invoke = "*"
+m2r = "*"
+bump2version = "*"
+# Building
+twine = "*"
+cibuildwheel = "*"
+setuptools-rust = "*"
+wheel = "*"
+pypi-name = "*"
+
+[packages]

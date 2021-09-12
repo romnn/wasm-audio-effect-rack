@@ -5,6 +5,7 @@ Execute 'invoke --list' for guidance on using Invoke
 import shutil
 import pprint
 import os
+from proto_compile import proto_compile
 
 from invoke import task
 import webbrowser
@@ -15,14 +16,21 @@ Path().expanduser()
 WASM_MODULE_NAME = "effectrack"
 
 ROOT_DIR = Path(__file__).parent
-WASM_BUILD_DIR = ROOT_DIR / "pkg"
-BINARYEN_DIR = ROOT_DIR / "binaryen"
-WABT_DIR = ROOT_DIR / "wabt"
-WWW_DIR = ROOT_DIR / "www"
-WWW_PUBLIC_DIR = WWW_DIR / "public"
-WWW_PUBLIC_WASM_DIR = WWW_PUBLIC_DIR / "wasm"
-WASM_SOURCE_DIR = ROOT_DIR / WASM_MODULE_NAME
-WASM_TARGETS = [WASM_SOURCE_DIR] + [WASM_SOURCE_DIR / p for p in ["bpm-detection"]]
+DISCO_DIR = ROOT_DIR / "effectrack"
+PROTO_DIR = ROOT_DIR / "proto"
+PY_CLIENT_DIR = ROOT_DIR / "python-client"
+PY_CLIENT_SRC_DIR = PY_CLIENT_DIR / "discodisco"
+WEB_DIR = ROOT_DIR / "web"
+WEB_CORE_DIR = WEB_DIR / "core"
+WEB_CORE_PROTO_DIR = WEB_CORE_DIR / "generated"
+PY_CLIENT_PROTO_DIR = PY_CLIENT_SRC_DIR / "generated"
+# BINARYEN_DIR = ROOT_DIR / "binaryen"
+# WABT_DIR = ROOT_DIR / "wabt"
+# WASM_BUILD_DIR = ROOT_DIR / "pkg"
+# WWW_PUBLIC_DIR = WWW_DIR / "public"
+# WWW_PUBLIC_WASM_DIR = WWW_PUBLIC_DIR / "wasm"
+# WASM_SOURCE_DIR = ROOT_DIR / WASM_MODULE_NAME
+# WASM_TARGETS = [WASM_SOURCE_DIR] + [WASM_SOURCE_DIR / p for p in ["bpm-detection"]]
 
 
 def _delete_file(file):
@@ -50,26 +58,31 @@ def format(c, check=False):
 def pack(c, upgrade=False):
     """Compile, pack and upgrade the wasm module package"""
     # os.environ["RUSTFLAGS"] = "-Ctarget-feature=+simd128"
-    for p in WASM_TARGETS:
-        c.run("wasm-pack build --target no-modules --release {}".format(p), pty=True)
-        c.run("mkdir -p {}".format(WWW_PUBLIC_WASM_DIR / p.name))
-        c.run("rm -rf {}".format(WWW_PUBLIC_WASM_DIR / p.name))
-        c.run("cp -R {} {}".format(p / "pkg", WWW_PUBLIC_WASM_DIR / p.name))
+    # for p in WASM_TARGETS:
+    #     c.run("wasm-pack build --target no-modules --release {}".format(p), pty=True)
+    #     c.run("mkdir -p {}".format(WWW_PUBLIC_WASM_DIR / p.name))
+    #     c.run("rm -rf {}".format(WWW_PUBLIC_WASM_DIR / p.name))
+    #     c.run("cp -R {} {}".format(p / "pkg", WWW_PUBLIC_WASM_DIR / p.name))
+    pass
+
 
 @task
-def start_standalone(c):
-    c.run("cd {} && yarn build".format(WWW_DIR))
-    c.run("yarn tauri dev")
+def start_launcher(c):
+    c.run("cd {} && yarn build".format(LAUNCHER_DIR))
+    c.run("cd {} && yarn tauri dev".format(DISCO_DIR))
+
 
 @task
-def debug_build_standalone(c):
+def debug_build_launcher(c):
     c.run("cd {} && yarn build".format(WWW_DIR))
     c.run("yarn tauri build --debug")
 
+
 @task
-def build_standalone(c):
+def build_launcher(c):
     c.run("cd {} && yarn build".format(WWW_DIR))
     c.run("yarn tauri build")
+
 
 @task
 def to_wav(c, audio_file, output_file):
@@ -104,6 +117,27 @@ def lint(c):
 
 
 @task
+def compile_protos(c):
+    """Compile protocol buffers"""
+    print("compiling into {}".format(WEB_CORE_PROTO_DIR))
+    proto_compile.compile_grpc_web(
+        options=proto_compile.BaseCompilerOptions(
+            proto_source_dir=ROOT_DIR,
+            clear_output_dirs=False,
+            output_dir=WEB_CORE_PROTO_DIR,
+        )
+    )
+    print("compiling into {}".format(PY_CLIENT_PROTO_DIR))
+    proto_compile.compile_python_grpc(
+        options=proto_compile.BaseCompilerOptions(
+            proto_source_dir=ROOT_DIR,
+            clear_output_dirs=False,
+            output_dir=PY_CLIENT_PROTO_DIR,
+        )
+    )
+
+
+@task
 def install_wasm_opt(c):
     """Install binaryen to optimize the web assembly bundle"""
     if not BINARYEN_DIR.is_dir():
@@ -132,54 +166,14 @@ def install_twiggy(c):
 @task
 def optimize_wasm(c, strip=True):
     """Optimize the wasm module"""
-    c.run("wasm-opt {} -O4 -o {}".format(WASM_MODULE, WASM_MODULE))
-    if strip:
-        c.run("wasm-strip {}".format(WASM_MODULE))
+    # c.run("wasm-opt {} -O4 -o {}".format(WASM_MODULE, WASM_MODULE))
+    # if strip:
+    #     c.run("wasm-strip {}".format(WASM_MODULE))
+    pass
 
 
 @task
 def inspect_wasm(c):
     """Inspect the wasm module"""
-    c.run("twiggy top {}".format(WASM_MODULE))
-
-
-# @task
-# def test(c, min_coverage=None):
-#     """Run tests"""
-#     pytest_options = "--cov-fail-under={}".format(min_coverage) if min_coverage else ""
-#     c.run("pipenv run pytest --cov={} {}".format(WASM_SOURCE_DIR, pytest_options))
-
-
-# @task
-# def install_hooks(c):
-#     """Install pre-commit hooks"""
-#     c.run("pipenv run pre-commit install -t pre-commit")
-#     c.run("pipenv run pre-commit install -t pre-push")
-
-
-# @task
-# def pre_commit(c):
-#     """Run all pre-commit checks"""
-#     c.run("pipenv run pre-commit run --all-files")
-
-
-# @task
-# def clean_build(c):
-#     """Clean up files from package building"""
-#     c.run("rm -fr build/")
-#     c.run("rm -fr dist/")
-#     c.run("rm -fr .eggs/")
-#     c.run("find . -name '*.egg-info' -exec rm -fr {} +")
-#     c.run("find . -name '*.egg' -exec rm -f {} +")
-
-
-# @task(pre=[clean_build])
-# def clean(c):
-#     """Runs all clean sub-tasks"""
-#     pass
-
-
-# @task(pre=[clean])
-# def release(c):
-#     """Make a release of the python package to pypi"""
-#     c.run("twine upload dist/*")
+    # c.run("twiggy top {}".format(WASM_MODULE))
+    pass

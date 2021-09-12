@@ -4,9 +4,67 @@ This is very much a work in progress and only worked on for special occasions.
 
 It might be very cool one day though...
 
+#### Project structure
+
+web
+math - contains math, functions etc. - and a lot of
+disco (uses viewer, controller, math)
+viewer
+controller
+remote
+launcher
+docs
+disco
+
+- math - contains math, functions etc. - and a lot of
+- hardware
+- analysis
+- proto
+
+#### Org name options
+
+discodiscodiscodisco
+discodiscoorg
+cheapdisco
+diskoorg
+disco-org
+disko-org
+diskodiskodisko
+disko-project
+
+#### docs and landing page site inspiration
+
+https://after-dark.habd.as/feature/extended-builds/
+
+#### NPM client name options
+
+@disco/disco        is the all in one application
+@disco/core         contains math, communication, p2p etc.
+@disco/controller   contains the ui and logic for the controller
+@disco/viewer       contains the ui and logic for the viewer
+
+#### Python client name options
+
+pip install discodisco
+
+pip install diskopy
+
+pip install disko-py
+
+pip install pydisko
+
+pip install py-disko
+
+pip install disco-client
+
+pip install silentdisco
+
+pip install remotedisco
+
 #### Usage
 
 Start the standalone application
+
 ```bash
 invoke start-standalone
 invoke build-standalone
@@ -36,6 +94,7 @@ sudo chown $(id -run) /dev/ttyACM0
 
 #### TODO backend
 
+- check for existing connections before doing anything else or even starting something
 - limit the amount of messages sent by the backend to be max 60fps
 - make it so that the playback does not stop after one hour but actually wait for an event
 - package the backend in an easy to install gui application for osx, linux and windows
@@ -60,11 +119,18 @@ sudo chown $(id -run) /dev/ttyACM0
 
 #### TODO controller
 
+- handle resize window event to also resize the webgl canvas
+- change the tab titles based on the session and instance id
 - create a very simple controller page that allows to select the current effect and shows the options for the current effect
 - make the linter happy
 - select the current parameterizer via the controller page
 
-done
+#### TODO proto
+
+- use custom proto tags to define for all controls that should be able to be used via midi what kind of control they are and min and max values
+  - otherwise, the controls will be overwritten when configuring handlers for midi events manually
+
+#### done
 
 - remove unnecessary stuff in rust and make the linter happy
 - allow multiple connections to both the controllers and the viewers

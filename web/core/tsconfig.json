@@ -1,0 +1,19 @@
+{
+    "extends": "../tsconfig.json",
+    "include": [
+        "audio/**/*.ts",
+        "audio/**/*.tsx",
+        "generated/**/*.ts",
+        "generated/**/*.tsx",
+        "remote/**/*.ts",
+        "remote/**/*.tsx",
+        "utils/**/*.ts",
+        "utils/**/*.tsx",
+        "types/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "deprecated"
+    ]
+
+}

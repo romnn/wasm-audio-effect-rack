@@ -11,7 +11,12 @@ import {
   // UpdateParameterOptions
 } from "../visualization"
 
-import {TTFParams, TTFStartConfig} from "./parameterizer";
+import {
+  defaultConfig,
+  defaultParams,
+  TTFParams,
+  TTFStartConfig
+} from "./parameterizer";
 
 type TTFCharGeometry = {
   character: string; mesh : THREE.Mesh<THREE.BufferGeometry>;
@@ -61,8 +66,8 @@ export default class TTFVisualization extends
         implements ParameterizedVisualization<TTFStartConfig, any, TTFParams> {
 
   public readonly name = "Text Transform";
-  protected parameters = new TTFParams();
-  protected config = new TTFStartConfig();
+  protected parameters = defaultParams;
+  protected config = defaultConfig;
 
   public get isDebug() { return super.isDebug };
 
@@ -110,6 +115,8 @@ export default class TTFVisualization extends
     const color = this.parameters.getBackgroundColor();
     if (color)
       this.background.material.color.set(threeColor(color));
+    // console.log(color?.toObject() ?? undefined);
+    // console.log("test");
     // let color = this.background.material.color;
     // const gen = seedrandom("42");
     // const gen = seedrandom((100 * Math.random()).toString());
@@ -151,17 +158,17 @@ export default class TTFVisualization extends
     // }
 
     // console.log("actual", this.parameters.chars.map((c) => c.widthFrac));
-    this.characters?.forEach(
-        (ch, chIdx) => {
-            // move the char width fraction a bit closer to the
-            // target value
-            // this.currentCharWidthFracs[chIdx] +=
-            // (this.targetCharWidthFracs[chIdx] -
-            //                                       this.currentCharWidthFracs[chIdx])
-            //                                       *
-            //                                      0.001 *
-            //                                      this.parameters.transformSpeed;
-        });
+    // this.characters?.forEach(
+    //     (ch, chIdx) => {
+    //         // move the char width fraction a bit closer to the
+    //         // target value
+    //         // this.currentCharWidthFracs[chIdx] +=
+    //         // (this.targetCharWidthFracs[chIdx] -
+    //         // this.currentCharWidthFracs[chIdx])
+    //         //                                       *
+    //         //                                      0.001 *
+    //         // this.parameters.transformSpeed;
+    //     });
 
     // const currentCharWidths = this.characters.map(
     //     (ch,
@@ -175,18 +182,18 @@ export default class TTFVisualization extends
         this.parameters.getFixedWidth() ? targetWidth / newTotalWidth : 1;
 
     // sanity checks
-    console.assert(this.characters?.every((ch, chIdx) => {
-      // if (JSON.stringify(this.parameters.chars[chIdx].colors) !=
-      //     JSON.stringify(this.parameters.chars[0].colors))
-      //   debugger;
-      if (this.parameters.getCharList()[chIdx].getColorList().length !==
-          4 * this.config.getResolution())
-        debugger;
-      if (ch.positions.length / this.config.getResolution() !==
-          3 * ch.pointsPerSegment)
-        debugger;
-      return true;
-    }));
+    // console.assert(this.characters?.every((ch, chIdx) => {
+    //   // if (JSON.stringify(this.parameters.chars[chIdx].colors) !=
+    //   //     JSON.stringify(this.parameters.chars[0].colors))
+    //   //   debugger;
+    //   if (this.parameters.getCharList()[chIdx].getColorList().length !==
+    //       4 * this.config.getResolution())
+    //     debugger;
+    //   if (ch.positions.length / this.config.getResolution() !==
+    //       3 * ch.pointsPerSegment)
+    //     debugger;
+    //   return true;
+    // }));
 
     let width = 0;
     let depth = 0;
@@ -203,10 +210,10 @@ export default class TTFVisualization extends
 
         let [x, y, z] = ch.positions.slice(pointIdx, pointIdx + 3);
         if (segment === 0) {
-          const valid =
-            (ch.boundingBox?.min?.x ?? 0) <= x &&
-            x <= (ch.boundingBox?.max?.x ?? 0);
-          console.assert(valid);
+          // const valid =
+          //   (ch.boundingBox?.min?.x ?? 0) <= x &&
+          //   x <= (ch.boundingBox?.max?.x ?? 0);
+          // console.assert(valid);
 
           const charPosFrac = map(
             x,
@@ -247,11 +254,13 @@ export default class TTFVisualization extends
         ch.transformed[pointIdx + 0] = x;
         ch.transformed[pointIdx + 1] = y;
         ch.transformed[pointIdx + 2] = z;
-        let [r, g, b, a] = this.parameters.getCharList()[chIdx].getColorList().slice(
-            4 * fsegment, 4 * (fsegment + 1));
+        let [r, g, b, a] =
+            this.parameters.getCharList()[chIdx].getColorList().slice(
+                4 * fsegment, 4 * (fsegment + 1));
         colors.push(r, g, b, a);
       }
-      width += this.parameters.getSpacing() + currentCharWidths[chIdx] * correction;
+      width +=
+          this.parameters.getSpacing() + currentCharWidths[chIdx] * correction;
 
       console.assert(ch.transformed.length === ch.positions.length);
       // console.assert(colors.length === ch.transformed.length);
@@ -336,10 +345,12 @@ export default class TTFVisualization extends
 
         // create controls
         // this.controls = new TTFControls(this.parameters, this.container);
+        this.configure(this.config);
       }
 
   public configure = (config: TTFStartConfig): void => {
     this.config = config;
+    console.log(config.toObject());
     this.configured = false;
 
     const fontDescriptor = Fonts[config.getFont()];
@@ -347,8 +358,11 @@ export default class TTFVisualization extends
       throw new Error("font not found");
     }
     const font = this.fontLoader.parse(fontDescriptor.typeface);
-    this.buildText(config.getText(),
-                   {font, size : config.getSize(), resolution : config.getResolution()})
+    this.buildText(config.getText(), {
+          font,
+          size : config.getSize(),
+          resolution : config.getResolution()
+        })
         .then(({text, characters}) => {
           this.text = text;
           this.characters = characters;

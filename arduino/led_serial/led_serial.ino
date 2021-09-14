@@ -13,6 +13,9 @@ int8_t *data_pin = NULL;
 int32_t *num_leds = NULL;
 // int8_t *color_buffer = NULL;
 
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+
 #define MAX_LEDS 300
 CRGB leds[MAX_LEDS];
 
@@ -49,11 +52,7 @@ void setup() {
 
 void loop() {
   // FastLED.setDither(false);
-  
   // FastLED.setMaxPowerInVoltsAndMilliamps(5, 400);
-  // set_max_power_indicator_LED(13);
-  // fill_solid(leds, 300, CRGB::Red);
-  // Serial.print("fill leds");
 
   // it is important that the backend only sends data when we can receive it
   // beacuse fastled show disables the interrupts, we could miss serial messages and everthing will be dragon land
@@ -63,14 +62,14 @@ void loop() {
   // todo: read in the speed
   // if (frame - lastStepFrame >= speed) {
   int32_t offset = 0;
+  int32_t step_size = 3;
   for (int32_t strip = 0; strip < num_led_strips; strip++) {
     // for (int32_t led = 1; led < num_leds[strip]; led++) {
     for (int32_t led = num_leds[strip]-1; led > 0; led--) {
       // leds[offset + led-1] = leds[offset + led];
       if (frame - lastStepFrame >= speed) {
         // do a step
-        leds[offset + led] = leds[offset + led - 1];
-        // lastStepFrame = frame;
+        leds[offset + led] = leds[MAX(0,offset + led - step_size)];
       } else {
         // interpolate between the values
         // but this only works if we have enough memory, which we dont :(
@@ -116,6 +115,7 @@ void setupLEDs() {
     */
     // offset += num_leds[strip];
   }
+  FastLED.setCorrection(TypicalLEDStrip);
   fill_solid(leds, MAX_LEDS, CRGB::Black);
 }
 
@@ -123,35 +123,23 @@ void get_messages_from_serial()
 {
   if(Serial.available() > 0) {
     // The first byte received is the instruction
-    // Serial.print("waiting for message.\n");
     Instruction instruction = read_instruction();
-    // instruction = CONNECT;
-    // is_connected = true;
-    // write_instruction(instruction);
-    // return;
-    // char buffer[50];
-    // sprintf(buffer, "received instruction: %d.\n", instruction);
-    // Serial.print(buffer);
     if(instruction == CONNECT) {
       if(!is_connected) {
         is_connected = true;
-        // write_instruction(CONNECT);
-        write_instruction(ALREADY_CONNECTED);
-        // Serial.print("is connected now");
+        // write_instruction(ALREADY_CONNECTED);
+        write_instruction(CONNECT);
       } else {
         // If we are already connected do not send CONNECT to avoid infinite loop
         write_instruction(ALREADY_CONNECTED);
-        // Serial.print("already connected");
       }
     } else if (instruction == ALREADY_CONNECTED) {
       is_connected = true;
     } else {
       switch(instruction) {
         case INIT: {
-          // remove old data
           if (data_pin != NULL) free(data_pin);
           if (num_leds != NULL) free(num_leds);
-          // if (color_buffer != NULL) free(color_buffer);
 
           // receive new init parameters
           num_led_strips = read_i32();
@@ -163,61 +151,30 @@ void get_messages_from_serial()
             write_i8(data_pin[strip]);
             num_leds[strip] = read_i32();
             write_i32(num_leds[strip]);
+            // we dont have enough memory for a big color buffer
             // color_buffer = (int8_t*)malloc(num_led_strips * num_leds[strip] * 3 *  sizeof(int8_t));
           };
           setupLEDs();
           break;
         }
         case DATA: {
-          // uint8_t r = read_u8();
-          // write_u8(r);
-          // uint8_t g = read_u8();
-          // write_u8(g);
-          // uint8_t b = read_u8();
-          int32_t offset = 0;
-          // wait_for_bytes(3);
           uint8_t r = read_u8();
           uint8_t g = read_u8();
           uint8_t b = read_u8();
-          // leds[offset + led] = CRGB(r,g,b);
           // fill_solid(leds, MAX_LEDS, CRGB(r,g,b));
+          // put the first element in the last slot
+          int32_t offset = 0;
           for (int32_t strip = 0; strip < num_led_strips; strip++) {
-            //for (int32_t led = 1; led < num_leds[strip]; led++) {
-            //  leds[offset + led-1] = leds[offset + led];
-            //}
-            // leds[offset + num_leds[strip] - 1] = CRGB(r,g,b);
+            for (int32_t led = 0; led < num_leds[strip]; led++) {
+              // leds[offset + led-1] = leds[offset + led];
+              // leds[offset + led] = CRGB(r,g,b);
+            }
             leds[offset] = CRGB(r,g,b);
             offset += num_leds[strip];
           }
-          // put the first element in the last slot
-          FastLED.setCorrection(TypicalLEDStrip);
           // FastLED.setBrightness(10);
           FastLED.show();
           break;
-          /*
-          for (int32_t strip = 0; strip < num_led_strips; strip++) {
-            for (int32_t led = 0; led < num_leds[strip]; led++) {
-              uint8_t r = read_u8();
-              // write_u8(r);
-              uint8_t g = read_u8();
-              // write_u8(g);
-              uint8_t b = read_u8();
-              // write_u8(b);
-              leds[offset + led].r = r;
-              leds[offset + led].g = 0;
-              leds[offset + led].b = 0;
-              FastLED.show();
-              // while (Serial.available() < 3);
-              // Serial.readBytes((byte*)(&leds[led]), 3);
-              // data_pin[strip];
-              // color_buffer[(offset + led) * 3 + 0] = read_i8();
-              // color_buffer[(offset + led) * 3 + 1] = read_i8();
-              // color_buffer[(offset + led) * 3 + 2] = read_i8();
-            };
-            offset += num_leds[strip];
-          };
-          break;
-          */
         }
         // unknown instruction
         default: {
@@ -227,8 +184,6 @@ void get_messages_from_serial()
       }
       write_instruction(ACK);
     }
-  } else {
-    // Serial.print("no new messages are available\n");
   }
 }
 

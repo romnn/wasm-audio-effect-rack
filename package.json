@@ -16,6 +16,7 @@
         "typecheck": "yarn typecheck:disco",
         "test": "yarn test:disco",
         "build": "yarn build:disco",
+        "workers": "yarn workspace @disco/workers watch",
         "start:disco": "yarn workspace @disco/disco start",
         "typecheck:disco": "yarn workspace @disco/disco typecheck",
         "test:disco": "yarn workspace @disco/disco test",

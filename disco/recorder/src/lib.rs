@@ -72,7 +72,7 @@ impl Default for AudioOutputConfig {
             backend_config: AudioBackendConfig::default(),
             input_device: None,
             output_device: None,
-            latency: 400.0,
+            latency: 5.0,
         }
     }
 }

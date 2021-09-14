@@ -1,0 +1,36 @@
+{
+    "name": "@disco/workers",
+    "version": "1.0.0",
+    "private": true,
+    "dependencies": {
+        "typescript": "^4.4.3"
+    },
+    "scripts": {
+        "watch": "tsc -w"
+    },
+    "eslintConfig": {
+        "extends": [
+            "react-app",
+            "react-app/jest"
+        ],
+        "ignorePatterns": [
+            "node_modules/",
+            "src/generated"
+        ]
+    },
+    "browserslist": {
+        "production": [
+            ">0.2%",
+            "not dead",
+            "not op_mini all"
+        ],
+        "development": [
+            "last 1 chrome version",
+            "last 1 firefox version",
+            "last 1 safari version"
+        ]
+    },
+    "devDependencies": {
+        "@types/google-protobuf": "^3.15.3"
+    }
+}

@@ -38,10 +38,11 @@ https://after-dark.habd.as/feature/extended-builds/
 
 #### NPM client name options
 
-@disco/disco        is the all in one application
-@disco/core         contains math, communication, p2p etc.
-@disco/controller   contains the ui and logic for the controller
-@disco/viewer       contains the ui and logic for the viewer
+@disco/disco is the all in one application
+@disco/core contains math, communication, p2p etc.
+@disco/controller contains the ui and logic for the controller
+@disco/viewer contains the ui and logic for the viewer
+@disco/launcher contains the launcher application UI
 
 #### Python client name options
 
@@ -92,9 +93,15 @@ ls -l /dev/ttyACM*
 sudo chown $(id -run) /dev/ttyACM0
 ```
 
+#### TODO (ASAP)
+
+- Upload pip package with org user so that the name is safe
+- Upload NPM packages with org user so that the names are safe
+
 #### TODO backend
 
 - check for existing connections before doing anything else or even starting something
+- move the map function to somewhere where it can be exposed to JS and python
 - limit the amount of messages sent by the backend to be max 60fps
 - make it so that the playback does not stop after one hour but actually wait for an event
 - package the backend in an easy to install gui application for osx, linux and windows

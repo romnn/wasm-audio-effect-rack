@@ -40,17 +40,17 @@ export {
 //   textResolution: number|undefined = 3;
 // }
 
-const defaultConfig = (() => {
+export const defaultConfig = (() => {
   const c = new TTFStartConfig();
   c.setText("DISCO");
-  c.setResolution(50);
+  c.setResolution(20);
   c.setSize(80);
   c.setFont(Font.INTER_EXTRA_BOLD_REGULAR);
-  c.setTextResolution(3);
+  c.setTextResolution(2);
   return c;
 })();
 
-const defaultParams = (() => {
+export const defaultParams = (() => {
   const c = new TTFParams();
   c.setBpm(120);
   c.setTransparency(false);
@@ -58,7 +58,7 @@ const defaultParams = (() => {
   c.setSpacing(10);
   c.setBackgroundColor(rgb(0, 0, 0));
   c.setTextLateralVelocityIntervalSeconds(20);
-  c.setStrobeEnabled(true);
+  c.setStrobeEnabled(false);
   c.setStrobeDuration(1);
   c.setCharList(new Array(defaultConfig.getText().length).fill(0).map(() => {
     const ch = new TTFChar();
@@ -177,11 +177,22 @@ export class TextTransformParameterizer extends BaseParameterizer<
     //   b : prideColors.map((c) => c.b),
     // };
   }
-  protected strobeEnabled = true;
   // protected modeDuration = 60 * 60 * 0.1; // 5 minutes
   protected modeDurations = [ 60 * 60 * 0.5, 60 * 60 * 0.5, 60 * 10 ];
   protected modeFrames = 0;
   protected mode = 0;
+
+  public parameterizeFast =
+      (frame: number, config: TTFStartConfig, previous: TTFParams[],
+       current: TTFParams|undefined, temp: TTFTemp|undefined,
+       input: AudioAnalysisResult|null): [ TTFParams, TTFTemp ] => {
+        const inParams = current ?? defaultParams;
+        const inTemp = temp ?? new TTFTemp();
+
+        const outParams = defaultParams;
+        const outTemp = new TTFTemp();
+        return [ inParams, inTemp ];
+      }
 
   public parameterize = (frame: number, config: TTFStartConfig,
                          previous: TTFParams[], current: TTFParams|undefined,
@@ -203,7 +214,7 @@ export class TextTransformParameterizer extends BaseParameterizer<
 
     // strobe light effect
     let transparency = false;
-    if (this.strobeEnabled) {
+    if (inParams.getStrobeEnabled()) {
       const shouldStrobe = Math.random() < 0.001;
       if (!this.effects.strobe && shouldStrobe) {
         this.effects.strobe = {

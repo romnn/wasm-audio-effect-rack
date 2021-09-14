@@ -1,6 +1,6 @@
 use crate::analyzer::{AudioAnalyzerNode, AudioAnalyzerNodeTrait, AudioInputNode, AudioOutputNode};
 use crate::cli::Config;
-use crate::{Sample, ControllerUpdateMsg, DiscoServer, ViewerUpdateMsg};
+use crate::{ControllerUpdateMsg, DiscoServer, Sample, ViewerUpdateMsg};
 use analysis::bpm::{BpmDetectionAnalyzer, BpmDetectionAnalyzerConfig};
 #[cfg(feature = "analyze")]
 use analysis::spectral::{SpectralAnalyzer, SpectralAnalyzerOptions};
@@ -139,20 +139,21 @@ impl proto::grpc::remote_controller_server::RemoteController
             .input_streams
             .write()
             .await;
-        // check if the stream is alreay active
         let mut audio_input = AudioInputNode::<f32>::new(input_config)
             .map_err(|_| Status::internal("failed to create input stream"))?;
         let descriptor = audio_input.descriptor();
+
+        // check if the stream is alreay active
+        if input_streams.contains_key(&descriptor) {
+            return Err(Status::already_exists("input stream already exists"));
+        }
+
         audio_input
             .start()
             .await
             .map_err(|_| Status::internal("failed to start input stream"))?;
+        input_streams.insert(descriptor.clone(), RwLock::new(audio_input));
 
-        if input_streams.contains_key(&descriptor) {
-            return Err(Status::ok("the specified input stream already exists"));
-        } else {
-            input_streams.insert(descriptor.clone(), RwLock::new(audio_input))
-        };
         Ok(Response::new(proto::grpc::AudioInputStream {
             descriptor: Some(descriptor),
         }))
@@ -183,14 +184,9 @@ impl proto::grpc::remote_controller_server::RemoteController
                 "session {} does not exist",
                 session_token
             )))?;
-        let mut output_streams = session.output_streams.write().await;
-
         let input_stream_desc = request.into_inner().input_descriptor;
         let input_stream_desc =
             input_stream_desc.ok_or(Status::invalid_argument("missing input stream descriptor"))?;
-
-        // todo: check if the stream is already active
-        // todo: this requires differet descriptors based on in/out
 
         let input_streams = session.input_streams.read().await;
         let input_stream = input_streams
@@ -205,16 +201,19 @@ impl proto::grpc::remote_controller_server::RemoteController
         let mut audio_output = AudioOutputNode::<Sample>::new(input_node, output_config)
             .map_err(|_| Status::internal("failed to create input stream"))?;
         let descriptor = audio_output.descriptor();
+
+        // check if the stream already exists
+        let mut output_streams = session.output_streams.write().await;
+        if output_streams.contains_key(&descriptor) {
+            return Err(Status::already_exists("output stream already exists"));
+        }
+
         audio_output
             .start()
             .await
             .map_err(|_| Status::internal("failed to start output stream"))?;
+        output_streams.insert(descriptor.clone(), RwLock::new(audio_output));
 
-        if output_streams.contains_key(&descriptor) {
-            return Err(Status::internal("failed to create audio stream descriptor"));
-        } else {
-            output_streams.insert(descriptor.clone(), RwLock::new(audio_output))
-        };
         Ok(Response::new(proto::grpc::AudioOutputStream {
             descriptor: Some(descriptor),
         }))
@@ -302,15 +301,15 @@ impl proto::grpc::remote_controller_server::RemoteController
         let mut analyzers = session.analyzers.write().await;
         if analyzers.contains_key(&descriptor) {
             return Err(Status::already_exists("audio analyzer already exists"));
-        } else {
-            // start the analyzer
-            audio_analyzer_node
-                .start()
-                .await
-                .map_err(|_| Status::internal("failed to start analyzer"))?;
+        }
+        
+        // start the analyzer
+        audio_analyzer_node
+            .start()
+            .await
+            .map_err(|_| Status::internal("failed to start analyzer"))?;
 
-            analyzers.insert(descriptor.clone(), RwLock::new(audio_analyzer_node))
-        };
+        analyzers.insert(descriptor.clone(), RwLock::new(audio_analyzer_node));
         Ok(Response::new(proto::grpc::AudioAnalyzer {
             descriptor: Some(descriptor),
         }))
@@ -377,7 +376,7 @@ impl proto::grpc::remote_controller_server::RemoteController
         println!("light serial port: {}", lights.serial_port);
         println!("num light strips: {}", lights.strips.len());
 
-        let latency = 30;
+        let latency = 5;
         let ring = RingBuffer::<(u8, u8, u8)>::new(latency);
         let (mut producer, mut consumer) = ring.split();
 
@@ -449,7 +448,9 @@ impl proto::grpc::remote_controller_server::RemoteController
                                 let b: u8 = NumCast::from(b).unwrap_or(0);
                                 let color = (r, g, b);
                                 if let Err(err) = producer.push(color) {
-                                    eprintln!("failed to produce: {:?}", err);
+                                    // this is normal as the light strip does not read out data as
+                                    // fast
+                                    // eprintln!("failed to produce light data: {:?}", err);
                                 }
                             }
                             _ => {}

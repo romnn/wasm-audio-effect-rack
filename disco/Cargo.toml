@@ -51,7 +51,7 @@ members = [
 default = ["record", "analyze"]
 analyze = []
 record = []
-p2p = ["libp2p", ]
+p2p = ["libp2p"]
 portaudio = ["recorder/portaudio"]
 jack = ["recorder/jack"]
 

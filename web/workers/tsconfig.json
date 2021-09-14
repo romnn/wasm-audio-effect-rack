@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "target": "esnext",
+        "module": "esnext",
+        "strict": true,
+        "moduleResolution": "node",
+        "outDir": "./dist",
+        "rootDir": "../",
+        "composite": true,
+        "allowJs": true,
+        "skipLibCheck": true,
+        "declarationMap": true,
+        "sourceMap": false,
+        "lib": ["esnext", "webworker"]
+    },
+    "include": [
+        "../visuals/**/worker.ts"
+    ],
+    "exclude": [
+        "../**/node_modules/*",
+        "../**/deprecated/*"
+    ]
+}

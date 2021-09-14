@@ -29,6 +29,9 @@ export default class Viewer extends React.Component<
 > {
   protected remote: RemoteViewer;
   protected controller: RemoteController;
+  protected stats: {
+    [key in ViewerUpdate.UpdateCase]?: { start: number; count: number };
+  } = {};
 
   protected visualization: VisualizationController = new VisualizationGallery.visualizations[0]();
 
@@ -65,6 +68,25 @@ export default class Viewer extends React.Component<
   };
 
   handleUpdate = (update: ViewerUpdate) => {
+    const counter = this.stats[update.getUpdateCase()];
+    if (counter) {
+      counter.count += 1;
+      if (counter.count > 60 * 3) {
+        const msgPerSec =
+          counter.count / ((performance.now() - counter.start) / 1000);
+        console.log(`${update.getUpdateCase()}: ${msgPerSec} msg/sec`);
+        this.stats[update.getUpdateCase()] = {
+          start: performance.now(),
+          count: 0,
+        };
+      }
+    } else {
+      this.stats[update.getUpdateCase()] = {
+        start: performance.now(),
+        count: 1,
+      };
+    }
+
     let audioAnalysisResult = update.getAudioAnalysisResult();
     let heartbeat = update.getHeartbeat();
     let assignment = update.getAssignment();
@@ -101,11 +123,11 @@ export default class Viewer extends React.Component<
       const inputStream = await this.controller.addAudioInputStream();
       console.log("connecting the audio input stream to an output stream...");
       const inputDescriptor = inputStream.getDescriptor();
-      if (inputDescriptor) {
-        const outputStream = await this.controller.addAudioOutputStream(
-          inputDescriptor
-        );
-      }
+      // if (inputDescriptor) {
+      //   const outputStream = await this.controller.addAudioOutputStream(
+      //     inputDescriptor
+      //   );
+      // }
       console.log("connecting the spectral analyzer to the audio input stream");
       if (inputDescriptor) {
         const audioAnalyzer = new AudioAnalyzer();
@@ -123,15 +145,15 @@ export default class Viewer extends React.Component<
             instance
           );
         }
-        console.log("connect lights to the analyzer");
-        if (audioAnalyzerDescriptor) {
-          await this.controller.connectLightsToAudioAnalyzer(
-            audioAnalyzerDescriptor,
-            "/dev/ttyACM0",
-            [{ numLights: 300, pin: 5 }]
-            // [{numLights: 300, pin: 1 }, {numLights: 300, pin: 1 }],
-          );
-        }
+        // console.log("connect lights to the analyzer");
+        // if (audioAnalyzerDescriptor) {
+        //   await this.controller.connectLightsToAudioAnalyzer(
+        //     audioAnalyzerDescriptor,
+        //     "/dev/ttyACM0",
+        //     [{ numLights: 300, pin: 5 }]
+        //     // [{numLights: 300, pin: 1 }, {numLights: 300, pin: 1 }],
+        //   );
+        // }
       }
       // console.log("connecting the bpm analyzer to the audio input stream");
       // if (inputDescriptor) {
@@ -164,11 +186,12 @@ export default class Viewer extends React.Component<
       .catch((err) => console.log("setup failed", err));
     const container = document.getElementById("Viewer");
     if (container) {
+      // debugger;
       this.visualization.init(container);
-      const config = this.visualization.getConfig();
+      // const config = this.visualization.getConfig();
       this.visualization.toggleStats(true);
       this.visualization.toggleControls(true);
-      this.visualization.configure(config);
+      // this.visualization.configure();
       this.visualization.start();
     }
   };

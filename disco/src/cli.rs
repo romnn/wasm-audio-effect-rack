@@ -24,15 +24,6 @@ pub struct StartOpts {
     #[cfg(feature = "record")]
     #[clap(long = "no-sound")]
     pub no_sound: bool,
-    #[cfg(feature = "led")]
-    #[clap(long = "led-serial-device")]
-    pub led_serial_device: Option<String>,
-    #[cfg(feature = "led")]
-    #[clap(long = "leds-per-strip")]
-    pub leds_per_strip: Option<u32>,
-    #[cfg(feature = "led")]
-    #[clap(long = "num-led_strips")]
-    pub num_led_strips: Option<u32>,
 }
 
 #[cfg(feature = "record")]
@@ -67,7 +58,7 @@ pub struct Opts {
     pub output_device: Option<String>,
 
     #[cfg(feature = "record")]
-    #[clap(long = "latency", default_value = "150")]
+    #[clap(long = "latency", default_value = "5")]
     pub latency: u32,
 
     #[cfg(use_jack)]

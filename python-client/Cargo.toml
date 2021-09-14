@@ -6,7 +6,17 @@ edition = "2018"
 
 [dependencies]
 pyo3 = { version = "0.14", features = ["extension-module"] }
-disco = { path = "../disco" }
+tokio = { version = "1.0", features = ["signal", "rt-multi-thread", "macros", "sync", "time", "fs", "rt", "io-util", "io-std"] }
+disco = { path = "../disco"}
+
+[features]
+default = ["record", "analyze"]
+analyze = ["disco/analyze"]
+record = ["disco/record"]
+p2p = ["disco/p2p"]
+portaudio = ["disco/portaudio"]
+jack = ["disco/jack"]
+
 
 [lib]
 name = "disco"

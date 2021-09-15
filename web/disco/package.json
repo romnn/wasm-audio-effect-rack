@@ -64,6 +64,6 @@
         "@types/react-router-dom": "^5.1.8",
         "@types/seedrandom": "^3.0.1",
         "@types/webmidi": "^2.0.6",
-        "node-sass": "4.14.1"
+        "sass": "^1.38.2"
     }
 }

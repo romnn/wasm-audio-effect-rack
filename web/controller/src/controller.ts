@@ -8,7 +8,6 @@ import {
 import {
   InstanceId,
 } from "@disco/core/grpc";
-import {uwe} from "@disco/core/grpc/controller";
 import {
   AddAudioAnalyzerRequest,
   AddAudioInputStreamRequest,

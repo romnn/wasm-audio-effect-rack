@@ -74,11 +74,13 @@ jobs:
         CIBW_BEFORE_BUILD: >
           pip install -U setuptools-rust &&
           rustup default nightly &&
-          rustup show
+          rustup show &&
+          ls -lia
         CIBW_BEFORE_BUILD_LINUX: >
           pip install -U setuptools-rust &&
           curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=nightly --profile=minimal -y &&
-          rustup show
+          rustup show &&
+          ls -lia
 
     - name: Build windows 32bit binaries
       if: matrix.os == 'windows'

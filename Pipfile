@@ -12,6 +12,7 @@ pre-commit = "*"
 invoke = "*"
 m2r = "*"
 bump2version = "*"
+cibuildwheel = "*"
 
 [packages]
 proto-compile = ">=0.1.6"

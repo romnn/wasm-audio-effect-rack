@@ -60,7 +60,7 @@ jobs:
         python setup.py sdist
 
     - name: Build ${{ matrix.platform || matrix.os }} binaries
-      run: cibuildwheel --output-dir dist
+      run: cibuildwheel --output-dir dist python-client
       env:
         CIBW_BUILD: 'cp3${{ matrix.python-version }}-*'
         CIBW_SKIP: '*-win32'
@@ -82,7 +82,7 @@ jobs:
 
     - name: Build windows 32bit binaries
       if: matrix.os == 'windows'
-      run: cibuildwheel --output-dir dist
+      run: cibuildwheel --output-dir dist python-client
       env:
         CIBW_BUILD: 'cp3${{ matrix.python-version }}-win32'
         CIBW_PLATFORM: windows

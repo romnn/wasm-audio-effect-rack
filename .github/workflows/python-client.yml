@@ -51,7 +51,7 @@ jobs:
         override: true
 
     - name: Install python dependencies
-      run: pip install -U setuptools wheel twine cibuildwheel
+      run: pip install -U setuptools setuptools-rust wheel twine cibuildwheel
 
     - name: Build sdist
       if: matrix.os == 'ubuntu' && matrix.python-version == '8'
@@ -66,21 +66,30 @@ jobs:
         CIBW_SKIP: '*-win32'
         CIBW_PLATFORM: ${{ matrix.platform || matrix.os }}
         CIBW_TEST_REQUIRES: 'pytest'
-        CIBW_TEST_COMMAND: 'pytest {project}/tests -s'
+        CIBW_TEST_COMMAND: 'pytest {project}/python-client/tests -s'
         CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH"'
         CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH"'
         CIBW_MANYLINUX_X86_64_IMAGE: 'manylinux2014'
         CIBW_MANYLINUX_I686_IMAGE: 'manylinux2014'
-        CIBW_BEFORE_BUILD: >
-          pip install -U setuptools-rust &&
-          rustup default nightly &&
+        CIBW_BEFORE_TEST: >
+          yum install tree alsa-lib-devel openssl openssl-devel -y &&
+          pip install -U pip pipenv setuptools setuptools-rust wheel &&
+          curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
           rustup show &&
-          ls -lia
+          PIPENV_PIPFILE=./python-client/Pipfile pipenv lock -r > requirements.txt &&
+          pip install -U -r requirements.txt
+
         CIBW_BEFORE_BUILD_LINUX: >
-          pip install -U setuptools-rust &&
-          curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=nightly --profile=minimal -y &&
+          yum install tree alsa-lib-devel openssl openssl-devel -y &&
+          curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
           rustup show &&
-          ls -lia
+          pip install -U pip pipenv setuptools setuptools-rust wheel &&
+          PIPENV_PIPFILE=./python-client/Pipfile pipenv lock -r > requirements.txt &&
+          pip install -U -r requirements.txt &&
+          unlink python-client/disco-src &&
+          cp -r disco python-client/disco-src &&
+          cp -r proto python-client/proto &&
+          tree -I 'node_modules|target|build' python-client
 
     - name: Build windows 32bit binaries
       if: matrix.os == 'windows'
@@ -92,11 +101,17 @@ jobs:
         CIBW_TEST_COMMAND: 'pytest {project}/tests -s'
         CIBW_ENVIRONMENT: 'PATH="$UserProfile\.cargo\bin;$PATH"'
         CIBW_BEFORE_BUILD: >
-          pip install -U setuptools-rust &&
           rustup toolchain install nightly-i686-pc-windows-msvc &&
           rustup default nightly-i686-pc-windows-msvc &&
           rustup override set nightly-i686-pc-windows-msvc &&
-          rustup show
+          rustup show &&
+          pip install -U pip pipenv setuptools setuptools-rust wheel &&
+          PIPENV_PIPFILE=./python-client/Pipfile pipenv lock -r > requirements.txt &&
+          pip install -U -r requirements.txt &&
+          unlink python-client/disco-src &&
+          cp -r disco python-client/disco-src &&
+          cp -r proto python-client/proto &&
+
 
     - name: List dist files
       run: ${{ matrix.ls || 'ls -lh' }} dist/

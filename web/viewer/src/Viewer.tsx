@@ -145,15 +145,15 @@ export default class Viewer extends React.Component<
             instance
           );
         }
-        // console.log("connect lights to the analyzer");
-        // if (audioAnalyzerDescriptor) {
-        //   await this.controller.connectLightsToAudioAnalyzer(
-        //     audioAnalyzerDescriptor,
-        //     "/dev/ttyACM0",
-        //     [{ numLights: 300, pin: 5 }]
-        //     // [{numLights: 300, pin: 1 }, {numLights: 300, pin: 1 }],
-        //   );
-        // }
+        console.log("connect lights to the analyzer");
+        if (audioAnalyzerDescriptor) {
+          await this.controller.connectLightsToAudioAnalyzer(
+            audioAnalyzerDescriptor,
+            "/dev/ttyACM0",
+            [{ numLights: 300, pin: 5 }]
+            // [{numLights: 300, pin: 1 }, {numLights: 300, pin: 1 }],
+          );
+        }
       }
       // console.log("connecting the bpm analyzer to the audio input stream");
       // if (inputDescriptor) {

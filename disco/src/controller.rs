@@ -302,7 +302,7 @@ impl proto::grpc::remote_controller_server::RemoteController
         if analyzers.contains_key(&descriptor) {
             return Err(Status::already_exists("audio analyzer already exists"));
         }
-        
+
         // start the analyzer
         audio_analyzer_node
             .start()
@@ -411,6 +411,8 @@ impl proto::grpc::remote_controller_server::RemoteController
 
         let mut rx = analyzer.connect();
         tokio::task::spawn(async move {
+            let mut t: f32 = 0.0;
+            let mut period_length: f32 = 50.0;
             loop {
                 match rx.recv().await {
                     Ok(Ok(result)) => {
@@ -421,23 +423,55 @@ impl proto::grpc::remote_controller_server::RemoteController
                                 ),
                             ) => {
                                 let volume = spectral.volume;
-                                let split_idx: f32 =
+
+                                let num_bands: f32 =
                                     NumCast::from(spectral.mel_bands.len()).unwrap();
-                                let split_idx = (split_idx / 3.0).ceil();
-                                let split_idx: usize = NumCast::from(split_idx).unwrap();
+                                let split_idx_f32 = (num_bands / 3.0).ceil();
+                                let split_idx: usize = NumCast::from(split_idx_f32).unwrap();
+                                let mean: f32 = spectral
+                                    .mel_bands
+                                    .iter()
+                                    .fold(0.0f32, |acc, band| acc + band)
+                                    / num_bands;
+
                                 let mut r = spectral.mel_bands[0..split_idx]
                                     .iter()
-                                    .fold(f32::MIN, |acc, band| acc.max(*band));
+                                    // .fold(f32::MIN, |acc, band| acc.max(*band));
+                                    .fold(0.0f32, |acc, band| acc + band)
+                                    / split_idx_f32;
                                 let mut g = spectral.mel_bands[split_idx..2 * split_idx]
                                     .iter()
-                                    .fold(f32::MIN, |acc, band| acc.max(*band));
+                                    // .fold(f32::MIN, |acc, band| acc.max(*band));
+                                    .fold(0.0f32, |acc, band| acc + band)
+                                    / split_idx_f32;
                                 let mut b = spectral.mel_bands[2 * split_idx..3 * split_idx]
                                     .iter()
-                                    .fold(f32::MIN, |acc, band| acc.max(*band));
+                                    // .fold(f32::MIN, |acc, band| acc.max(*band));
+                                    .fold(0.0f32, |acc, band| acc + band)
+                                    / split_idx_f32;
+
+                                // let baseColor = (t / 100.0).rem_euclid(255.0);
 
                                 let min_volume_threshold = 1e-2;
                                 let intensity =
                                     map(volume, min_volume_threshold, 0.8, 0.0, 1.0).powf(2.0);
+                                // println!("t={}", t);
+                                // r = (t / (255.0 * period_length) + 0.2 * (r - mean)).min(1.0);
+                                // r = (0.9 * (r - mean)).min(1.0).max(0.0);
+                                // g = (0.9 * (g - mean)).min(1.0).max(0.0);
+                                // b = (0.9 * (b - mean)).min(1.0).max(0.0);
+                                // if b >= r && b >= g {
+                                //     b = (b + (t / (255.0 * period_length))).min(1.0);
+                                // } else if r >= b && r >= g {
+                                //     r = (r + (t / (255.0 * period_length))).min(1.0);
+                                // } else {
+                                //     g = (g + (t / (255.0 * period_length))).min(1.0);
+                                // }
+                                // g = (t/period_length + 0.1 * (g - mean) * 255.0).min(255.0);
+                                // b = (t/period_length + 0.1 * (b - mean) * 255.0).min(255.0);
+                                // g = 0.0;
+                                // b = 0.0;
+
                                 r *= intensity * 255.0;
                                 g *= intensity * 255.0;
                                 b *= intensity * 255.0;
@@ -452,6 +486,9 @@ impl proto::grpc::remote_controller_server::RemoteController
                                     // fast
                                     // eprintln!("failed to produce light data: {:?}", err);
                                 }
+                                // t = ((t + 1.0) / 100.0).rem_euclid(255.0);
+                                // t = ((t + 1.0) / 100.0);
+                                t = (t + 1.0).rem_euclid(period_length * 255.0);
                             }
                             _ => {}
                         }

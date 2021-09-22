@@ -106,6 +106,7 @@ export class FractalTunnelParameterizer extends BaseParameterizer<
       // let volume = this.relativeVolume.mean +
       //              0.9 * (this.relativeVolume.mean -
       //                     this.relativeVolume.update(spectral.getVolume()));
+      let baseHue = mod(frame, 60 * 30) / 60 * 30;
       let volume = spectral.getVolume();
       if (volume > 0.05) {
         this.relativeVolume.update(spectral.getVolume());
@@ -123,20 +124,22 @@ export class FractalTunnelParameterizer extends BaseParameterizer<
       const melBands = spectral.getMelBandsList();
 
       let spectrum = interpolate(melBands, config.getNumSubsets());
-      spectrum = softmax(spectrum).map((s) => 255 * s);
+      spectrum = softmax(spectrum); //.map((s) => s);
       console.assert(spectrum.length === outParams.getLevelHueList().length);
 
-      outParams.setLevelHueList(new Array(defaultConfig.getNumSubsets())
-                                    .fill(0)
-                                    .map((v) => 255 * Math.random()));
-      outParams.setLevelBrightnessList(
+      outParams.setLevelHueList(spectrum);
+      outParams.setLevelHueList(
           new Array(defaultConfig.getNumSubsets())
               .fill(0)
-              .map((_, i) => { return volume * Math.pow(0.999, i); }));
+              .map((_, i) => 255 * (baseHue + 0.05 * i + 0.5 * spectrum[i])));
+      outParams.setLevelBrightnessList(
+          new Array(defaultConfig.getNumSubsets()).fill(0).map((_, i) => {
+            return map(volume * Math.pow(0.999, i), 0, 1, 0.4, 0.6);
+          }));
       outParams.setLevelSaturationList(
           new Array(defaultConfig.getNumSubsets())
               .fill(0)
-              .map((_, i) => { return volume * Math.pow(0.999, 10 - i); }));
+              .map((_, i) => { return volume * Math.pow(0.999, i); }));
     }
 
     outTemp.params = outParams.cloneMessage();

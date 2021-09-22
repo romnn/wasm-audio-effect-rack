@@ -1,6 +1,5 @@
 import React from "react";
 
-import { test } from "@disco/core";
 import {
   AudioAnalyzer,
   AudioAnalysisResult,
@@ -33,7 +32,7 @@ export default class Viewer extends React.Component<
     [key in ViewerUpdate.UpdateCase]?: { start: number; count: number };
   } = {};
 
-  protected visualization: VisualizationController = new VisualizationGallery.visualizations[0]();
+  protected visualization: VisualizationController = new VisualizationGallery.visualizations[1]();
 
   constructor(props: ViewerRouteProps) {
     super(props);

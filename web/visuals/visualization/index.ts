@@ -27,7 +27,6 @@ export interface UpdateParameterOptions {
 export interface Visualization<C extends StartConfig> {
   readonly name: string;
   readonly isDebug: boolean;
-  // todo need the element code here
 
   init(container: HTMLElement): void;
   configure(config: C): void;
@@ -131,8 +130,8 @@ export abstract class BaseParameterizedVisualization<
     if (this.previous.length > 3) {
       this.previous.shift();
     }
-    this.previous.push(clone(parameters));
-    this.updateParameters(clone(parameters), options);
+    this.previous.push(parameters.cloneMessage());
+    this.updateParameters(parameters.cloneMessage(), options);
     return [ parameters, temp ];
   }
 }
@@ -227,14 +226,12 @@ export abstract class BaseVisualizationController<
 
   public configure = (config: StartConfigContainer):
       void => {
-        // todo: unpack the any message here
-        // Storing an arbitrary message type in Any.
-        //
-        // // Reading an arbitrary message from Any.
         const innerClass =
             Object.getPrototypeOf(this.visualization.getConfig());
+        console.log("innerClass", innerClass);
         const inner = new Any().unpack(innerClass.deserializeBinary,
                                        this.visualization.getConfigTypeName());
+        console.log("inner", inner);
 
         if (inner && inner instanceof innerClass) {
           this.visualization.configure(inner as C);

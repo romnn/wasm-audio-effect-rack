@@ -60,7 +60,7 @@ module.exports =
       });
 
       config.plugins.splice(0, 0, new ForkTsCheckerWebpackPlugin({
-                              async : true,
+                              async : false,
                               useTypescriptIncrementalApi : false,
                               memoryLimit : 4096
                             }));

@@ -227,8 +227,8 @@ where
         output_stream.play()?;
 
         // todo: await and block here until we receive a stop signal
-        // one hour for now
-        std::thread::sleep(std::time::Duration::from_secs(60 * 60));
+        // 12 hours for now
+        std::thread::sleep(std::time::Duration::from_secs(12 * 60 * 60));
         drop(output_stream);
         Ok(())
     }
@@ -337,8 +337,8 @@ where
         input_stream.play()?;
 
         // todo: await and block here until we receive a stop signal
-        // one hour for now
-        std::thread::sleep(std::time::Duration::from_secs(60 * 60));
+        // 12 hours for now
+        std::thread::sleep(std::time::Duration::from_secs(12 * 60 * 60));
         drop(input_stream);
         Ok(())
     }

@@ -25,10 +25,12 @@
     "include": [
         "**/*.ts",
         "**/*.tsx",
-        "**/*.json"
+        "**/*.json",
+        "../"
     ],
     "exclude": [
         "node_modules",
+        "**/node_modules",
         "deprecated"
     ]
 }

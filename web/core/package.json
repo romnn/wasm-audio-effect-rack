@@ -22,6 +22,7 @@
         "react": "^17.0.2",
         "react-dom": "^17.0.2",
         "react-router-dom": "^5.2.0",
+        "ring-buffer-ts": "^1.0.3",
         "seedrandom": "^3.0.5",
         "stats.js": "^0.17.0",
         "three": "^0.130.0",

@@ -1,17 +1,13 @@
 import React from "react";
 import * as THREE from "three";
-import Stats from "./stats";
+import Stats from "@disco/visuals/stats";
 import dat from "dat.gui";
 import spriteTexture from "./george_face.png";
-import BPMDetection from "./nodes/bpm-detection";
-import { hslToRGB, mod } from "./nodes/utils";
-import {
-  RouteComponentProps,
-} from "react-router-dom";
+import { HSLToRGB } from "@disco/core/utils/functions";
+import { mod } from "@disco/core/utils/math";
+// import BPMDetection from "./nodes/bpm-detection";
+import { RouteComponentProps } from "react-router-dom";
 
-
-const second = 1000;
-const minute = 60 * second;
 const clock = new THREE.Clock();
 let delta = 0;
 let maxFPS = 1 / 35;
@@ -58,12 +54,6 @@ interface FractalProps extends FractalOrbitConstraints, FractalOrbitParameters {
   chaosEnabled?: boolean;
 }
 
-interface OrbitSubsetPoint {
-  x: number;
-  y: number;
-  vertex: THREE.Vector3;
-}
-
 interface FractalOrbit {
   xMin: number;
   xMax: number;
@@ -96,7 +86,7 @@ export class FractalParameters implements FractalProps {
   //im default value: 400,
   levelDepth = 800;
   //im default value: 1
-  defBrightness = 0.5;
+  defBrightness = 0.8;
   defSaturation = 0.8;
   // need hue value for each subset
   // hueValues: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7];
@@ -128,32 +118,32 @@ export class FractalParameters implements FractalProps {
   speed = 5;
   rotationSpeed = 0.001;
 
-  react = () => {
-    console.log("reacting to audio now");
-    if (this.isReactive) return;
-    const ctx = new window.AudioContext();
-    const audio = new Audio("mars_venus.mp3");
-    audio.autoplay = true;
-    audio.loop = true;
-    // audio.muted = true;
-    const source = ctx.createMediaElementSource(audio);
-    const bpmDetector = new BPMDetection(
-      ctx,
-      "bpm-detection-node-processor",
-      undefined,
-      {
-        onInitialized: (inst: BPMDetection) => {
-          bpmDetector.onBPMChanged = (bpm: number) => {
-            console.log("bpm changed to ", bpm);
-          };
-          source.connect(bpmDetector.workletHandle!);
-          // bpmDetector.workletHandle!.connect(ctx.destination);
-          source.connect(ctx.destination);
-        },
-      }
-    );
-    this.isReactive = true;
-  };
+  // react = () => {
+  //   console.log("reacting to audio now");
+  //   if (this.isReactive) return;
+  //   const ctx = new window.AudioContext();
+  //   const audio = new Audio("mars_venus.mp3");
+  //   audio.autoplay = true;
+  //   audio.loop = true;
+  //   // audio.muted = true;
+  //   const source = ctx.createMediaElementSource(audio);
+  //   const bpmDetector = new BPMDetection(
+  //     ctx,
+  //     "bpm-detection-node-processor",
+  //     undefined,
+  //     {
+  //       onInitialized: (inst: BPMDetection) => {
+  //         bpmDetector.onBPMChanged = (bpm: number) => {
+  //           console.log("bpm changed to ", bpm);
+  //         };
+  //         source.connect(bpmDetector.workletHandle!);
+  //         // bpmDetector.workletHandle!.connect(ctx.destination);
+  //         source.connect(ctx.destination);
+  //       },
+  //     }
+  //   );
+  //   this.isReactive = true;
+  // };
 }
 
 export class FractalControls<T> {
@@ -204,7 +194,7 @@ export class FractalControls<T> {
       fractalParameterMenu.add(this.ctrl, p)
     );
 
-    this.gui.add(this.ctrl, "react");
+    // this.gui.add(this.ctrl, "react");
     this.gui
       .add(this.ctrl, "enableDebug")
       .listen()
@@ -260,7 +250,7 @@ export default class Fractal extends React.Component<
     scaleY: 0,
   };
   // private subsets: OrbitSubsetPoint[][] = [];
-  private needsUpdate: boolean[] = [];
+  // private needsUpdate: boolean[] = [];
   private subsetPositions: OrbitPositions[] = [];
   private particles: {
     points: THREE.Points;
@@ -296,7 +286,8 @@ export default class Fractal extends React.Component<
       // windowHalfX: window.innerWidth / 2,
       // windowHalfY: window.innerHeight / 2,
     };
-    this.needsUpdate = new Array(this.params.numSubsets).fill(false);
+    // this.needsUpdate = new Array(this.params.numSubsets).fill(false);
+    // console.log(this.params);
     this.subsetPositions = new Array(this.params.numSubsets).fill(0).map(() => {
       return {
         colors: new Float32Array(3 * this.params.numPointsPerSubset).fill(0.0),
@@ -346,26 +337,29 @@ export default class Fractal extends React.Component<
 
     // this.params.speed += this.randomNum(-1, 1) * 0.1;
     this.params.rotationSpeed += this.randomNum(-1, 1) * 0.00001;
+
+    // console.log(this.particles.length);
     this.particles.forEach(({ points, material, level, subset }) => {
+      // console.log(subset, points.position.z);
       // console.log(points.position.z);
       points.position.z += this.params.speed * speedup;
       points.rotation.z += this.params.rotationSpeed * speedup;
       // let currentColor = { h: 0, s: 0, l: 0 };
       // material.color.getHSL(currentColor);
       // let hue = currentColor.h;
-      
+
       // update the colors
       let colors = this.subsetPositions[subset].colors;
       for (let i = 0; i < colors.length; i = i + 3) {
         // let [r, g, b] = hslToRGB(colors[i], colors[i], colors[i]);
-        let [r, g, b] = hslToRGB(
+        let [r, g, b] = HSLToRGB(
           mod(subset * 30, 360),
           this.params.defSaturation,
           this.params.defBrightness
         );
         colors[i] = r;
-        colors[i+1] = g;
-        colors[i+2] = b;
+        colors[i + 1] = g;
+        colors[i + 2] = b;
       }
       points.geometry.setAttribute(
         "color",
@@ -387,20 +381,11 @@ export default class Fractal extends React.Component<
             3
           )
         );
-        
+
         points.position.z = -(
           (this.params.numLevels - 1) *
           this.params.levelDepth
         );
-        // if (node.geometry.attributes.color.needsUpdate) {
-        // if (points.geometry.attributes.color.needsUpdate) {
-        // if (points.geometry.attributes.needsUpdate) {
-        // points.geometry.__dirtyVertices = true;
-        // points.material.color.setHSL(
-        // console.log("updating the colors");
-        // points.geometry.attributes.color.needsUpdate = false;
-        // node.needsUpdate = false;
-        // }
       }
       // material.color.setHSL(
       //   hue,
@@ -423,16 +408,11 @@ export default class Fractal extends React.Component<
 
   generateOrbit = () => {
     let x, y, z, x1;
-    let idx = 0;
-
     // reset the orbit parameters and randomize the parameters
     this.prepareOrbit();
 
-    const numPoints = this.params.numPointsPerSubset * this.params.numSubsets;
-
-    // console.log(this.subsetPositions);
     console.assert(
-      this.params.numSubsets == (this.subsetPositions?.length ?? 0)
+      this.params.numSubsets === (this.subsetPositions?.length ?? 0)
     );
 
     for (let s = 0; s < this.params.numSubsets; s++) {
@@ -449,7 +429,7 @@ export default class Fractal extends React.Component<
         // todo: this is veryy bad please refactor
         if (x > 0) {
           x1 = y - z;
-        } else if (x == 0) {
+        } else if (x === 0) {
           x1 = y;
         } else {
           x1 = y + z;
@@ -470,8 +450,6 @@ export default class Fractal extends React.Component<
         } else if (y > this.orbit.yMax) {
           this.orbit.yMax = y;
         }
-
-        idx++;
       }
     }
 
@@ -533,9 +511,9 @@ export default class Fractal extends React.Component<
     );
     // this.camera.position.z = this.params.scaleFactor / 2;
     this.camera.position.z = this.params.scaleFactor / 2;
-    // console.log(this.camera.position.z);
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.FogExp2(0x000000, 0.001);
+
     this.generateOrbit();
 
     // Create particle systems
@@ -588,6 +566,7 @@ export default class Fractal extends React.Component<
           -this.params.levelDepth * k -
           (s * this.params.levelDepth) / this.params.numSubsets +
           this.params.scaleFactor / 2;
+
         this.scene.add(points);
         this.particles.push({
           points,
@@ -598,7 +577,6 @@ export default class Fractal extends React.Component<
       }
     }
 
-    
     // Setup renderer and effects
     this.renderer = new THREE.WebGLRenderer({
       antialias: false,
@@ -608,9 +586,6 @@ export default class Fractal extends React.Component<
 
     this.container.appendChild(this.renderer.domElement);
 
-    // const test = new URLSearchParams(useLocation().search);
-    const test = this.props.match.params.debug;
-    console.log(test);
     this.stats = new Stats(this.container);
     this.stats.setVisible(this.params.enableDebug);
     this.controls = new FractalControls(this.params, this.container);

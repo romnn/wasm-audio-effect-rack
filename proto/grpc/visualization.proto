@@ -22,6 +22,16 @@ enum Font {
   INTER_EXTRA_BOLD_REGULAR = 5;
 }
 
+message FractalTunnelStartConfig {
+  int32 num_points_per_subset = 1;
+  int32 num_subsets = 2;
+  int32 num_levels = 3;
+  int32 level_depth = 4;
+  float scale_factor = 5;
+  float sprite_size = 6;
+  float camera_bound = 7;
+}
+
 message TextTransformStartConfig {
   string text = 1;
   uint32 resolution = 2;
@@ -67,4 +77,31 @@ message TextTransformParameters {
   bool strobe_enabled = 7;
   int32 strobe_duration = 8;
   repeated TextTransformChar char = 100;
+}
+
+message FractalTunnelOrbitConstraints {
+  float a_min = 1;
+  float a_max = 2;
+  float b_min = 3;
+  float b_max = 4;
+  float c_min = 5;
+  float c_max = 6;
+  float d_min = 7;
+  float d_max = 8;
+  float e_min = 9;
+  float e_max = 10;
+}
+
+message FractalTunnelParameters {
+  float a = 1;
+  float b = 2;
+  float c = 3;
+  float d = 4;
+  float e = 5;
+  float speed = 7;
+  float rotation_speed = 8;
+  repeated float level_hue = 20;
+  repeated float level_brightness = 21;
+  repeated float level_saturation = 22;
+  FractalTunnelOrbitConstraints orbit_constraints = 100;
 }

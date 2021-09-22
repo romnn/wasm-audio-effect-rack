@@ -5,7 +5,7 @@ import {
 } from "@disco/core/grpc";
 import * as THREE from "three";
 
-export const hslToRGB =
+export const HSLToRGB =
     (h: number, s: number, l: number): [ number, number, number ] => {
       const a = s * Math.min(l, 1 - l);
       const f = (n: number, k = (n + h / 30) % 12) =>
@@ -35,11 +35,14 @@ export const threeColor =
       }
       if (hslColor) {
         let [r, g, b] =
-            hslToRGB(hslColor.getH(), hslColor.getS(), hslColor.getL());
+            HSLToRGB(hslColor.getH(), hslColor.getS(), hslColor.getL());
         result = new THREE.Color(r, g, b);
       }
       return result;
     }
+
+export const clip = (value: number, lower: number, upper: number): number =>
+    Math.max(Math.min(value, upper), lower);
 
 export const map =
     (value: number, x1: number, y1: number, x2: number, y2: number): number =>
@@ -47,6 +50,18 @@ export const map =
 
 export const sum = (arr: number[]): number =>
     arr.reduce((acc, val) => acc + val, 0);
+
+export const mean = (arr: number[]): number => { return sum(arr) / arr.length;}
+
+export const stddev = (arr: number[]): [ number, number ] => {
+  const m = mean(arr);
+  return [
+    Math.sqrt(arr.reduce((acc, x) => acc.concat((x - m) ** 2), [] as number[])
+                  .reduce((acc, x) => acc + x, 0) /
+              arr.length),
+    m
+  ];
+}
 
 export const bin = (arr: number[], nbins: number):
     number[][] => {

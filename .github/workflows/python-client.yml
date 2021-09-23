@@ -1,4 +1,4 @@
-name: python-client
+name: python
 
 on:
   push:
@@ -46,9 +46,15 @@ jobs:
       if: matrix.os != 'ubuntu'
       uses: actions-rs/toolchain@v1
       with:
-        profile: minimal
-        toolchain: nightly
+        profile: default
+        toolchain: stable
         override: true
+
+    - name: Set up QEMU
+      if: runner.os == 'Linux'
+      uses: docker/setup-qemu-action@v1
+      with:
+        platforms: all
 
     - name: Install python dependencies
       run: pip install -U setuptools setuptools-rust wheel twine cibuildwheel
@@ -57,43 +63,54 @@ jobs:
       if: matrix.os == 'ubuntu' && matrix.python-version == '8'
       run: |
         pip install -U setuptools-rust
-        cd python-client && python setup.py sdist
+        cd python && python setup.py sdist
 
     - name: Build ${{ matrix.platform || matrix.os }} binaries
-      run: cibuildwheel --output-dir dist python-client
+      run: cibuildwheel --output-dir dist python
       env:
         CIBW_BUILD: 'cp3${{ matrix.python-version }}-*'
         CIBW_SKIP: '*-win32'
+        CIBW_ARCHS_LINUX: x86_64 i686 aarch64 ppc64le s390x
+        CIBW_ARCHS_MACOS: x86_64 universal2
         CIBW_PLATFORM: ${{ matrix.platform || matrix.os }}
         CIBW_TEST_REQUIRES: 'pytest'
-        CIBW_TEST_COMMAND: 'pytest {project}/python-client/tests -s'
+        CIBW_TEST_COMMAND: 'pytest {project}/python/tests -s'
         CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH"'
         CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH"'
         CIBW_MANYLINUX_X86_64_IMAGE: 'manylinux2014'
         CIBW_MANYLINUX_I686_IMAGE: 'manylinux2014'
-        CIBW_BEFORE_TEST: >
-          yum install tree alsa-lib-devel openssl openssl-devel -y &&
+        # yum install tree alsa-lib-devel openssl openssl-devel -y &&
+        CIBW_BEFORE_TEST_LINUX: >
           pip install -U pip pipenv setuptools setuptools-rust wheel &&
           curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
           rustup show &&
-          PIPENV_PIPFILE=./python-client/Pipfile pipenv lock -r > requirements.txt &&
+          PIPENV_PIPFILE=./python/Pipfile pipenv lock -r > requirements.txt &&
           pip install -U -r requirements.txt
 
+        CIBW_BEFORE_BUILD_MACOS: >
+          pip install -U pip pipenv setuptools setuptools-rust wheel &&
+          PIPENV_PIPFILE=./python/Pipfile pipenv lock -r > requirements.txt &&
+          pip install -U -r requirements.txt &&
+          unlink python/disco-src &&
+          cp -r disco python/disco-src &&
+          cp -r proto python/proto &&
+          tree -I 'node_modules|target|build' python
+
         CIBW_BEFORE_BUILD_LINUX: >
-          yum install tree alsa-lib-devel openssl openssl-devel -y &&
+          yum install tree alsa-lib-devel gcc libffi-devel python-devel openssl openssl-devel -y &&
           curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
           rustup show &&
           pip install -U pip pipenv setuptools setuptools-rust wheel &&
-          PIPENV_PIPFILE=./python-client/Pipfile pipenv lock -r > requirements.txt &&
+          PIPENV_PIPFILE=./python/Pipfile pipenv lock -r > requirements.txt &&
           pip install -U -r requirements.txt &&
-          unlink python-client/disco-src &&
-          cp -r disco python-client/disco-src &&
-          cp -r proto python-client/proto &&
-          tree -I 'node_modules|target|build' python-client
+          unlink python/disco-src &&
+          cp -r disco python/disco-src &&
+          cp -r proto python/proto &&
+          tree -I 'node_modules|target|build' python
 
     - name: Build windows 32bit binaries
       if: matrix.os == 'windows'
-      run: cibuildwheel --output-dir dist python-client
+      run: cibuildwheel --output-dir dist python
       env:
         CIBW_BUILD: 'cp3${{ matrix.python-version }}-win32'
         CIBW_PLATFORM: windows
@@ -106,11 +123,11 @@ jobs:
           rustup override set nightly-i686-pc-windows-msvc &&
           rustup show &&
           pip install -U pip pipenv setuptools setuptools-rust wheel &&
-          PIPENV_PIPFILE=./python-client/Pipfile pipenv lock -r > requirements.txt &&
+          PIPENV_PIPFILE=./python/Pipfile pipenv lock -r > requirements.txt &&
           pip install -U -r requirements.txt &&
-          unlink python-client/disco-src &&
-          cp -r disco python-client/disco-src &&
-          cp -r proto python-client/proto &&
+          unlink python/disco-src &&
+          cp -r disco python/disco-src &&
+          cp -r proto python/proto &&
 
 
     - name: List dist files

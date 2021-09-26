@@ -46,7 +46,7 @@ export const clip = (value: number, lower: number, upper: number): number =>
 
 export const map =
     (value: number, x1: number, y1: number, x2: number, y2: number): number =>
-        (value - x1) * (y2 - x2) / (y1 - x1) + x2;
+        clip((value - x1) * (y2 - x2) / (y1 - x1) + x2, x2, y2);
 
 export const sum = (arr: number[]): number =>
     arr.reduce((acc, val) => acc + val, 0);

@@ -4,12 +4,12 @@ target/
 Cargo.lock
 bin/
 /pkg
+/www
 /binaryen
 /deprecate
 /wabt
 /experimental/audio-samples
 wasm-pack.log
-generated/
 
 .pnp
 .pnp.js

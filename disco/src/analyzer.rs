@@ -23,7 +23,7 @@ use recorder::{
 use async_trait::async_trait;
 use std::marker::Send;
 use std::sync::{Arc, Mutex as SyncMutex};
-use std::thread;
+use std::{thread, time};
 use tokio::sync::{broadcast, Mutex};
 
 impl From<Opts> for AudioBackendConfig {
@@ -169,6 +169,8 @@ where
             .spawn(move || {
                 let mut analyzer = analyzer.lock().unwrap();
                 loop {
+                    // wait 1/60
+                    thread::sleep(time::Duration::from_millis(1000/60));
                     if let Ok(rbuffer) = buffer.read() {
                         let rbuffer_copy = rbuffer.to_owned();
                         // drop(rbuffer);

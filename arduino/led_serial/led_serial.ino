@@ -91,7 +91,7 @@ void setupLEDs() {
   for (int32_t strip = 0; strip < num_led_strips; strip++) {
     // FastLED.addLeds<WS2812, 3, GRB>(leds, offset, num_leds[strip]);
     FastLED.addLeds<WS2812, 5, GRB>(leds, 0, 300);
-    FastLED.addLeds<WS2812, 6, GRB>(leds, 0, 300);
+    // FastLED.addLeds<WS2812, 6, GRB>(leds, 0, 300);
     /* switch (data_pin[strip]) {            
       case 3: {
           FastLED.addLeds<WS2812, 3, GRB>(leds, offset, num_leds[strip]);
@@ -172,7 +172,7 @@ void get_messages_from_serial()
             leds[offset] = CRGB(r,g,b);
             offset += num_leds[strip];
           }
-          // FastLED.setBrightness(10);
+          // FastLED.setBrightness(10); // scale 0-255
           FastLED.show();
           break;
         }

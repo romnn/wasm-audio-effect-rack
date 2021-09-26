@@ -8,7 +8,7 @@ use anyhow::Result;
 use futures::stream::{self, StreamExt};
 use futures::Stream;
 use hardware::led;
-use num::traits::NumCast;
+use num::traits::{Bounded, NumCast};
 #[cfg(feature = "portaudio")]
 use recorder::portaudio::PortaudioRecorder;
 #[cfg(feature = "record")]
@@ -26,6 +26,23 @@ use std::thread;
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status};
+
+pub fn clip<T>(value: T, lower: T, upper: T) -> T
+where
+    T: Ord,
+{
+    value.max(lower).min(upper)
+}
+
+pub fn hsl_to_rgb(h: u16, s: f32, l: f32) -> (u8, u8, u8) {
+    let a: f32 = s * (1.0 - l).min(l);
+    let f = |n: u16| -> u8 {
+        let k: f32 = (n + h / 30).rem_euclid(12).into();
+        let ans = l - a * (k - 3.0).min(9.0 - k).min(1.0).max(-1.0);
+        NumCast::from(ans * 255.0).unwrap_or(0)
+    };
+    (f(0), f(8), f(4))
+}
 
 #[derive(Debug)]
 pub struct Controller<CU> {
@@ -412,7 +429,7 @@ impl proto::grpc::remote_controller_server::RemoteController
         let mut rx = analyzer.connect();
         tokio::task::spawn(async move {
             let mut t: f32 = 0.0;
-            let mut period_length: f32 = 50.0;
+            let mut period_length: f32 = 60.0 * 60.0;
             loop {
                 match rx.recv().await {
                     Ok(Ok(result)) => {
@@ -481,6 +498,18 @@ impl proto::grpc::remote_controller_server::RemoteController
                                 let g: u8 = NumCast::from(g).unwrap_or(0);
                                 let b: u8 = NumCast::from(b).unwrap_or(0);
                                 let color = (r, g, b);
+
+                                // println!(
+                                //     "hue is {}",
+                                //     NumCast::from(t / period_length * 360.0).unwrap_or(0)
+                                // );
+                                // let (r, g, b) = hsl_to_rgb(
+                                // let color = hsl_to_rgb(
+                                //     NumCast::from(t / period_length * 360.0).unwrap_or(0),
+                                //     map(intensity, 0.0, 1.0, 0.6, 1.0),
+                                //     map(intensity, 0.0, 1.0, 0.2, 0.6),
+                                //     // 0.5,
+                                // );
                                 if let Err(err) = producer.push(color) {
                                     // this is normal as the light strip does not read out data as
                                     // fast
@@ -488,7 +517,11 @@ impl proto::grpc::remote_controller_server::RemoteController
                                 }
                                 // t = ((t + 1.0) / 100.0).rem_euclid(255.0);
                                 // t = ((t + 1.0) / 100.0);
-                                t = (t + 1.0).rem_euclid(period_length * 255.0);
+
+                                // t = mod(t + 1, 60 * 60) / 60 * 60;
+                                // t = (t + 1.0).rem_euclid(period_length * 255.0);
+                                t = (t + 1.0).rem_euclid(period_length);
+                                // ;
                             }
                             _ => {}
                         }

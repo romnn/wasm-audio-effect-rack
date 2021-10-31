@@ -99,6 +99,7 @@ jobs:
 
           CIBW_BEFORE_BUILD_WINDOWS: >
             choco install tree &&
+            python -m pip install --user --upgrade pip &&
             pip install -U pip pipenv setuptools setuptools-rust wheel &&
             PIPENV_PIPFILE=./python/Pipfile pipenv lock -r > requirements.txt &&
             pip install -U -r requirements.txt &&

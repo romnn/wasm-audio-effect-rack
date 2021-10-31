@@ -148,7 +148,8 @@ export default class Viewer extends React.Component<
         if (audioAnalyzerDescriptor) {
           await this.controller.connectLightsToAudioAnalyzer(
             audioAnalyzerDescriptor,
-            "/dev/ttyACM0",
+            // "/dev/ttyACM0",
+            "/dev/cu.usbmodem142401",
             [{ numLights: 300, pin: 5 }]
             // [{numLights: 300, pin: 1 }, {numLights: 300, pin: 1 }],
           );
@@ -188,7 +189,7 @@ export default class Viewer extends React.Component<
       // debugger;
       this.visualization.init(container);
       // const config = this.visualization.getConfig();
-      this.visualization.toggleStats(true);
+      this.visualization.toggleStats(false);
       this.visualization.toggleControls(true);
       // this.visualization.configure();
       this.visualization.start();

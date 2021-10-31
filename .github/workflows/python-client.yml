@@ -70,8 +70,9 @@ jobs:
         env:
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
           CIBW_SKIP: "*-win32"
-          CIBW_ARCHS_LINUX: x86_64 i686 aarch64 ppc64le s390x
-          CIBW_ARCHS_MACOS: x86_64 universal2
+          # CIBW_ARCHS_LINUX: x86_64 i686 aarch64 ppc64le s390x
+          CIBW_ARCHS_LINUX: x86_64 i686 aarch64 s390x
+          CIBW_ARCHS_MACOS: x86_64 arm64 universal2
           CIBW_PLATFORM: ${{ matrix.platform || matrix.os }}
           CIBW_TEST_REQUIRES: "pytest"
           CIBW_TEST_COMMAND: "pytest {project}/python/tests -s"
@@ -127,6 +128,7 @@ jobs:
         env:
           CIBW_BUILD: "cp3${{ matrix.python-version }}-win32"
           CIBW_PLATFORM: windows
+          CIBW_ARCHS_WINDOWS: x86 AMD64
           CIBW_TEST_REQUIRES: "pytest"
           CIBW_TEST_COMMAND: "pytest {project}/tests -s"
           CIBW_ENVIRONMENT: 'PATH="$UserProfile\.cargo\bin;$PATH"'

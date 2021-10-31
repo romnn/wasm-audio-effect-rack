@@ -25,7 +25,7 @@ bump2version = "*"
 # Building
 twine = "*"
 cibuildwheel = "*"
-setuptools = "*"
+setuptools = ">=46.1"
 setuptools-rust = "*"
 wheel = "*"
 pypi-name = "*"

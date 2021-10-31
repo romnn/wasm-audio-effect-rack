@@ -1,4 +1,4 @@
-use clap::Clap;
+use clap::Parser;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -6,7 +6,7 @@ pub struct Config {
     pub default: Opts,
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct StartOpts {
     #[clap(short = 'p', long = "port", default_value = "9000")]
     pub port: u16,
@@ -27,12 +27,12 @@ pub struct StartOpts {
 }
 
 #[cfg(feature = "record")]
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct QueryOpts {
     #[clap(short = 'd', long = "device")]
     pub device: Option<String>,
 }
-#[derive(Clap, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub enum Commands {
     #[clap(name = "start", about = "start the server")]
     Start(StartOpts),
@@ -41,13 +41,11 @@ pub enum Commands {
     Query(QueryOpts),
 }
 
-#[derive(Clap, Debug, Clone)]
-#[clap(
-    version = "1.0",
-    author = "romnn <contact@romnn.com>",
-    setting = clap::AppSettings::ColoredHelp,
-    setting = clap::AppSettings::ArgRequiredElseHelp,
-)]
+// setting = AppSettings::ColoredHelp,
+// setting = AppSettings::ArgRequiredElseHelp,
+
+#[derive(Parser, Debug, Clone)]
+#[clap(version = "1.0", author = "romnn <contact@romnn.com>")]
 pub struct Opts {
     #[cfg(feature = "record")]
     #[clap(short = 'i', long = "input-device")]

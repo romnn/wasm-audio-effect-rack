@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::Clap;
+use clap::Parser;
 use disco::cli::{Commands, Config, Opts};
 use disco::{DiscoServer, Sample};
 #[cfg(feature = "portaudio")]
@@ -9,7 +9,7 @@ use recorder::portaudio::PortaudioAudioInput;
 use recorder::{cpal::CpalAudioBackend, cpal::CpalAudioInput, AudioInput, AudioInputConfig};
 use std::sync::Arc;
 use tokio::signal;
-use tokio::sync::{watch};
+use tokio::sync::watch;
 
 const SPLASH_LOGO: &str = "
    __  ___  __   _   _  

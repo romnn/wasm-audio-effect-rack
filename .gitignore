@@ -8,6 +8,7 @@ bin/
 /binaryen
 /deprecate
 web/core/generated
+python-client/.eggs
 /wabt
 /experimental/audio-samples
 wasm-pack.log

@@ -92,7 +92,7 @@ jobs:
             pip install -U pip pipenv setuptools setuptools-rust wheel &&
             PIPENV_PIPFILE=./python/Pipfile pipenv lock -r > requirements.txt &&
             pip install -U -r requirements.txt &&
-            unlink python/disco-src &&
+            rm python/disco-src &&
             cp -r disco python/disco-src &&
             cp -r proto python/proto &&
             tree -I 'node_modules|target|build' python
@@ -101,9 +101,10 @@ jobs:
             choco install tree &&
             python -m pip install --user --upgrade pip &&
             pip install -U pip pipenv setuptools setuptools-rust wheel &&
-            PIPENV_PIPFILE=./python/Pipfile pipenv lock -r > requirements.txt &&
+            setx PIPENV_PIPFILE ./python/Pipfile &&
+            pipenv lock -r > requirements.txt &&
             pip install -U -r requirements.txt &&
-            unlink python/disco-src &&
+            rm python/disco-src &&
             cp -r disco python/disco-src &&
             cp -r proto python/proto &&
             tree -I 'node_modules|target|build' python

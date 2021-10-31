@@ -1,4 +1,0 @@
-[console_scripts]
-discodisco = discodisco.cli:main
-pydisco = discodisco.cli:main
-

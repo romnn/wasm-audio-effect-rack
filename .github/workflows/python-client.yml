@@ -139,12 +139,16 @@ jobs:
             rustup default nightly-i686-pc-windows-msvc &&
             rustup override set nightly-i686-pc-windows-msvc &&
             rustup show &&
+            python -m pip uninstall -y pip &&
+            python -m ensurepip &&
+            python -m pip install -U pip &&
             pip install -U pip pipenv setuptools setuptools-rust wheel &&
-            PIPENV_PIPFILE=./python/Pipfile pipenv lock -r > requirements.txt &&
+            setx PIPENV_PIPFILE ./python/Pipfile &&
+            pipenv lock -r > requirements.txt &&
             pip install -U -r requirements.txt &&
             rm python/disco-src &&
             cp -r disco python/disco-src &&
-            cp -r proto python/proto &&
+            cp -r proto python/proto
 
       - name: List dist files
         run: ${{ matrix.ls || 'ls -lh' }} dist/

@@ -81,13 +81,76 @@ jobs:
           pip install -U setuptools-rust
           cd python && python setup.py sdist
 
-      - name: Build ${{ matrix.platform || matrix.os }} binaries
+
+      - name: Build ${{ matrix.platform || matrix.os }} s390x binaries
+        if: runner.os == 'Linux'
+        run: cibuildwheel --output-dir dist python
+        env:
+          CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
+          CIBW_ARCHS_LINUX: s390x
+          CIBW_PLATFORM: ${{ matrix.platform || matrix.os }}
+          CIBW_TEST_REQUIRES: "pytest"
+          CIBW_TEST_COMMAND: "pytest {project}/python/tests -s"
+          CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH" PROTOC="$HOME/protobuf/protoc-artifacts/target/linux/s390_64/protoc.exe"'
+          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2014"
+          CIBW_MANYLINUX_I686_IMAGE: "manylinux2014"
+          CIBW_BEFORE_TEST_LINUX: >
+            pip install -U pip pipenv setuptools setuptools-rust wheel &&
+            curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
+            rustup show &&
+            PIPENV_PIPFILE=./python/Pipfile pipenv lock -r > requirements.txt &&
+            pip install -U -r requirements.txt
+          CIBW_BEFORE_BUILD_LINUX: >
+            yum install tree protobuf alsa-lib-devel gcc libffi-devel python-devel openssl openssl-devel -y &&
+            curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
+            rustup show &&
+            pip install -U pip pipenv setuptools setuptools-rust wheel &&
+            PIPENV_PIPFILE=./python/Pipfile pipenv lock -r > requirements.txt &&
+            pip install -U -r requirements.txt &&
+            rm -r python/disco-src &&
+            cp -r disco python/disco-src &&
+            cp -r proto python/proto &&
+            tree -I 'node_modules|target|build' python
+
+
+      - name: Build ${{ matrix.platform || matrix.os }} ppc64le binaries
+        if: runner.os == 'Linux'
+        run: cibuildwheel --output-dir dist python
+        env:
+          CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
+          CIBW_ARCHS_LINUX: ppc64le
+          CIBW_PLATFORM: ${{ matrix.platform || matrix.os }}
+          CIBW_TEST_REQUIRES: "pytest"
+          CIBW_TEST_COMMAND: "pytest {project}/python/tests -s"
+          CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH" PROTOC="$HOME/protobuf/protoc-artifacts/target/linux/ppcle_64/protoc.exe"'
+          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2014"
+          CIBW_MANYLINUX_I686_IMAGE: "manylinux2014"
+          CIBW_BEFORE_TEST_LINUX: >
+            pip install -U pip pipenv setuptools setuptools-rust wheel &&
+            curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
+            rustup show &&
+            PIPENV_PIPFILE=./python/Pipfile pipenv lock -r > requirements.txt &&
+            pip install -U -r requirements.txt
+          CIBW_BEFORE_BUILD_LINUX: >
+            yum install tree protobuf alsa-lib-devel gcc libffi-devel python-devel openssl openssl-devel -y &&
+            curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
+            rustup show &&
+            pip install -U pip pipenv setuptools setuptools-rust wheel &&
+            PIPENV_PIPFILE=./python/Pipfile pipenv lock -r > requirements.txt &&
+            pip install -U -r requirements.txt &&
+            rm -r python/disco-src &&
+            cp -r disco python/disco-src &&
+            cp -r proto python/proto &&
+            tree -I 'node_modules|target|build' python
+
+
+      - name: Build ${{ matrix.platform || matrix.os }} x86_64 i686 aarch64 binaries
         run: cibuildwheel --output-dir dist python
         env:
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
           CIBW_SKIP: "*-win32"
           # CIBW_ARCHS_LINUX: x86_64 i686 aarch64 ppc64le s390x
-          CIBW_ARCHS_LINUX: x86_64 i686 aarch64 s390x
+          CIBW_ARCHS_LINUX: x86_64 i686 aarch64
           CIBW_ARCHS_MACOS: x86_64 arm64 universal2
           CIBW_PLATFORM: ${{ matrix.platform || matrix.os }}
           CIBW_TEST_REQUIRES: "pytest"
@@ -96,7 +159,6 @@ jobs:
           CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH"'
           CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2014"
           CIBW_MANYLINUX_I686_IMAGE: "manylinux2014"
-          # yum install tree alsa-lib-devel openssl openssl-devel -y &&
           CIBW_BEFORE_TEST_LINUX: >
             pip install -U pip pipenv setuptools setuptools-rust wheel &&
             curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&

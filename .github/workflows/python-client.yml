@@ -71,9 +71,9 @@ jobs:
           ./autogen.sh
           cd protoc-artifacts/
           ./build-protoc.sh linux ppcle_64 protoc
-          ./build-protoc.sh linux s390x protoc
-          file target/linux/s390x/protoc.exe
+          ./build-protoc.sh linux s390_64 protoc
           file target/linux/ppcle_64/protoc.exe
+          file target/linux/s390_64/protoc.exe
 
       - name: Build sdist
         if: matrix.os == 'ubuntu' && matrix.python-version == '8'

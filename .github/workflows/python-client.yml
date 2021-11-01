@@ -108,7 +108,7 @@ jobs:
             setx PIPENV_PIPFILE ./python/Pipfile &&
             pipenv lock -r > requirements.txt &&
             pip install -U -r requirements.txt &&
-            rm python/disco-src &&
+            rm -r python/disco-src &&
             cp -r disco python/disco-src &&
             cp -r proto python/proto
 
@@ -119,7 +119,7 @@ jobs:
             pip install -U pip pipenv setuptools setuptools-rust wheel &&
             PIPENV_PIPFILE=./python/Pipfile pipenv lock -r > requirements.txt &&
             pip install -U -r requirements.txt &&
-            rm python/disco-src &&
+            rm -r python/disco-src &&
             cp -r disco python/disco-src &&
             cp -r proto python/proto &&
             tree -I 'node_modules|target|build' python
@@ -146,7 +146,7 @@ jobs:
             setx PIPENV_PIPFILE ./python/Pipfile &&
             pipenv lock -r > requirements.txt &&
             pip install -U -r requirements.txt &&
-            rm python/disco-src &&
+            rm -r python/disco-src &&
             cp -r disco python/disco-src &&
             cp -r proto python/proto
 

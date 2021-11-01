@@ -108,7 +108,7 @@ jobs:
             pip install -U -r requirements.txt &&
             rm python/disco-src &&
             cp -r disco python/disco-src &&
-            cp -r proto python/proto &&
+            cp -r proto python/proto
 
           CIBW_BEFORE_BUILD_LINUX: >
             yum install tree protobuf alsa-lib-devel gcc libffi-devel python-devel openssl openssl-devel -y &&

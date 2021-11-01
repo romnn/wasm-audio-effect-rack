@@ -132,7 +132,7 @@ jobs:
           CIBW_PLATFORM: windows
           CIBW_ARCHS_WINDOWS: x86 AMD64
           CIBW_TEST_REQUIRES: "pytest"
-          CIBW_TEST_COMMAND: "pytest {project}/tests -s"
+          CIBW_TEST_COMMAND: "pytest {project}/python/tests -s"
           CIBW_ENVIRONMENT: 'PATH="$UserProfile\.cargo\bin;$PATH"'
           CIBW_BEFORE_BUILD: >
             rustup toolchain install nightly-i686-pc-windows-msvc &&

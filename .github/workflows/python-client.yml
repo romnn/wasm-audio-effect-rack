@@ -101,7 +101,7 @@ jobs:
 
           CIBW_BEFORE_BUILD_WINDOWS: >
             choco install tree &&
-            python -m pip uninstall pip &&
+            python -m pip uninstall -y pip &&
             python -m ensurepip &&
             python -m pip install -U pip &&
             pip install -U pip pipenv setuptools setuptools-rust wheel &&

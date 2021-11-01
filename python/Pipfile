@@ -31,3 +31,6 @@ wheel = "*"
 pypi-name = "*"
 
 [packages]
+proto-compile = ">=0.1.6"
+grpcio = ">=1.41.1"
+grpcio-tools = ">=1.41.1"

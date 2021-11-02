@@ -74,6 +74,7 @@ jobs:
           ./build-protoc.sh linux s390_64 protoc
           file target/linux/ppcle_64/protoc.exe
           file target/linux/s390_64/protoc.exe
+          echo $(realpath target/linux/ppcle_64/protoc.exe)
 
       - name: Build sdist
         if: matrix.os == 'ubuntu' && matrix.python-version == '8'
@@ -132,6 +133,7 @@ jobs:
             PIPENV_PIPFILE=./python/Pipfile pipenv lock -r > requirements.txt &&
             pip install -U -r requirements.txt
           CIBW_BEFORE_BUILD_LINUX: >
+            echo $(realpath .) &&
             yum install tree protobuf alsa-lib-devel gcc libffi-devel python-devel openssl openssl-devel -y &&
             curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
             rustup show &&

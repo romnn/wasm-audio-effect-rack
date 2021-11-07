@@ -74,6 +74,8 @@ jobs:
           ./build-protoc.sh linux s390_64 protoc
           file target/linux/ppcle_64/protoc.exe
           file target/linux/s390_64/protoc.exe
+          cp target/linux/ppcle_64/protoc.exe $GITHUB_WORKSPACE/ppcle_64_protoc
+          cp target/linux/s390_64/protoc.exe $GITHUB_WORKSPACE/s390_64_protoc
           echo $(realpath target/linux/ppcle_64/protoc.exe)
 
       - name: Build sdist
@@ -123,7 +125,7 @@ jobs:
           CIBW_PLATFORM: ${{ matrix.platform || matrix.os }}
           CIBW_TEST_REQUIRES: "pytest"
           CIBW_TEST_COMMAND: "pytest {project}/python/tests -s"
-          CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH" PROTOC="$HOME/protobuf/protoc-artifacts/target/linux/ppcle_64/protoc.exe"'
+          CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH" PROTOC="/project/ppcle_64_protoc"'
           CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2014"
           CIBW_MANYLINUX_I686_IMAGE: "manylinux2014"
           CIBW_BEFORE_TEST_LINUX: >
@@ -134,6 +136,7 @@ jobs:
             pip install -U -r requirements.txt
           CIBW_BEFORE_BUILD_LINUX: >
             echo $(realpath .) &&
+            echo $HOME &&
             yum install tree protobuf alsa-lib-devel gcc libffi-devel python-devel openssl openssl-devel -y &&
             curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
             rustup show &&

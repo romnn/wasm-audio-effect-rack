@@ -136,7 +136,7 @@ jobs:
             PIPENV_PIPFILE=./python/Pipfile pipenv lock -r > requirements.txt &&
             pip install -U -r requirements.txt
           CIBW_BEFORE_BUILD_LINUX: >
-            yum install tree protobuf alsa-lib-devel gcc libffi-devel python-devel openssl openssl-devel -y &&
+            yum install tree protobuf protobuf-compiler alsa-lib-devel gcc libffi-devel python-devel openssl openssl-devel -y &&
             curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
             rustup show &&
             pip install -U pip pipenv setuptools setuptools-rust wheel &&
@@ -173,7 +173,7 @@ jobs:
             pip install -U -r requirements.txt
 
           CIBW_BEFORE_BUILD_MACOS: >
-            brew install tree protobuf coreutils &&
+            brew install tree protobuf protobuf-compiler coreutils &&
             rustup target add aarch64-apple-darwin &&
             pip install -U pip pipenv setuptools setuptools-rust wheel &&
             PIPENV_PIPFILE=./python/Pipfile pipenv lock -r > requirements.txt &&
@@ -197,7 +197,7 @@ jobs:
             cp -r proto python/proto
 
           CIBW_BEFORE_BUILD_LINUX: >
-            yum install tree protobuf alsa-lib-devel gcc libffi-devel python-devel openssl openssl-devel -y &&
+            yum install tree protobuf protobuf-compiler alsa-lib-devel gcc libffi-devel python-devel openssl openssl-devel -y &&
             curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
             rustup show &&
             pip install -U pip pipenv setuptools setuptools-rust wheel &&

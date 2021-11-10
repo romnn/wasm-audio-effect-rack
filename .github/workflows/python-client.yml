@@ -59,24 +59,24 @@ jobs:
       - name: Install python dependencies
         run: pip install -U setuptools setuptools-rust wheel twine cibuildwheel
 
-      - name: Cross compile protoc
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y autoconf automake libtool gzip make wget g++ g++-powerpc64le-linux-gnu g++-s390x-linux-gnu git
-          git clone https://github.com/protocolbuffers/protobuf.git protobuf
-          cd protobuf
-          git checkout v3.19.1
-          git submodule update --init --recursive
-          ./autogen.sh
-          cd protoc-artifacts/
-          ./build-protoc.sh linux ppcle_64 protoc
-          ./build-protoc.sh linux s390_64 protoc
-          file target/linux/ppcle_64/protoc.exe
-          file target/linux/s390_64/protoc.exe
-          cp target/linux/ppcle_64/protoc.exe $GITHUB_WORKSPACE/ppcle_64_protoc
-          cp target/linux/s390_64/protoc.exe $GITHUB_WORKSPACE/s390_64_protoc
-          echo $(realpath target/linux/ppcle_64/protoc.exe)
+      # - name: Cross compile protoc
+      #   if: runner.os == 'Linux'
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y autoconf automake libtool gzip make wget g++ g++-powerpc64le-linux-gnu g++-s390x-linux-gnu git
+      #     git clone https://github.com/protocolbuffers/protobuf.git protobuf
+      #     cd protobuf
+      #     git checkout v3.19.1
+      #     git submodule update --init --recursive
+      #     ./autogen.sh
+      #     cd protoc-artifacts/
+      #     ./build-protoc.sh linux ppcle_64 protoc
+      #     ./build-protoc.sh linux s390_64 protoc
+      #     file target/linux/ppcle_64/protoc.exe
+      #     file target/linux/s390_64/protoc.exe
+      #     cp target/linux/ppcle_64/protoc.exe $GITHUB_WORKSPACE/ppcle_64_protoc
+      #     cp target/linux/s390_64/protoc.exe $GITHUB_WORKSPACE/s390_64_protoc
+      #     echo $(realpath target/linux/ppcle_64/protoc.exe)
 
       - name: Build sdist
         if: matrix.os == 'ubuntu' && matrix.python-version == '8'
@@ -125,7 +125,8 @@ jobs:
           CIBW_PLATFORM: ${{ matrix.platform || matrix.os }}
           CIBW_TEST_REQUIRES: "pytest"
           CIBW_TEST_COMMAND: "pytest {project}/python/tests -s"
-          CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH" PROTOC="/project/ppcle_64_protoc"'
+          # CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH" PROTOC="/project/ppcle_64_protoc"'
+          CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH"'
           CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2014"
           CIBW_MANYLINUX_I686_IMAGE: "manylinux2014"
           CIBW_BEFORE_TEST_LINUX: >
@@ -135,8 +136,6 @@ jobs:
             PIPENV_PIPFILE=./python/Pipfile pipenv lock -r > requirements.txt &&
             pip install -U -r requirements.txt
           CIBW_BEFORE_BUILD_LINUX: >
-            echo $(realpath .) &&
-            echo $HOME &&
             yum install tree protobuf alsa-lib-devel gcc libffi-devel python-devel openssl openssl-devel -y &&
             curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
             rustup show &&
@@ -147,7 +146,9 @@ jobs:
             cp -r disco python/disco-src &&
             cp -r proto python/proto &&
             tree -I 'node_modules|target|build' python
-
+            
+    # sudo python/compile-protoc.sh &&
+    # sudo python/compile-protoc.sh &&
 
       - name: Build ${{ matrix.platform || matrix.os }} x86_64 i686 aarch64 binaries
         run: cibuildwheel --output-dir dist python

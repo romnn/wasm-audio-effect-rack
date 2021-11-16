@@ -27,7 +27,53 @@ jobs:
           - "8"
           - "9"
           - "10"
-        # arch:
+        arch:
+          - x86_64
+          - i686
+          - aarch64
+          - ppc64le
+          - s390x
+          - x86_64
+          - arm64
+          - universal2
+          - x86
+          - AMD64
+        exclude:
+          - os: macos
+            arch: i686
+          - os: macos
+            arch: aarch64
+          - os: macos
+            arch: ppc64le
+          - os: macos
+            arch: s390x
+          - os: macos
+            arch: x86
+          - os: macos
+            arch: AMD64
+          - os: windows
+            arch: i686
+          - os: windows
+            arch: aarch64
+          - os: windows
+            arch: ppc64le
+          - os: windows
+            arch: s390x
+          - os: windows
+            arch: x86_64
+          - os: windows
+            arch: arm64
+          - os: windows
+            arch: universal2
+          - os: ubuntu
+            arch: universal2
+          - os: ubuntu
+            arch: arm64
+          - os: ubuntu
+            arch: x86
+          - os: ubuntu
+            arch: AMD64
+        ## arch:
         #   - name: "x86_64"
         #     os: ubuntu
         #   - name: "i686"
@@ -42,26 +88,26 @@ jobs:
         #     os: macos
         #   - name: ""
         #     os: windows
-        include:
-          - os: ubuntu
-            arch: "x86_64"
-          - os: ubuntu
-            arch: "i686"
-          - os: ubuntu
-            arch: "aarch64"
-          - os: ubuntu
-            arch: "ppc64le"
-          - os: ubuntu
-            arch: "s390x"
-          - os: macos
-            arch:
-              - "x86_64"
-              - "arm64"
-              - "universal2"
-          - os: windows
-            arch:
-              - "x86"
-              - "AMD64"
+        # include:
+        #   - os: ubuntu
+        #     arch: "x86_64"
+        #   - os: ubuntu
+        #     arch: "i686"
+        #   - os: ubuntu
+        #     arch: "aarch64"
+        #   - os: ubuntu
+        #     arch: "ppc64le"
+        #   - os: ubuntu
+        #     arch: "s390x"
+        #   - os: macos
+        #     arch:
+        #       - "x86_64"
+        #       - "arm64"
+        #       - "universal2"
+        #   - os: windows
+        #     arch:
+        #       - "x86"
+        #       - "AMD64"
         # exclude:
         #   - os: macos
         #     flavor: amazon

@@ -54,15 +54,14 @@ jobs:
           - os: ubuntu
             arch: "s390x"
           - os: macos
-            arch: "x86_64"
-          - os: macos
-            arch: "arm64"
-          - os: macos
-            arch: "universal2"
+            arch:
+              - "x86_64"
+              - "arm64"
+              - "universal2"
           - os: windows
-            arch: "x86"
-          - os: windows
-            arch: "AMD64"
+            arch:
+              - "x86"
+              - "AMD64"
         # exclude:
         #   - os: macos
         #     flavor: amazon

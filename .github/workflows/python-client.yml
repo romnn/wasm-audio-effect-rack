@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    name: py3.${{ matrix.python-version }} on ${{ matrix.arch }} ${{ matrix.platform || matrix.os }}
+    name: py3.${{ matrix.python-version }} on ${{ matrix.arch.name }} ${{ matrix.platform || matrix.os }}
     # needs:
     #   - test
     #   - lint
@@ -38,15 +38,9 @@ jobs:
             os: ubuntu
           - name: "s390x"
             os: ubuntu
-          - name: "x86_64"
+          - name: "x86_64 arm64 universal2"
             os: macos
-          - name: "arm64"
-            os: macos
-          - name: "universal2"
-            os: macos
-          - name: "x86"
-            os: windows
-          - name: "AMD64"
+          - name: "x86 AMD64"
             os: windows
         include:
           - os: ubuntu
@@ -169,6 +163,13 @@ jobs:
       
       - name: Configure linux build
         if: matrix.arch.os == 'ubuntu'
+        run: |
+          echo "CIBW_ARCHS_LINUX=x86_64" >> $GITHUB_ENV
+          echo "CIBW_ARCHS_MACOS=x86_64" >> $GITHUB_ENV
+          echo "CIBW_ARCHS_WINDOWS=x86" >> $GITHUB_ENV
+
+      - name: Configure linux build
+        if: matrix.arch.os == 'ubuntu'
         run: echo "CIBW_ARCHS_LINUX=${{ matrix.arch.name }}" >> $GITHUB_ENV
 
       - name: Configure macos build
@@ -185,7 +186,7 @@ jobs:
           echo "CIBW_ARCHS_MACOS: ${{ env.CIBW_ARCHS_MACOS }}"
           echo "CIBW_ARCHS_WINDOWS: ${{ env.CIBW_ARCHS_WINDOWS }}"
 
-      - name: Build ${{ matrix.platform || matrix.os }} ${{ matrix.arch }} wheel
+      - name: Build ${{ matrix.platform || matrix.os }} ${{ matrix.arch.name }} wheel
         run: cibuildwheel --output-dir dist python
         env:
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"

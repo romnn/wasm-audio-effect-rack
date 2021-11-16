@@ -220,8 +220,18 @@ jobs:
           CIBW_TEST_COMMAND: "pytest {project}/python/tests -s"
           CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH"'
           CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH"'
-          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2014"
-          CIBW_MANYLINUX_I686_IMAGE: "manylinux2014"
+          # CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2014"
+          # CIBW_MANYLINUX_I686_IMAGE: "manylinux2014"
+          # CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux2014"
+          # CIBW_MANYLINUX_PPC64LE_IMAGE: "manylinux2014"
+          # CIBW_MANYLINUX_S390X_IMAGE: "manylinux2014"
+          # CIBW_MANYLINUX_S390X_IMAGE: "manylinux2014"
+          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_24"
+          CIBW_MANYLINUX_I686_IMAGE: "manylinux_2_24"
+          CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux_2_24"
+          CIBW_MANYLINUX_PPC64LE_IMAGE: "manylinux_2_24"
+          CIBW_MANYLINUX_S390X_IMAGE: "manylinux_2_24"
+          CIBW_MANYLINUX_S390X_IMAGE: "manylinux_2_24"
           CIBW_BEFORE_TEST_LINUX: >
             pip install -U pip pipenv setuptools setuptools-rust wheel &&
             curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
@@ -253,8 +263,11 @@ jobs:
             cp -r disco python/disco-src &&
             cp -r proto python/proto
 
+          # yum: alsa-lib-devel libffi-devel python-devel openssl-devel
           CIBW_BEFORE_BUILD_LINUX: >
-            yum install tree alsa-lib-devel gcc libffi-devel python-devel openssl openssl-devel -y &&
+            apt-get update &&
+            apt-get install -y tree gcc openssl &&
+            apt-get install -y libasound2 libffi-dev python-dev openssl-dev libssl-dev &&
             curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
             rustup show &&
             bash python/compile-protoc.sh &&

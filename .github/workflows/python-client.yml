@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    name: py3.${{ matrix.python-version }} on ${{ matrix.platform || matrix.os }}
+    name: py3.${{ matrix.python-version }} on ${{ matrix.arch }} ${{ matrix.platform || matrix.os }}
     # needs:
     #   - test
     #   - lint
@@ -27,6 +27,27 @@ jobs:
           - "8"
           - "9"
           - "10"
+        arch:
+          - name: "x86_64"
+            os: ubuntu
+          - name: "i686"
+            os: ubuntu
+          - name: "aarch64"
+            os: ubuntu
+          - name: "ppc64le"
+            os: ubuntu
+          - name: "s390x"
+            os: ubuntu
+          - name: "x86_64"
+            os: macos
+          - name: "arm64"
+            os: macos
+          - name: "universal2"
+            os: macos
+          - name: "x86"
+            os: windows
+          - name: "AMD64"
+            os: windows
         include:
           - os: ubuntu
             platform: linux
@@ -79,11 +100,10 @@ jobs:
       #     echo $(realpath target/linux/ppcle_64/protoc.exe)
 
       - name: Build sdist
-        if: matrix.os == 'ubuntu' && matrix.python-version == '8'
+        if: matrix.arch.name == 'x86_64' && matrix.arch.os == 'ubuntu' && matrix.os == 'ubuntu' && matrix.python-version == '8'
         run: |
           pip install -U setuptools-rust
           cd python && python setup.py sdist
-
 
       # - name: Build ${{ matrix.platform || matrix.os }} s390x binaries
       #   if: runner.os == 'Linux'
@@ -146,19 +166,36 @@ jobs:
       #       cp -r disco python/disco-src &&
       #       cp -r proto python/proto &&
       #       tree -I 'node_modules|target|build' python
-            
-    # sudo python/compile-protoc.sh &&
-    # sudo python/compile-protoc.sh &&
+      
+      - name: Configure linux build
+        if: matrix.arch.os == 'ubuntu'
+        run: echo "CIBW_ARCHS_LINUX=${{ matrix.arch.name }}" >> $GITHUB_ENV
 
-      - name: Build ${{ matrix.platform || matrix.os }} x86_64 i686 aarch64 binaries
+      - name: Configure macos build
+        if: matrix.arch.os == 'macos'
+        run: echo "CIBW_ARCHS_MACOS=${{ matrix.arch.name }}" >> $GITHUB_ENV
+
+      - name: Configure windows build
+        if: matrix.arch.os == 'windows'
+        run: echo "CIBW_ARCHS_MACOS=${{ matrix.arch.name }}" >> $GITHUB_ENV
+
+      - name: Build summary
+        run: |
+          echo "CIBW_ARCHS_LINUX: ${{ env.CIBW_ARCHS_LINUX }}"
+          echo "CIBW_ARCHS_MACOS: ${{ env.CIBW_ARCHS_MACOS }}"
+          echo "CIBW_ARCHS_WINDOWS: ${{ env.CIBW_ARCHS_WINDOWS }}"
+
+      - name: Build ${{ matrix.platform || matrix.os }} ${{ matrix.arch }} wheel
         run: cibuildwheel --output-dir dist python
         env:
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
-          CIBW_SKIP: "*-win32"
+          # CIBW_SKIP: "*-win32"
           # CIBW_ARCHS_LINUX: x86_64 i686 aarch64 ppc64le s390x
-          CIBW_ARCHS_LINUX: ppc64le
           # CIBW_ARCHS_LINUX: ppc64le x86_64 i686 aarch64
-          CIBW_ARCHS_MACOS: x86_64 arm64 universal2
+          # CIBW_ARCHS_MACOS: x86_64 arm64 universal2
+          CIBW_ARCHS_LINUX: ${{ env.CIBW_ARCHS_LINUX }}
+          CIBW_ARCHS_MACOS: ${{ env.CIBW_ARCHS_MACOS }}
+          CIBW_ARCHS_WINDOWS: ${{ env.CIBW_ARCHS_WINDOWS }}
           CIBW_PLATFORM: ${{ matrix.platform || matrix.os }}
           CIBW_TEST_REQUIRES: "pytest"
           CIBW_TEST_COMMAND: "pytest {project}/python/tests -s"
@@ -210,31 +247,31 @@ jobs:
             cp -r proto python/proto &&
             tree -I 'node_modules|target|build' python
 
-      - name: Build windows 32bit binaries
-        if: matrix.os == 'windows'
-        run: cibuildwheel --output-dir dist python
-        env:
-          CIBW_BUILD: "cp3${{ matrix.python-version }}-win32"
-          CIBW_PLATFORM: windows
-          CIBW_ARCHS_WINDOWS: x86 AMD64
-          CIBW_TEST_REQUIRES: "pytest"
-          CIBW_TEST_COMMAND: "pytest {project}/python/tests -s"
-          CIBW_ENVIRONMENT: 'PATH="$UserProfile\.cargo\bin;$PATH"'
-          CIBW_BEFORE_BUILD: >
-            rustup toolchain install nightly-i686-pc-windows-msvc &&
-            rustup default nightly-i686-pc-windows-msvc &&
-            rustup override set nightly-i686-pc-windows-msvc &&
-            rustup show &&
-            python -m pip uninstall -y pip &&
-            python -m ensurepip &&
-            python -m pip install -U pip &&
-            pip install -U pip pipenv setuptools setuptools-rust wheel &&
-            setx PIPENV_PIPFILE ./python/Pipfile &&
-            pipenv lock -r > requirements.txt &&
-            pip install -U -r requirements.txt &&
-            rm -r python/disco-src &&
-            cp -r disco python/disco-src &&
-            cp -r proto python/proto
+      # - name: Build windows 32bit binaries
+      #   if: matrix.os == 'windows'
+      #   run: cibuildwheel --output-dir dist python
+      #   env:
+      #     CIBW_BUILD: "cp3${{ matrix.python-version }}-win32"
+      #     CIBW_PLATFORM: windows
+      #     CIBW_ARCHS_WINDOWS: x86 AMD64
+      #     CIBW_TEST_REQUIRES: "pytest"
+      #     CIBW_TEST_COMMAND: "pytest {project}/python/tests -s"
+      #     CIBW_ENVIRONMENT: 'PATH="$UserProfile\.cargo\bin;$PATH"'
+      #     CIBW_BEFORE_BUILD: >
+      #       rustup toolchain install nightly-i686-pc-windows-msvc &&
+      #       rustup default nightly-i686-pc-windows-msvc &&
+      #       rustup override set nightly-i686-pc-windows-msvc &&
+      #       rustup show &&
+      #       python -m pip uninstall -y pip &&
+      #       python -m ensurepip &&
+      #       python -m pip install -U pip &&
+      #       pip install -U pip pipenv setuptools setuptools-rust wheel &&
+      #       setx PIPENV_PIPFILE ./python/Pipfile &&
+      #       pipenv lock -r > requirements.txt &&
+      #       pip install -U -r requirements.txt &&
+      #       rm -r python/disco-src &&
+      #       cp -r disco python/disco-src &&
+      #       cp -r proto python/proto
 
       - name: List dist files
         run: ${{ matrix.ls || 'ls -lh' }} dist/

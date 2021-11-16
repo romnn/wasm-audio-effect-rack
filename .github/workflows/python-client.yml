@@ -38,6 +38,9 @@ jobs:
           - universal2
           - x86
           - AMD64
+        include:
+          - os: ubuntu
+            platform: linux
         exclude:
           - os: macos
             arch: i686
@@ -73,50 +76,6 @@ jobs:
             arch: x86
           - os: ubuntu
             arch: AMD64
-        ## arch:
-        #   - name: "x86_64"
-        #     os: ubuntu
-        #   - name: "i686"
-        #     os: ubuntu
-        #   - name: "aarch64"
-        #     os: ubuntu
-        #   - name: "ppc64le"
-        #     os: ubuntu
-        #   - name: "s390x"
-        #     os: ubuntu
-        #   - name: "x86_64 arm64 universal2"
-        #     os: macos
-        #   - name: ""
-        #     os: windows
-        # include:
-        #   - os: ubuntu
-        #     arch: "x86_64"
-        #   - os: ubuntu
-        #     arch: "i686"
-        #   - os: ubuntu
-        #     arch: "aarch64"
-        #   - os: ubuntu
-        #     arch: "ppc64le"
-        #   - os: ubuntu
-        #     arch: "s390x"
-        #   - os: macos
-        #     arch:
-        #       - "x86_64"
-        #       - "arm64"
-        #       - "universal2"
-        #   - os: windows
-        #     arch:
-        #       - "x86"
-        #       - "AMD64"
-        # exclude:
-        #   - os: macos
-        #     flavor: amazon
-        # include:
-        #   - os: ubuntu
-        #     platform: linux
-        #   - os: windows
-        #     ls: dir
-
     runs-on: ${{ format('{0}-latest', matrix.os) }}
     steps:
       - uses: actions/checkout@v2
@@ -246,7 +205,7 @@ jobs:
 
       - name: Configure windows build
         if: matrix.os == 'windows'
-        run: echo "CIBW_ARCHS_MACOS=${{ matrix.arch }}" >> $GITHUB_ENV
+        run: echo "CIBW_ARCHS_WINDOWS=${{ matrix.arch }}" >> $GITHUB_ENV
 
       - name: Build summary
         run: |

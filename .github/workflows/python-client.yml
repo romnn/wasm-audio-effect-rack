@@ -181,10 +181,18 @@ jobs:
       #       tree -I 'node_modules|target|build' python
       
       - name: Configure default build
+        if: matrix.os != 'windows'
         run: |
           echo "CIBW_ARCHS_LINUX=x86_64" >> $GITHUB_ENV
           echo "CIBW_ARCHS_MACOS=x86_64" >> $GITHUB_ENV
           echo "CIBW_ARCHS_WINDOWS=x86" >> $GITHUB_ENV
+
+      - name: Configure default build
+        if: matrix.os == 'windows'
+        run: |
+          echo "CIBW_ARCHS_LINUX=x86_64" >> $env:GITHUB_ENV
+          echo "CIBW_ARCHS_MACOS=x86_64" >> $env:GITHUB_ENV
+          echo "CIBW_ARCHS_WINDOWS=x86" >> $env:GITHUB_ENV
 
       - name: Configure linux build
         if: matrix.os == 'ubuntu'
@@ -196,7 +204,7 @@ jobs:
 
       - name: Configure windows build
         if: matrix.os == 'windows'
-        run: echo "CIBW_ARCHS_WINDOWS=${{ matrix.arch }}" >> $GITHUB_ENV
+        run: echo "CIBW_ARCHS_WINDOWS=${{ matrix.arch }}" >> $env:GITHUB_ENV
 
       - name: Build summary
         run: |
@@ -265,7 +273,7 @@ jobs:
           CIBW_BEFORE_BUILD_LINUX: >
             apt-get update &&
             apt-get install -y tree gcc openssl &&
-            apt-get install -y libasound2 libffi-dev python-dev openssl-dev libssl-dev &&
+            apt-get install -y libasound2 libffi-dev python-dev libssl-dev &&
             curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
             rustup show &&
             bash python/compile-protoc.sh &&

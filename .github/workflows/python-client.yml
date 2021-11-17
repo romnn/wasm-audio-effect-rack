@@ -261,6 +261,7 @@ jobs:
             python -m pip uninstall -y pip &&
             python -m ensurepip &&
             python -m pip install -U pip &&
+            rustup target add i686-pc-windows-msvc &&
             pip install -U pip pipenv setuptools setuptools-rust wheel &&
             setx PIPENV_PIPFILE ./python/Pipfile &&
             pipenv lock -r > requirements.txt &&
@@ -273,7 +274,7 @@ jobs:
           CIBW_BEFORE_BUILD_LINUX: >
             apt-get update &&
             apt-get install -y tree gcc openssl &&
-            apt-get install -y libasound2 libffi-dev python-dev libssl-dev &&
+            apt-get install -y libasound2-dev libffi-dev python-dev libssl-dev &&
             curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
             rustup show &&
             bash python/compile-protoc.sh &&

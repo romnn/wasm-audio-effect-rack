@@ -2,21 +2,6 @@
 
 set -e
 
-# yum install -y autoconf \
-#   automake \
-#   libtool \
-#   gzip \
-#   make \
-#   wget \
-#   gcc-c++ \
-#   glibc-static \
-#   libstdc++-static \
-#   git
-
-apt-get update
-apt-get install -y autoconf \
-  automake libtool gzip make wget g++ git
-
 git clone https://github.com/protocolbuffers/protobuf.git protobuf
 cd protobuf
 git checkout v3.19.1

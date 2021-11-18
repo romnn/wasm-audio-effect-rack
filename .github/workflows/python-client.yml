@@ -294,6 +294,7 @@ jobs:
 
           CIBW_BEFORE_BUILD_LINUX: >
             bash python/install-dependencies.sh &&
+            bash -c 'find python/protoc -name "*.zip" -exec unzip -o -d python/protoc {} \;' &&
             curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
             rustup show &&
             pip install -U pip pipenv setuptools setuptools-rust wheel &&

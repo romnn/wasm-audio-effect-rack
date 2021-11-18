@@ -232,6 +232,9 @@ jobs:
       #     bash python/compile-protoc.sh ${{ matrix.platform || matrix.os }} ${{ matrix.protoc || matrix.arch }} ./
       #     tree ./
 
+      - name: test
+        run: echo 'PATH="$HOME/.cargo/bin:$PATH" PROTOC="{project}/python/${{ matrix.arch }}_protoc"'
+
       - name: Build ${{ matrix.platform || matrix.os }} ${{ matrix.arch }} wheel
         run: cibuildwheel --output-dir dist python
         env:
@@ -289,7 +292,6 @@ jobs:
             cp -r disco python/disco-src &&
             cp -r proto python/proto
 
-          # bash python/compile-protoc.sh &&
           CIBW_BEFORE_BUILD_LINUX: >
             bash python/install-dependencies.sh &&
             find python/protoc -name "*.zip" -exec unzip -d python/protoc {} \; &&
@@ -303,6 +305,7 @@ jobs:
             cp -r proto python/proto &&
             tree -I 'node_modules|target|build' python
 
+      # bash python/compile-protoc.sh &&
       # - name: Build windows 32bit binaries
       #   if: matrix.os == 'windows'
       #   run: cibuildwheel --output-dir dist python

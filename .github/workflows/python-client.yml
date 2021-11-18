@@ -138,7 +138,7 @@ jobs:
       #     CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
       #     CIBW_ARCHS_LINUX: s390x
       #     CIBW_PLATFORM: ${{ matrix.platform || matrix.os }}
-      #     CIBW_TEST_REQUIRES: "pytest"
+      #     CIBW_TEST_REQUIRES: "pytest
       #     CIBW_TEST_COMMAND: "pytest {project}/python/tests -s"
       #     CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH" PROTOC="$HOME/protobuf/protoc-artifacts/target/linux/s390_64/protoc.exe"'
       #     CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2014"
@@ -242,7 +242,7 @@ jobs:
         env:
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
           # musllinux s390x and i686 do not have a rust installer?
-          CIBW_SKIP: "*-musllinux_1_1_s390x *-musllinux_1_1_i686"
+          CIBW_SKIP: "*-musllinux_s390x *-musllinux_i686"
           CIBW_ARCHS_LINUX: ${{ env.CIBW_ARCHS_LINUX }}
           CIBW_ARCHS_MACOS: ${{ env.CIBW_ARCHS_MACOS }}
           CIBW_ARCHS_WINDOWS: ${{ env.CIBW_ARCHS_WINDOWS }}

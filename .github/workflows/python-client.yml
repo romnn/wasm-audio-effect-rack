@@ -209,7 +209,9 @@ jobs:
 
       - name: Configure linux build
         if: matrix.os == 'ubuntu'
-        run: echo "CIBW_ARCHS_LINUX=${{ matrix.arch }}" >> $GITHUB_ENV
+        run: |
+          echo "CIBW_ARCHS_LINUX=${{ matrix.arch }}" >> $GITHUB_ENV
+          bash -c 'find python/protoc -name "*.zip" -exec unzip -o -d python/protoc {} \;'
 
       - name: Configure macos build
         if: matrix.os == 'macos'
@@ -294,7 +296,6 @@ jobs:
 
           CIBW_BEFORE_BUILD_LINUX: >
             bash python/install-dependencies.sh &&
-            bash -c 'find python/protoc -name "*.zip" -exec unzip -o -d python/protoc {} \\;' &&
             curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
             rustup show &&
             pip install -U pip pipenv setuptools setuptools-rust wheel &&

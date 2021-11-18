@@ -9,6 +9,9 @@ if [ -x "$(command -v apt-get)" ]; then
   apt-get update
   apt-get install -y $COMMON_DEPS
   apt-get install -y \
+    g++-aarch64-linux-gnu \
+    g++-powerpc64-linux-gnu \
+    g++-s390x-linux-gnu \
     libasound2-dev \
     libffi-dev \
     python-dev \

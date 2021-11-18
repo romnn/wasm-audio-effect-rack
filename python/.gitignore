@@ -3,6 +3,9 @@
 .vscode/
 cibuildwheel.out/
 disco-src/
+.protoc-build
+protoc/*
+!protoc/*.zip
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

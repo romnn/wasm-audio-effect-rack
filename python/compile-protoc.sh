@@ -2,11 +2,23 @@
 
 set -e
 
+PROTOBUF_VERSION="${PROTOBUF_VERSION:-v3.19.1}"
+PREFIX="${PREFIX:-/usr}"
+echo "using protobuf $PROTOBUF_VERSION"
+echo "will install into $PREFIX"
+
 git clone https://github.com/protocolbuffers/protobuf.git protobuf
 cd protobuf
-git checkout v3.19.1
+git checkout $PROTOBUF_VERSION
 git submodule update --init --recursive
-./autogen.sh
+bash ./autogen.sh || bash ./autogen.sh
+
+# OS=$1
+# ARCH=$2
+# DEST=$3
+
+# ./protoc-artifacts/build-protoc.sh $OS $ARCH protoc
+# cp ./target/$OS/$ARCH/protoc $DEST/protoc
 
 CXXFLAGS="-DNDEBUG"
 LDFLAGS=""
@@ -27,7 +39,6 @@ fi
 echo $CXXFLAGS
 echo $LDFLAGS
 
-./configure --prefix=/usr --disable-shared
+./configure --prefix=$PREFIX --disable-shared
 make -j8
 make install
-which protoc

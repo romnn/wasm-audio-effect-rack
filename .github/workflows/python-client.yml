@@ -29,6 +29,7 @@ jobs:
           - "10"
         arch:
           - x86_64
+          # i686 is 32bit x86_64
           - i686
           - aarch64
           - ppc64le
@@ -39,6 +40,17 @@ jobs:
         include:
           - os: ubuntu
             platform: linux
+          - os: windows
+            ls: dir
+          # - arch: ppc64le
+            # protoc: ppcle_64
+          - arch: aarch64
+            protoc: aarch_64
+          - arch: i686
+            protoc: x86_32
+          # openssl errors with unkown target CPU for s390x
+          # - arch: s390x
+          #   protoc: s390_64
         exclude:
           - os: macos
             arch: x86_64
@@ -213,21 +225,27 @@ jobs:
           echo "CIBW_ARCHS_MACOS: ${{ env.CIBW_ARCHS_MACOS }}"
           echo "CIBW_ARCHS_WINDOWS: ${{ env.CIBW_ARCHS_WINDOWS }}"
 
+      # - name: Cross-compile protoc
+      #   if: matrix.os == 'ubuntu'
+      #   run: |
+      #     bash python/install-dependencies.sh
+      #     bash python/compile-protoc.sh ${{ matrix.platform || matrix.os }} ${{ matrix.protoc || matrix.arch }} ./
+      #     tree ./
+
       - name: Build ${{ matrix.platform || matrix.os }} ${{ matrix.arch }} wheel
         run: cibuildwheel --output-dir dist python
         env:
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
-          # CIBW_SKIP: "*-win32"
-          # CIBW_ARCHS_LINUX: x86_64 i686 aarch64 ppc64le s390x
-          # CIBW_ARCHS_LINUX: ppc64le x86_64 i686 aarch64
-          # CIBW_ARCHS_MACOS: x86_64 arm64 universal2
+          # musllinux s390x and i686 do not have a rust installer?
+          CIBW_SKIP: "*-musllinux_1_1_s390x *-musllinux_1_1_i686"
           CIBW_ARCHS_LINUX: ${{ env.CIBW_ARCHS_LINUX }}
           CIBW_ARCHS_MACOS: ${{ env.CIBW_ARCHS_MACOS }}
           CIBW_ARCHS_WINDOWS: ${{ env.CIBW_ARCHS_WINDOWS }}
           CIBW_PLATFORM: ${{ matrix.platform || matrix.os }}
           CIBW_TEST_REQUIRES: "pytest"
           CIBW_TEST_COMMAND: "pytest {project}/python/tests -s"
-          CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH"'
+          CIBW_ENVIRONMENT_MACOS: 'PATH="$HOME/.cargo/bin:$PATH"'
+          CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH" PROTOC="{project}/python/${{ matrix.arch }}_protoc"'
           CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH"'
           CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2014"
           CIBW_MANYLINUX_I686_IMAGE: "manylinux2014"
@@ -271,9 +289,10 @@ jobs:
             cp -r disco python/disco-src &&
             cp -r proto python/proto
 
+          # bash python/compile-protoc.sh &&
           CIBW_BEFORE_BUILD_LINUX: >
             bash python/install-dependencies.sh &&
-            bash python/compile-protoc.sh &&
+            find python/protoc -name "*.zip" -exec unzip -d python/protoc {} \; &&
             curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
             rustup show &&
             pip install -U pip pipenv setuptools setuptools-rust wheel &&

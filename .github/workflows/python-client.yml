@@ -294,7 +294,6 @@ jobs:
 
           CIBW_BEFORE_BUILD_LINUX: >
             bash python/install-dependencies.sh &&
-            find python/protoc -name "*.zip" -exec unzip -d python/protoc {} \; &&
             curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
             rustup show &&
             pip install -U pip pipenv setuptools setuptools-rust wheel &&
@@ -305,6 +304,7 @@ jobs:
             cp -r proto python/proto &&
             tree -I 'node_modules|target|build' python
 
+      # find python/protoc -name "*.zip" -exec unzip -d python/protoc {} \; &&
       # bash python/compile-protoc.sh &&
       # - name: Build windows 32bit binaries
       #   if: matrix.os == 'windows'

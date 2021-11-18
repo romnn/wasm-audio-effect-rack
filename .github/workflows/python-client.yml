@@ -241,8 +241,9 @@ jobs:
         run: cibuildwheel --output-dir dist python
         env:
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
-          # musllinux s390x and i686 do not have a rust installer?
-          CIBW_SKIP: "*-musllinux_s390x *-musllinux_i686"
+          # musllinux s390x and i686 do not have a rust installer
+          # musllinux requires special protoc
+          CIBW_SKIP: "*-musllinux"
           CIBW_ARCHS_LINUX: ${{ env.CIBW_ARCHS_LINUX }}
           CIBW_ARCHS_MACOS: ${{ env.CIBW_ARCHS_MACOS }}
           CIBW_ARCHS_WINDOWS: ${{ env.CIBW_ARCHS_WINDOWS }}
@@ -250,7 +251,7 @@ jobs:
           CIBW_TEST_REQUIRES: "pytest"
           CIBW_TEST_COMMAND: "pytest {project}/python/tests -s"
           CIBW_ENVIRONMENT_MACOS: 'PATH="$HOME/.cargo/bin:$PATH"'
-          CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH" PROTOC="/project/python/protoc/${{ matrix.arch }}_protoc"'
+          CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH" PROTOC="{project}/python/protoc/${{ matrix.arch }}_protoc"'
           CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH"'
           CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2014"
           CIBW_MANYLINUX_I686_IMAGE: "manylinux2014"

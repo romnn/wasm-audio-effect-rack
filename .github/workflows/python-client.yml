@@ -237,13 +237,12 @@ jobs:
       # - name: test
       #   run: echo 'PATH="$HOME/.cargo/bin:$PATH" PROTOC="{project}/python/${{ matrix.arch }}_protoc"'
 
-      - name: Build ${{ matrix.platform || matrix.os }} ${{ matrix.arch }} wheel
+      - name: Build ${{ matrix.platform || matrix.os }} ${{ matrix.arch }} manylinux wheel
         run: cibuildwheel --output-dir dist python
         env:
-          CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
+          CIBW_BUILD: "cp3${{ matrix.python-version }}-manylinux*"
           # musllinux s390x and i686 do not have a rust installer
-          # musllinux requires special protoc
-          CIBW_SKIP: "*-musllinux"
+          # CIBW_SKIP: "*-musllinux*"
           CIBW_ARCHS_LINUX: ${{ env.CIBW_ARCHS_LINUX }}
           CIBW_ARCHS_MACOS: ${{ env.CIBW_ARCHS_MACOS }}
           CIBW_ARCHS_WINDOWS: ${{ env.CIBW_ARCHS_WINDOWS }}
@@ -251,7 +250,7 @@ jobs:
           CIBW_TEST_REQUIRES: "pytest"
           CIBW_TEST_COMMAND: "pytest {project}/python/tests -s"
           CIBW_ENVIRONMENT_MACOS: 'PATH="$HOME/.cargo/bin:$PATH"'
-          CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH" PROTOC="/project/python/protoc/${{ matrix.arch }}_protoc"'
+          CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH" PROTOC="/project/python/protoc/manylinux2014_${{ matrix.arch }}_protoc"'
           CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH"'
           CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2014"
           CIBW_MANYLINUX_I686_IMAGE: "manylinux2014"
@@ -294,6 +293,42 @@ jobs:
             rm -r python/disco-src &&
             cp -r disco python/disco-src &&
             cp -r proto python/proto
+
+          CIBW_BEFORE_BUILD_LINUX: >
+            bash python/install-dependencies.sh &&
+            curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
+            rustup show &&
+            pip install -U pip pipenv setuptools setuptools-rust wheel &&
+            PIPENV_PIPFILE=./python/Pipfile pipenv lock -r > requirements.txt &&
+            pip install -U -r requirements.txt &&
+            rm -r python/disco-src &&
+            cp -r disco python/disco-src &&
+            cp -r proto python/proto &&
+            tree -I 'node_modules|target|build' python
+
+      - name: Build ${{ matrix.platform || matrix.os }} ${{ matrix.arch }} musllinix wheel
+        if: matrix.os == 'ubuntu'
+        run: cibuildwheel --output-dir dist python
+        env:
+          CIBW_BUILD: "cp3${{ matrix.python-version }}-musllinux*"
+          # musllinux s390x and i686 do not have a rust installer
+          CIBW_SKIP: "*s390x *i686"
+          CIBW_ARCHS_LINUX: ${{ env.CIBW_ARCHS_LINUX }}
+          CIBW_PLATFORM: ${{ matrix.platform || matrix.os }}
+          CIBW_TEST_REQUIRES: "pytest"
+          CIBW_TEST_COMMAND: "pytest {project}/python/tests -s"
+          CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH" PROTOC="/project/python/protoc/musllinux_1_1_${{ matrix.arch }}_protoc"'
+          CIBW_MUSLLINUX_X86_64_IMAGE: "musllinux_1_1"
+          CIBW_MUSLLINUX_I686_IMAGE: "musllinux_1_1"
+          CIBW_MUSLLINUX_AARCH64_IMAGE: "musllinux_1_1"
+          CIBW_MUSLLINUX_PPC64LE_IMAGE: "musllinux_1_1"
+          CIBW_MUSLLINUX_S390X_IMAGE: "musllinux_1_1"
+          CIBW_BEFORE_TEST_LINUX: >
+            pip install -U pip pipenv setuptools setuptools-rust wheel &&
+            curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=default -y &&
+            rustup show &&
+            PIPENV_PIPFILE=./python/Pipfile pipenv lock -r > requirements.txt &&
+            pip install -U -r requirements.txt
 
           CIBW_BEFORE_BUILD_LINUX: >
             bash python/install-dependencies.sh &&

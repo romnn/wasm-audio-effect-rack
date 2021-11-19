@@ -237,12 +237,12 @@ jobs:
       # - name: test
       #   run: echo 'PATH="$HOME/.cargo/bin:$PATH" PROTOC="{project}/python/${{ matrix.arch }}_protoc"'
 
-      - name: Build ${{ matrix.platform || matrix.os }} ${{ matrix.arch }} manylinux wheel
+      - name: Build ${{ matrix.platform || matrix.os }} ${{ matrix.arch }} wheel
         run: cibuildwheel --output-dir dist python
         env:
-          CIBW_BUILD: "cp3${{ matrix.python-version }}-manylinux*"
+          CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
           # musllinux s390x and i686 do not have a rust installer
-          # CIBW_SKIP: "*-musllinux*"
+          CIBW_SKIP: "*-musllinux*"
           CIBW_ARCHS_LINUX: ${{ env.CIBW_ARCHS_LINUX }}
           CIBW_ARCHS_MACOS: ${{ env.CIBW_ARCHS_MACOS }}
           CIBW_ARCHS_WINDOWS: ${{ env.CIBW_ARCHS_WINDOWS }}
@@ -306,7 +306,7 @@ jobs:
             cp -r proto python/proto &&
             tree -I 'node_modules|target|build' python
 
-      - name: Build ${{ matrix.platform || matrix.os }} ${{ matrix.arch }} musllinix wheel
+      - name: Build ${{ matrix.platform || matrix.os }} ${{ matrix.arch }} musllinux wheel
         if: matrix.os == 'ubuntu'
         run: cibuildwheel --output-dir dist python
         env:

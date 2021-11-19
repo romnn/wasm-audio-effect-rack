@@ -312,7 +312,7 @@ jobs:
         env:
           CIBW_BUILD: "cp3${{ matrix.python-version }}-musllinux*"
           # musllinux s390x and i686 do not have a rust installer
-          CIBW_SKIP: "*s390x *i686"
+          CIBW_SKIP: "*s390x *ppc64le *i686"
           CIBW_ARCHS_LINUX: ${{ env.CIBW_ARCHS_LINUX }}
           CIBW_PLATFORM: ${{ matrix.platform || matrix.os }}
           CIBW_TEST_REQUIRES: "pytest"

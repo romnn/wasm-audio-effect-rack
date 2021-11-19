@@ -311,8 +311,8 @@ jobs:
         run: cibuildwheel --allow-empty --output-dir dist python
         env:
           CIBW_BUILD: "cp3${{ matrix.python-version }}-musllinux*"
-          # musllinux s390x and i686 do not have a rust installer
-          CIBW_SKIP: "*s390x *ppc64le *i686"
+          # musllinux s390x aarch64 ppc64le i686 do not have a rust installer
+          CIBW_SKIP: "*s390x *aarch64 *ppc64le *i686"
           CIBW_ARCHS_LINUX: ${{ env.CIBW_ARCHS_LINUX }}
           CIBW_PLATFORM: ${{ matrix.platform || matrix.os }}
           CIBW_TEST_REQUIRES: "pytest"

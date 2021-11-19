@@ -238,7 +238,7 @@ jobs:
       #   run: echo 'PATH="$HOME/.cargo/bin:$PATH" PROTOC="{project}/python/${{ matrix.arch }}_protoc"'
 
       - name: Build ${{ matrix.platform || matrix.os }} ${{ matrix.arch }} wheel
-        run: cibuildwheel --output-dir dist python
+        run: cibuildwheel --allow-empty --output-dir dist python
         env:
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
           # musllinux s390x and i686 do not have a rust installer
@@ -308,7 +308,7 @@ jobs:
 
       - name: Build ${{ matrix.platform || matrix.os }} ${{ matrix.arch }} musllinux wheel
         if: matrix.os == 'ubuntu'
-        run: cibuildwheel --output-dir dist python
+        run: cibuildwheel --allow-empty --output-dir dist python
         env:
           CIBW_BUILD: "cp3${{ matrix.python-version }}-musllinux*"
           # musllinux s390x and i686 do not have a rust installer

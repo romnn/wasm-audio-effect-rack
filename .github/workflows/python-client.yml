@@ -376,9 +376,8 @@ jobs:
       - name: twine check
         run: twine check dist/*
 
-    # - name: upload to pypi
-    #   if: startsWith(github.ref, 'refs/tags/')
-    #   run: twine upload dist/*
-    #   env:
-    #     TWINE_USERNAME: __token__
-    #     TWINE_PASSWORD: ${{ secrets.pypi_token }}
+      - name: upload to pypi
+        run: twine upload dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.pypi_token }}

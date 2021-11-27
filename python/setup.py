@@ -92,7 +92,9 @@ setup(
     keywords="discodisco",
     name="discodisco",
     rust_extensions=[RustExtension("disco", binding=Binding.PyO3)],
-    packages=find_packages(include=["discodisco"]),
+    packages=find_packages(
+        include=["discodisco"], exclude=["protoc", "disco-src/target", "target"]
+    ),
     test_suite="tests",
     url="https://github.com/disco-org/disco",
     version=version,

@@ -9,7 +9,7 @@ from pathlib import Path
 
 short_description = "No description has been added so far."
 
-version = "0.1.1"
+version = "0.1.2"
 
 try:
     if (Path().parent / "README.md").is_file():

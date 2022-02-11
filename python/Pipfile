@@ -21,6 +21,7 @@ coverage = "*"
 pre-commit = "*"
 invoke = "*"
 m2r = "*"
+mistune = "==0.8.4"
 bump2version = "*"
 # Building
 twine = "*"

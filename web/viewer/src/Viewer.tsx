@@ -32,7 +32,7 @@ export default class Viewer extends React.Component<
     [key in ViewerUpdate.UpdateCase]?: { start: number; count: number };
   } = {};
 
-  protected visualization: VisualizationController = new VisualizationGallery.visualizations[1]();
+  protected visualization: VisualizationController = new VisualizationGallery.visualizations[0]();
 
   constructor(props: ViewerRouteProps) {
     super(props);
@@ -149,7 +149,7 @@ export default class Viewer extends React.Component<
           await this.controller.connectLightsToAudioAnalyzer(
             audioAnalyzerDescriptor,
             // "/dev/ttyACM0",
-            "/dev/cu.usbmodem142401",
+            "/dev/cu.usbmodem142201",
             [{ numLights: 300, pin: 5 }]
             // [{numLights: 300, pin: 1 }, {numLights: 300, pin: 1 }],
           );

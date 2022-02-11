@@ -43,6 +43,7 @@ coverage_requirements = ["coverage"]
 formatting_requirements = ["flake8", "black==21.8b0"]
 tool_requirements = [
     "m2r",
+    "mistune==0.8.4",
     "invoke",
     "pre-commit",
     "bump2version",
@@ -81,7 +82,6 @@ setup(
     },
     python_requires=">=3.6",
     install_requires=requirements,
-    setup_requires=tool_requirements,
     tests_require=test_requirements,
     extras_require=dict(dev=dev_requirements, test=test_requirements),
     license="MIT",

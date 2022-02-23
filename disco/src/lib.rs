@@ -35,8 +35,8 @@ use tokio::sync::{watch, RwLock};
 use tonic::{transport::Server as TonicServer, Code, Request, Status};
 use warp::Filter;
 
-const INSTANCE_ID_KEY: &str = "instance-id";
-const SESSION_TOKEN_KEY: &str = "session-token";
+pub const INSTANCE_ID_KEY: &str = "instance-id";
+pub const SESSION_TOKEN_KEY: &str = "session-token";
 
 pub type Sample = f32;
 pub type ViewerUpdateMsg = proto::grpc::ViewerUpdate;
@@ -177,7 +177,7 @@ impl DiscoServer<ViewerUpdateMsg, ControllerUpdateMsg> {
             .add_service(remote_viewer_grpc_server);
 
         tokio::task::spawn(async move {
-            let web = warp::get().and(warp::fs::dir("../../www/build"));
+            let web = warp::get().and(warp::fs::dir("../web/disco/build"));
             warp::serve(web).run(static_addr).await;
         });
 

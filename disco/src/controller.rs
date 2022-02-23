@@ -1,6 +1,9 @@
 use crate::analyzer::{AudioAnalyzerNode, AudioAnalyzerNodeTrait, AudioInputNode, AudioOutputNode};
 use crate::cli::Config;
-use crate::{ControllerUpdateMsg, DiscoServer, Sample, ViewerUpdateMsg};
+use crate::session::Session;
+use crate::{
+    ControllerUpdateMsg, DiscoServer, Sample, ViewerUpdateMsg, INSTANCE_ID_KEY, SESSION_TOKEN_KEY,
+};
 use analysis::bpm::{BpmDetectionAnalyzer, BpmDetectionAnalyzerConfig};
 #[cfg(feature = "analyze")]
 use analysis::spectral::{SpectralAnalyzer, SpectralAnalyzerOptions};
@@ -20,6 +23,7 @@ use recorder::{
 use ringbuf::RingBuffer;
 use std::marker::Send;
 use std::ops::Deref;
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::thread;
@@ -46,7 +50,8 @@ pub fn hsl_to_rgb(h: u16, s: f32, l: f32) -> (u8, u8, u8) {
 
 #[derive(Debug)]
 pub struct Controller<CU> {
-    connection: Arc<RwLock<mpsc::Sender<CU>>>,
+    connection: Arc<RwLock<mpsc::Sender<Result<CU, Status>>>>,
+    // pub connection: Arc<RwLock<mpsc::Sender<CU>>>,
     pub config: Config,
     pub info: Arc<RwLock<proto::grpc::InstanceInfo>>,
 }
@@ -56,7 +61,7 @@ impl<CU> Controller<CU> {
         session_token: proto::grpc::SessionToken,
         instance_id: proto::grpc::InstanceId,
         config: Config,
-        connection: mpsc::Sender<CU>,
+        connection: mpsc::Sender<Result<CU, Status>>,
     ) -> Self {
         Self {
             connection: Arc::new(RwLock::new(connection)),
@@ -81,11 +86,59 @@ pub fn map(value: f32, x1: f32, y1: f32, x2: f32, y2: f32) -> f32 {
     (value - x1) * (y2 - x2) / (y1 - x1) + x2
 }
 
+impl<CU> DiscoServer<ViewerUpdateMsg, CU>
+where
+    CU: Clone + Send + 'static,
+{
+    async fn new_controller_instance(
+        &self,
+        session_token: proto::grpc::SessionToken,
+    ) -> Result<proto::grpc::InstanceId, Status> {
+        println!(
+            "[controller] new instance id for session: {}",
+            session_token
+        );
+        let mut sessions = self.sessions.write().await;
+        let controllers = sessions
+            .entry(session_token.clone())
+            .or_insert(Session::new(session_token.clone(), self.config.clone()))
+            .controllers
+            .write()
+            .await;
+        let controller_count = controllers.len();
+        if let Some(max_viewers) = self.config.run.max_viewers {
+            if controller_count >= max_viewers {
+                return Err(Status::unavailable(format!(
+                    "maximum number of controllers ({}) exceeded",
+                    max_viewers
+                )));
+            }
+        }
+        println!(
+            "session {} has {} controllers",
+            session_token, controller_count
+        );
+        let instance_id = (move || {
+            for candidate in 1..controller_count + 2 {
+                let id = proto::grpc::InstanceId {
+                    id: candidate.to_string(),
+                };
+                if !controllers.contains_key(&id) {
+                    // insert here
+                    return Ok(id);
+                }
+            }
+            Err(Status::internal("failed to generate instance id"))
+        })();
+        instance_id
+    }
+}
+
 #[tonic::async_trait]
 impl proto::grpc::remote_controller_server::RemoteController
     for DiscoServer<ViewerUpdateMsg, ControllerUpdateMsg>
 {
-    type ConnectStream = Pin<
+    type SubscribeStream = Pin<
         Box<
             dyn Stream<Item = Result<proto::grpc::ControllerUpdate, Status>>
                 + Send
@@ -103,15 +156,90 @@ impl proto::grpc::remote_controller_server::RemoteController
         Ok(Response::new(proto::grpc::Empty {}))
     }
 
-    async fn connect(
+    async fn subscribe(
         &self,
-        _request: Request<proto::grpc::ControllerConnectRequest>,
-    ) -> Result<Response<Self::ConnectStream>, Status> {
-        let (_stream_tx, stream_rx) = mpsc::channel(1);
-        let pinned_stream = Box::pin(ReceiverStream::new(stream_rx));
+        request: Request<proto::grpc::ControllerSubscribeRequest>,
+    ) -> Result<Response<Self::SubscribeStream>, Status> {
+        let session_token = match Self::extract_session_token(&request).await {
+            Ok(token) => Ok(token),
+            Err(_) => self.new_session().await,
+        }?;
 
-        // TODO
-        Ok(Response::new(pinned_stream))
+        let instance_id = Self::extract_instance_id(&request)
+            .await
+            .or(self.new_controller_instance(session_token.clone()).await)?;
+
+        println!("[controller] connect: {} {}", session_token, instance_id);
+        // ViewerUpdateMsg, ControllerUpdateMsg
+        let (stream_tx, stream_rx): (
+            mpsc::Sender<Result<ControllerUpdateMsg, Status>>,
+            mpsc::Receiver<Result<ControllerUpdateMsg, Status>>,
+        ) = mpsc::channel(1);
+        let pinned_stream = Box::pin(ReceiverStream::new(stream_rx));
+        let mut response: Response<Self::SubscribeStream> = Response::new(pinned_stream);
+        let metadata = response.metadata_mut();
+        metadata.insert(
+            SESSION_TOKEN_KEY,
+            session_token.clone().token.parse().unwrap(),
+        );
+        metadata.insert(INSTANCE_ID_KEY, instance_id.clone().id.parse().unwrap());
+
+        let mut sessions = self.sessions.write().await;
+        let session = sessions
+            .entry(session_token.clone())
+            .or_insert(Session::new(session_token.clone(), self.config.clone()));
+        // let (tx, mut rx) = mpsc::channel(1);
+        if let Some(existing) = session.controllers.read().await.get(&instance_id) {
+            println!(
+                "controller instance {} in session {} reconnected",
+                instance_id, session_token
+            );
+            let existing = existing.read().await;
+            let mut old_connection = existing.connection.write().await;
+            *old_connection = stream_tx.clone();
+            println!("exiting");
+            return Ok(response);
+        }
+        println!(
+            "controller instance {} in session {} connected",
+            instance_id, session_token
+        );
+        let controller = Controller {
+            connection: Arc::new(RwLock::new(stream_tx.clone())),
+            // tx,
+            config: self.config.clone(),
+            info: Arc::new(RwLock::new(proto::grpc::InstanceInfo {
+                session_token: Some(session_token.clone()),
+                instance_id: Some(instance_id.clone()),
+                connected_since: None,
+                state: proto::grpc::InstanceState::Offline as i32,
+            })),
+        };
+        let stream_tx = controller.connection.clone();
+        let instance_info = controller.info.clone();
+        session
+            .controllers
+            .write()
+            .await
+            .insert(instance_id.clone(), RwLock::new(controller));
+        let controllers = session.controllers.clone();
+        let mut shutdown_rx = self.shutdown_rx.clone();
+        let config = self.config.clone();
+        tokio::spawn(async move {
+            // assign the instance
+            let assignment = proto::grpc::ControllerUpdate {
+                update: Some(proto::grpc::controller_update::Update::Assignment(
+                    proto::grpc::Assignment {
+                        session_token: Some(session_token.clone()),
+                        instance_id: Some(instance_id.clone()),
+                    },
+                )),
+            };
+
+            let _ = stream_tx.read().await.send(Ok(assignment)).await;
+        });
+
+        Ok(response)
     }
 
     async fn get_sessions(
@@ -128,24 +256,65 @@ impl proto::grpc::remote_controller_server::RemoteController
         }))
     }
 
+    async fn request_recording_frame(
+        &self,
+        request: Request<proto::grpc::RecordingFrameRequest>,
+    ) -> Result<Response<proto::audio::analysis::AudioAnalysisResult>, Status> {
+        // todo: find the session of the caller
+        let (session_token, instance_id) = Self::extract_session_instance(&request).await?;
+        println!("request recording frame: {} {}", session_token, instance_id);
+
+        // take a screenshot for the recording
+
+        // get the next audio update from ring buffer and send
+        let request = request.into_inner();
+        Ok(Response::new(proto::audio::analysis::AudioAnalysisResult {
+            seq_num: request.seq_num,
+            window_size: 10,
+            result: None,
+        }))
+    }
+
+    async fn stop_recording(
+        &self,
+        request: Request<proto::grpc::StopRecordingRequest>,
+    ) -> Result<Response<proto::grpc::Recording>, Status> {
+        Ok(Response::new(proto::grpc::Recording {
+            // id: Some(proto::grpc::RecordingId { id: "test" }),
+            id: request.into_inner().id,
+        }))
+    }
+
+    async fn start_recording(
+        &self,
+        request: Request<proto::grpc::StartRecordingRequest>,
+    ) -> Result<Response<proto::grpc::Recording>, Status> {
+        let (session_token, instance_id) = Self::extract_session_instance(&request).await?;
+        println!("new input stream: {} {}", session_token, instance_id);
+
+        let sessions = self.sessions.read().await;
+        let mut input_streams = sessions
+            .get(&session_token)
+            .ok_or(Status::not_found(format!(
+                "session {} does not exist",
+                session_token
+            )))?
+            .recordings
+            .write()
+            .await;
+
+        Ok(Response::new(proto::grpc::Recording {
+            id: Some(proto::grpc::RecordingId { id: instance_id.id }),
+        }))
+    }
+
     async fn add_audio_input_stream(
         &self,
         request: Request<proto::grpc::AddAudioInputStreamRequest>,
     ) -> Result<Response<proto::grpc::AudioInputStream>, Status> {
         let (session_token, instance_id) = Self::extract_session_instance(&request).await?;
         println!("new input stream: {} {}", session_token, instance_id);
-        let input_config = AudioInputConfig {
-            // TODO: use the request here
-            // #[cfg(use_jack)]
-            // use_jack: self.config.default.use_jack,
-            // #[cfg(use_portaudio)]
-            // use_portaudio: self.config.default.use_portaudio.clone(),
-            // input_device: self.config.default.input_device.clone(),
-            // output_device: self.config.default.output_device.clone(),
-            // latency: NumCast::from(self.config.default.latency).unwrap(),
-            // ..self.config.default.clone().into()
-            ..AudioInputConfig::default()
-        };
+
         let sessions = self.sessions.read().await;
         let mut input_streams = sessions
             .get(&session_token)
@@ -156,8 +325,44 @@ impl proto::grpc::remote_controller_server::RemoteController
             .input_streams
             .write()
             .await;
-        let mut audio_input = AudioInputNode::<f32>::new(input_config)
-            .map_err(|_| Status::internal("failed to create input stream"))?;
+
+        let mut audio_input: AudioInputNode<f32> = match request.into_inner().input {
+            Some(proto::grpc::add_audio_input_stream_request::Input::Device(
+                proto::grpc::DeviceInputStreamRequest { device },
+            )) => {
+                println!("device: {}", device);
+                let input_config = AudioInputConfig {
+                    // TODO: use the request here
+                    // #[cfg(use_jack)]
+                    // use_jack: self.config.default.use_jack,
+                    // #[cfg(use_portaudio)]
+                    // use_portaudio: self.config.default.use_portaudio.clone(),
+                    // input_device: self.config.default.input_device.clone(),
+                    // output_device: self.config.default.output_device.clone(),
+                    // latency: NumCast::from(self.config.default.latency).unwrap(),
+                    // ..self.config.default.clone().into()
+                    ..AudioInputConfig::default()
+                };
+
+                AudioInputNode::<f32>::from_input(input_config)
+                    .map_err(|_| Status::internal("failed to create input stream"))
+            }
+            Some(proto::grpc::add_audio_input_stream_request::Input::File(
+                proto::grpc::FileInputStreamRequest { file_path, looped },
+            )) => {
+                println!("file path: {}", file_path);
+                AudioInputNode::<f32>::from_file(PathBuf::from(file_path), looped)
+                    .map_err(|_| Status::internal("failed to create input stream from file"))
+            }
+            Some(proto::grpc::add_audio_input_stream_request::Input::Stream(
+                proto::grpc::StreamInputStreamRequest { stream_url },
+            )) => {
+                println!("stream url: {}", stream_url);
+                Err(Status::unimplemented("streaming not supported"))
+            }
+            None => Err(Status::invalid_argument("no audio input specified")),
+        }?;
+
         let descriptor = audio_input.descriptor();
 
         // check if the stream is alreay active

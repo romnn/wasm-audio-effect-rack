@@ -6,6 +6,7 @@ use ndarray::prelude::*;
 use ndarray::Slice;
 use num::traits::{NumCast, Zero};
 use ringbuf::RingBuffer;
+use std::path::PathBuf;
 use std::sync::RwLock as SyncRwLock;
 
 #[cfg(feature = "portaudio")]
@@ -13,11 +14,11 @@ use recorder::portaudio::PortaudioRecorder;
 
 #[cfg(feature = "record")]
 use recorder::{
-    cpal::CpalAudioInput, cpal::CpalAudioOutput, AudioAnalysisError, AudioAnalysisResultReceiver,
-    AudioAnalysisResultSender, AudioBackendConfig, AudioBufferReceiver, AudioBufferSender,
-    AudioError, AudioInput, AudioInputConfig, AudioInputNode as AudioInputNodeTrait, AudioNode,
-    AudioOutput, AudioOutputCallback, AudioOutputConfig, AudioOutputNode as AudioOutputNodeTrait,
-    AudioStreamInfo, Sample,
+    cpal::CpalAudioFile, cpal::CpalAudioInput, cpal::CpalAudioOutput, AudioAnalysisError,
+    AudioAnalysisResultReceiver, AudioAnalysisResultSender, AudioBackendConfig,
+    AudioBufferReceiver, AudioBufferSender, AudioError, AudioInput, AudioInputConfig,
+    AudioInputNode as AudioInputNodeTrait, AudioNode, AudioOutput, AudioOutputCallback,
+    AudioOutputConfig, AudioOutputNode as AudioOutputNodeTrait, AudioStreamInfo, Sample,
 };
 
 use async_trait::async_trait;
@@ -170,7 +171,7 @@ where
                 let mut analyzer = analyzer.lock().unwrap();
                 loop {
                     // wait 1/60
-                    thread::sleep(time::Duration::from_millis(1000/60));
+                    thread::sleep(time::Duration::from_millis(1000 / 60));
                     if let Ok(rbuffer) = buffer.read() {
                         let rbuffer_copy = rbuffer.to_owned();
                         // drop(rbuffer);
@@ -336,7 +337,9 @@ pub struct AudioInputNode<T>
 where
     T: NumCast + Zero + Send + Clone + 'static,
 {
-    pub config: AudioInputConfig,
+    // this should move to the input?
+    // pub config: AudioInputConfig,
+    // this should work for file and for inputs
     pub input: Arc<Box<dyn recorder::AudioInput<T> + Send + Sync + 'static>>,
     pub input_descriptor: proto::grpc::AudioInputDescriptor,
     pub input_params: AudioStreamInfo,
@@ -348,7 +351,9 @@ impl<T> AudioInputNodeTrait<T> for AudioInputNode<T>
 where
     T: Sample,
 {
-    fn new(config: AudioInputConfig) -> Result<Self> {
+    // fn from_input(config: AudioInputConfig) -> Result<Box<dyn AudioInput<T>>> { // Self> {
+    fn from_input(config: AudioInputConfig) -> Result<Self> {
+        // Self> {
         let input_stream = CpalAudioInput::<T>::new(config.clone())?;
         cfg_if::cfg_if! {
             if #[cfg(feature = "portaudio")] {
@@ -360,10 +365,34 @@ where
         let input_descriptor = input_stream.descriptor()?;
         let input_params = input_stream.input_stream_params();
         let (tx, _) = broadcast::channel(
-            NumCast::from(input_stream.input_config.sample_rate().0).unwrap_or(100),
+            NumCast::from(input_params.sample_rate).unwrap(), // NumCast::from(input_stream.input_config.sample_rate().0).unwrap_or(100),
         );
         Ok(Self {
-            config,
+            // config,
+            input: Arc::new(Box::new(input_stream)),
+            input_descriptor,
+            input_params,
+            tx,
+            is_running: false,
+        })
+    }
+
+    fn from_file(path: PathBuf, looped: bool) -> Result<Self> {
+        let input_stream = CpalAudioFile::<T>::new(path, looped)?;
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "portaudio")] {
+                if config.use_portaudio{
+                    let input_stream = PortaudioAudioInput::<T>::new(config.clone())?;
+                };
+            }
+        };
+        let input_descriptor = input_stream.descriptor()?;
+        let input_params = input_stream.input_stream_params();
+        let (tx, _) = broadcast::channel(
+            NumCast::from(input_params.sample_rate).unwrap(), // NumCast::from(input_stream.input_config.sample_rate().0).unwrap_or(100),
+        );
+        Ok(Self {
+            // config,
             input: Arc::new(Box::new(input_stream)),
             input_descriptor,
             input_params,
@@ -385,6 +414,32 @@ where
     }
 }
 
+// impl<T> AudioInputNode<T>
+// where
+//     T: Sample,
+// {
+//     fn process(&mut self, samples: Result<Array2<T>>, sample_rate: u32, nchannels: u16) -> () {
+//         // let samples_clone = samples.clone().map(|s| s.to_owned());
+//         // let sample_size = samples.as_ref().map(|s| s.len());
+//         if let Err(err) = tx.send((
+//             samples.map_err(|err| AudioError::Unknown(err.to_string())),
+//             sample_rate,
+//             nchannels,
+//         )) {
+//             eprintln!(
+//                 "failed to send input samples of {}: {}",
+//                 input_descriptor_clone, err
+//             );
+//         } // else {
+//           // println!("sent samples");
+//           // println!("sent {:?} samples", sample_size);
+//           // println!("sent {:?} samples", sample_size);
+//           // println!("sent {:?} samples", samples);
+//           // }
+//         ()
+//     }
+// }
+
 #[async_trait]
 impl<T> AudioNode<T> for AudioInputNode<T>
 where
@@ -395,32 +450,58 @@ where
         let builder = thread::Builder::new();
         let tx = self.tx.clone();
         let input = self.input.clone();
+        // todo: check the input descriptor
         let input_descriptor = self.input_descriptor.clone();
         if let Err(err) = builder
             .name(format!("disco input {} recorder", self.input_descriptor).to_string())
             .spawn(move || {
                 let input_descriptor_clone = input_descriptor.clone();
-                if let Err(err) = input.stream_from_input(Box::new(
-                    move |samples: Result<Array2<T>>, sample_rate, nchannels| {
-                        // let samples_clone = samples.clone().map(|s| s.to_owned());
-                        // let sample_size = samples.as_ref().map(|s| s.len());
-                        if let Err(err) = tx.send((
-                            samples.map_err(|err| AudioError::Unknown(err.to_string())),
-                            sample_rate,
-                            nchannels,
-                        )) {
-                            eprintln!(
-                                "failed to send input samples of {}: {}",
-                                input_descriptor_clone, err
-                            );
-                        } // else {
-                          // println!("sent samples");
-                          // println!("sent {:?} samples", sample_size);
-                          // println!("sent {:?} samples", sample_size);
-                          // println!("sent {:?} samples", samples);
-                          // }
-                    },
-                )) {
+                // if let Err(err) = input.stream_input(Box::new(Self::process)) {
+                let process = move |samples: Result<Array2<T>>, sample_rate, nchannels| -> () {
+                    // let samples_clone = samples.clone().map(|s| s.to_owned());
+                    // let sample_size = samples.as_ref().map(|s| s.len());
+                    if let Err(err) = tx.send((
+                        samples.map_err(|err| AudioError::Unknown(err.to_string())),
+                        sample_rate,
+                        nchannels,
+                    )) {
+                        eprintln!(
+                            "failed to send input samples of {}: {}",
+                            input_descriptor_clone, err
+                        );
+                    } // else {
+                      // println!("sent samples");
+                      // println!("sent {:?} samples", sample_size);
+                      // println!("sent {:?} samples", sample_size);
+                      // println!("sent {:?} samples", samples);
+                      // }
+                    ()
+                };
+
+                if let Err(err) = input.stream(Box::new(process)) {
+                    // move |samples: Result<Array2<T>>, sample_rate, nchannels| {
+                    //     self.process(samples, sample_rate, nchannels);
+                    // },
+                    // )) {
+                    //         // let samples_clone = samples.clone().map(|s| s.to_owned());
+                    //         // let sample_size = samples.as_ref().map(|s| s.len());
+                    //         if let Err(err) = tx.send((
+                    //             samples.map_err(|err| AudioError::Unknown(err.to_string())),
+                    //             sample_rate,
+                    //             nchannels,
+                    //         )) {
+                    //             eprintln!(
+                    //                 "failed to send input samples of {}: {}",
+                    //                 input_descriptor_clone, err
+                    //             );
+                    //         } // else {
+                    //           // println!("sent samples");
+                    //           // println!("sent {:?} samples", sample_size);
+                    //           // println!("sent {:?} samples", sample_size);
+                    //           // println!("sent {:?} samples", samples);
+                    //           // }
+                    //     },
+                    // )) {
                     eprintln!("failed to stream input {}: {}", input_descriptor, err);
                 }
             })

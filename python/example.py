@@ -1,9 +1,8 @@
 from discodisco import Server, Parameterizer, Analyzer
 
 disco = Server()
-# disco.start()
-# disco.stop()
-
+disco.start()
+print("started disco")
 print(disco)
 
 
@@ -17,6 +16,9 @@ class CustomParameterizer(Parameterizer):
 
 analyzer = CustomAnalyzer()
 parameterizer = CustomParameterizer()
+
+disco.stop()
+print("stopped disco")
 
 # descriptor = disco.add_analyzer(analyzer)
 # descriptor = disco.add_parameterizer(parameterizer)

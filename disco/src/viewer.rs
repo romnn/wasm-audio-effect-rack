@@ -2,7 +2,7 @@ use crate::cli::Config;
 use crate::session::Session;
 // use crate::{Sample, DiscoServer, ViewerUpdateMsg}; // , INSTANCE_ID_KEY, SESSION_TOKEN_KEY};
 // use disco::{Sample, DiscoServer, ViewerUpdateMsg}; // , INSTANCE_ID_KEY, SESSION_TOKEN_KEY};
-use crate::{DiscoServer, ViewerUpdateMsg}; // , INSTANCE_ID_KEY, SESSION_TOKEN_KEY};
+use crate::{DiscoServer, ViewerUpdateMsg, INSTANCE_ID_KEY, SESSION_TOKEN_KEY}; // , INSTANCE_ID_KEY, SESSION_TOKEN_KEY};
 #[cfg(feature = "analyze")]
 use anyhow::Result;
 use futures::Stream;
@@ -90,7 +90,7 @@ impl<CU> proto::grpc::remote_viewer_server::RemoteViewer for DiscoServer<ViewerU
 where
     CU: Send + Clone + 'static,
 {
-    type ConnectStream = Pin<
+    type SubscribeStream = Pin<
         Box<dyn Stream<Item = Result<proto::grpc::ViewerUpdate, Status>> + Send + Sync + 'static>,
     >;
 
@@ -129,10 +129,10 @@ where
         Ok(Response::new(proto::grpc::Empty {}))
     }
 
-    async fn connect(
+    async fn subscribe(
         &self,
-        request: Request<proto::grpc::ViewerConnectRequest>,
-    ) -> Result<Response<Self::ConnectStream>, Status> {
+        request: Request<proto::grpc::ViewerSubscribeRequest>,
+    ) -> Result<Response<Self::SubscribeStream>, Status> {
         let session_token = match Self::extract_session_token(&request).await {
             Ok(token) => Ok(token),
             Err(_) => self.new_session().await,
@@ -143,15 +143,19 @@ where
             .or(self.new_viewer_instance(session_token.clone()).await)?;
 
         println!("[viewer] connect: {} {}", session_token, instance_id);
-        let (stream_tx, stream_rx) = mpsc::channel(1);
+        let (stream_tx, stream_rx): (
+            mpsc::Sender<Result<ViewerUpdateMsg, Status>>,
+            mpsc::Receiver<Result<ViewerUpdateMsg, Status>>,
+        ) = mpsc::channel(1);
         let pinned_stream = Box::pin(ReceiverStream::new(stream_rx));
-        let response: Response<Self::ConnectStream> = Response::new(pinned_stream);
-        // let metadata = response.metadata_mut();
-        // metadata.insert(
-        //     SESSION_TOKEN_KEY,
-        //     session_token.clone().token.parse().unwrap(),
-        // );
-        // metadata.insert(INSTANCE_ID_KEY, instance_id.clone().id.parse().unwrap());
+        let mut response: Response<Self::SubscribeStream> = Response::new(pinned_stream);
+        let metadata = response.metadata_mut();
+        metadata.insert(
+            SESSION_TOKEN_KEY,
+            session_token.clone().token.parse().unwrap(),
+        );
+        metadata.insert(INSTANCE_ID_KEY, instance_id.clone().id.parse().unwrap());
+
         let mut sessions = self.sessions.write().await;
         let session = sessions
             .entry(session_token.clone())
@@ -159,7 +163,7 @@ where
         let (tx, mut rx) = mpsc::channel(1);
         if let Some(existing) = session.viewers.read().await.get(&instance_id) {
             println!(
-                "instance {} in session {} reconnected",
+                "viewer instance {} in session {} reconnected",
                 instance_id, session_token
             );
             let existing = existing.read().await;
@@ -170,7 +174,7 @@ where
         }
 
         println!(
-            "instance {} in session {} connected",
+            "viewer instance {} in session {} connected",
             instance_id, session_token
         );
         let viewer = Viewer {

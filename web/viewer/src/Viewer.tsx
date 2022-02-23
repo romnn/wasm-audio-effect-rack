@@ -22,6 +22,13 @@ type ViewerProps = {};
 
 type ViewerRouteProps = ViewerProps & RouteComponentProps<RemoteURLQueryProps>;
 
+declare global {
+  interface Window {
+    receiveUpdate: () => void;
+    animateFrame: () => void;
+  }
+}
+
 export default class Viewer extends React.Component<
   ViewerRouteProps,
   ViewerState & RemoteState
@@ -41,13 +48,20 @@ export default class Viewer extends React.Component<
       this.props.location
     );
     this.remote = new RemoteViewer(session, instance, {});
+    //
     // the controller here is just for testing
     this.controller = new RemoteController(session, instance, {});
     console.log(`viewer instance "${instance}" from session "${session}"`);
+
     this.remote.onUpdate = this.handleUpdate;
     this.remote.onError = this.handleError;
     this.remote.onStatus = this.handleStatus;
     this.remote.onMetadata = this.handleMetadata;
+
+    // export functions for external scripting
+    window.receiveUpdate = this.visualization.receiveUpdate;
+    window.animateFrame = this.visualization.animateFrame;
+
     this.state = {
       session,
       instance,
@@ -89,10 +103,13 @@ export default class Viewer extends React.Component<
     let audioAnalysisResult = update.getAudioAnalysisResult();
     let heartbeat = update.getHeartbeat();
     let assignment = update.getAssignment();
+
     if (audioAnalysisResult) {
       // console.log("analysis result", audioAnalysisResult.toObject());
       try {
         this.visualization.parameterize(audioAnalysisResult);
+        // request new frame
+        this.controller.requestRecordingFrame(this.visualization.frame);
       } catch (err) {
         console.log(err);
       }
@@ -120,6 +137,7 @@ export default class Viewer extends React.Component<
       await this.remote.connect();
       console.log("adding an audio input stream...");
       const inputStream = await this.controller.addAudioInputStream();
+      console.log(inputStream);
       console.log("connecting the audio input stream to an output stream...");
       const inputDescriptor = inputStream.getDescriptor();
       // if (inputDescriptor) {
@@ -196,6 +214,14 @@ export default class Viewer extends React.Component<
     }
   };
 
+  recReceiveUpdate = () => {
+    this.visualization.receiveUpdate();
+  };
+
+  recAnimateFrame = () => {
+    this.visualization.animateFrame();
+  };
+
   // TODO: functions
   // remove visualization
   // update parameterizer
@@ -203,6 +229,12 @@ export default class Viewer extends React.Component<
   // show / hide debug view
 
   render = () => {
-    return <div id="Viewer"></div>;
+    return (
+      <div>
+        <span id="recReceiveUpdate" onClick={this.recReceiveUpdate}></span>
+        <span id="recAnimateFrame" onClick={this.recAnimateFrame}></span>
+        <div id="Viewer"></div>;
+      </div>
+    );
   };
 }

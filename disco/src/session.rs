@@ -12,6 +12,15 @@ use std::time::SystemTime;
 use tokio::sync::RwLock;
 
 #[derive(Clone)]
+pub struct Recording {
+    // output dir
+// current frame
+// active
+// start & stop
+// transcode
+}
+
+#[derive(Clone)]
 pub struct Session<VU, CU> {
     /// session token
     pub token: proto::grpc::SessionToken,
@@ -40,6 +49,9 @@ pub struct Session<VU, CU> {
     /// all running output streams of this session
     pub output_streams:
         Arc<RwLock<HashMap<proto::grpc::AudioOutputDescriptor, RwLock<AudioOutputNode<Sample>>>>>,
+
+    /// all running recordings of this session
+    pub recordings: Arc<RwLock<HashMap<proto::grpc::InstanceId, RwLock<Recording>>>>,
 }
 
 impl<VU, CU> Session<VU, CU> {
@@ -53,6 +65,7 @@ impl<VU, CU> Session<VU, CU> {
             analyzers: Arc::new(RwLock::new(HashMap::new())),
             input_streams: Arc::new(RwLock::new(HashMap::new())),
             output_streams: Arc::new(RwLock::new(HashMap::new())),
+            recordings: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 

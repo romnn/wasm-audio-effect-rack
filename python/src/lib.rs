@@ -3,6 +3,7 @@ use disco::DiscoServer;
 use pyo3::exceptions;
 use pyo3::prelude::*;
 use std::sync::Arc;
+use tokio::runtime::Runtime;
 use tokio::sync::watch;
 
 // TODO: query audio backend
@@ -33,6 +34,7 @@ impl Analyzer {
 #[pyclass]
 struct Server {
     server: Arc<DiscoServer<disco::ViewerUpdateMsg, disco::ControllerUpdateMsg>>,
+    runtime: Runtime,
     shutdown_tx: watch::Sender<bool>,
 }
 
@@ -65,18 +67,25 @@ impl Server {
             },
         };
 
+        let runtime = Runtime::new().unwrap();
         let server = Arc::new(DiscoServer::new_with_shutdown(config, shutdown_rx));
         Ok(Server {
             server,
+            runtime,
             shutdown_tx,
         })
     }
 
     fn start(self_: PyRef<Self>) -> PyResult<()> {
         let server = self_.server.clone();
-        tokio::task::spawn(async move {
+        // create a new runtime for the server
+        println!("starting server");
+        runtime.spawn(async move {
+            println!("starting server");
             server.serve().await.expect("failed to run disco");
         });
+        // tokio::task::spawn(async move {
+        // });
         Ok(())
     }
 

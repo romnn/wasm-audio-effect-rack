@@ -12,6 +12,7 @@ nanoid = "0.4.0"
 uuid = { version = "0.4", features = ["serde", "v4"] }
 libp2p = { version = "0.39", optional = true, features = ["tcp-tokio"] }
 ringbuf = "0.2"
+thirtyfour = "0.28.1"
 chrono = "0.4"
 http = "0.2.4"
 http-body = "0.4.3"

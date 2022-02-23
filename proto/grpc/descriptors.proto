@@ -5,6 +5,7 @@ message AudioInputDescriptor {
   string backend = 1;
   string device = 2;
   string host = 3;
+  string file = 4;
 }
 
 message AudioAnalyzerDescriptor {

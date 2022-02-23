@@ -42,7 +42,7 @@ export {
 
 export const defaultConfig = (() => {
   const c = new TTFStartConfig();
-  c.setText("DISCO");
+  c.setText("LOVE");
   c.setResolution(20);
   c.setSize(80);
   c.setFont(Font.INTER_EXTRA_BOLD_REGULAR);

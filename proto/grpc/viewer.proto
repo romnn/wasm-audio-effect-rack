@@ -8,7 +8,7 @@ import "proto/grpc/remote.proto";
 
 service RemoteViewer {
   // Connect and Disconnect to updates
-  rpc Connect(ViewerConnectRequest) returns (stream ViewerUpdate) {}
+  rpc Subscribe(ViewerSubscribeRequest) returns (stream ViewerUpdate) {}
   rpc Disconnect(ViewerDisconnectRequest) returns (Empty) {}
 
   // change subscription
@@ -44,6 +44,6 @@ message UpdateSubscriptionRequest {
 /*   } */
 /* } */
 
-message ViewerConnectRequest { InstanceId instance = 1; }
+message ViewerSubscribeRequest { InstanceId instance = 1; }
 
 message ViewerDisconnectRequest {}

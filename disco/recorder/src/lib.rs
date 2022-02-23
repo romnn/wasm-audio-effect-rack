@@ -185,11 +185,16 @@ pub trait AudioInput<T>
 where
     T: Sample,
 {
-    fn new(config: AudioInputConfig) -> Result<Self>
-    where
-        Self: Sized;
+    // fn from_input(config: AudioInputConfig) -> Result<&'static dyn AudioInput<T>>
+    // where
+    //     Self: Sized;
 
-    fn stream_from_input(&self, callback: AudioInputCallback<T>) -> Result<()>;
+    // fn from_file(path: PathBuf, looped: bool) -> Result<&'static dyn AudioInput<T>>
+    // where
+    //     Self: Sized;
+
+    fn stream(&self, callback: AudioInputCallback<T>) -> Result<()>;
+    // fn stream_file(&self, callback: AudioInputCallback<T>) -> Result<()>;
 
     fn descriptor(&self) -> Result<proto::grpc::AudioInputDescriptor>;
     fn input_stream_params(&self) -> AudioStreamInfo;
@@ -199,7 +204,15 @@ pub trait AudioInputNode<T>: AudioNode<T>
 where
     T: Sample,
 {
-    fn new(config: AudioInputConfig) -> Result<Self>
+    // fn from_input(config: AudioInputConfig) -> Result<&'static dyn AudioInputNode<T>>
+    // fn from_input(config: AudioInputConfig) -> Result<Box<dyn AudioInput<T>>>
+    fn from_input(config: AudioInputConfig) -> Result<Self>
+    where
+        Self: Sized;
+
+    // fn from_file(path: PathBuf, looped: bool) -> Result<&'static dyn AudioInputNode<T>>
+    // fn from_file(path: PathBuf, looped: bool) -> Result<Box<dyn AudioInput<T>>>
+    fn from_file(path: PathBuf, looped: bool) -> Result<Self>
     where
         Self: Sized;
 

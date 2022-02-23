@@ -9,7 +9,7 @@ import "proto/grpc/remote.proto";
 
 service RemoteController {
   // connect and disconnect
-  rpc Connect(ControllerConnectRequest) returns (stream ControllerUpdate) {}
+  rpc Subscribe(ControllerSubscribeRequest) returns (stream ControllerUpdate) {}
   rpc Disconnect(ControllerDisconnectRequest) returns (Empty) {}
 
   // start and stop analyzing audio
@@ -29,6 +29,13 @@ service RemoteController {
 
   // query sessions
   rpc GetSessions(GetSessionsRequest) returns (Sessions) {}
+
+  // recording
+  rpc RequestRecordingFrame(RecordingFrameRequest)
+      returns (proto.audio.analysis.AudioAnalysisResult) {}
+
+  rpc StartRecording(StartRecordingRequest) returns (Recording) {}
+  rpc StopRecording(StopRecordingRequest) returns (Recording) {}
 
   /* rpc RemoveAudioInputStream(RemoveAudioInputStreamRequest) returns
    * (AudioInputStream) {} */
@@ -60,12 +67,27 @@ service RemoteController {
 
 message GetSessionsRequest {}
 
+message RecordingID {
+  string id = 1;
+}
+message StartRecordingRequest {}
+message StopRecordingRequest {
+  RecordingID id = 1;
+}
+message Recording {
+  RecordingID id = 1;
+}
+
 message ControllerUpdate {
   oneof update {
     // todo: add status messages or notifications
     Heartbeat heartbeat = 1;
     Assignment assignment = 2;
   }
+}
+
+message RecordingFrameRequest {
+  uint64 seq_num = 1;
 }
 
 message SubscribeToAudioAnalyzerRequest {
@@ -80,7 +102,24 @@ message ConnectLightsToAudioAnalyzerRequest {
 }
 
 message AddAudioInputStreamRequest {
-  // todo: all the options about device etc.
+  oneof input {
+    DeviceInputStreamRequest device = 1;
+    FileInputStreamRequest file = 2;
+    StreamInputStreamRequest stream = 3;
+  }
+}
+
+message DeviceInputStreamRequest {
+  string device = 1;
+}
+
+message FileInputStreamRequest {
+  string file_path = 1;
+  bool looped = 10;
+}
+
+message StreamInputStreamRequest {
+  string stream_url = 1;
 }
 
 message AddAudioAnalyzerRequest {
@@ -94,6 +133,8 @@ message AddAudioOutputStreamRequest {
   AudioInputDescriptor input_descriptor = 1;
 }
 
-message ControllerConnectRequest { InstanceId instance = 1; }
+message ControllerSubscribeRequest {
+  InstanceId instance = 1;
+}
 
 message ControllerDisconnectRequest {}

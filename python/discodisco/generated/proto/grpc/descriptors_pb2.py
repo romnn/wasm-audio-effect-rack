@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x1cproto/grpc/descriptors.proto\x12\nproto.grpc\"E\n\x14\x41udioInputDescriptor\x12\x0f\n\x07\x62\x61\x63kend\x18\x01 \x01(\t\x12\x0e\n\x06\x64\x65vice\x18\x02 \x01(\t\x12\x0c\n\x04host\x18\x03 \x01(\t\"X\n\x17\x41udioAnalyzerDescriptor\x12\x0c\n\x04name\x18\x01 \x01(\t\x12/\n\x05input\x18\n \x01(\x0b\x32 .proto.grpc.AudioInputDescriptor\"w\n\x15\x41udioOutputDescriptor\x12\x0f\n\x07\x62\x61\x63kend\x18\x01 \x01(\t\x12\x0e\n\x06\x64\x65vice\x18\x02 \x01(\t\x12\x0c\n\x04host\x18\x03 \x01(\t\x12/\n\x05input\x18\n \x01(\x0b\x32 .proto.grpc.AudioInputDescriptor\"H\n\x10\x41udioInputStream\x12\x34\n\ndescriptor\x18\x01 \x01(\x0b\x32 .proto.grpc.AudioInputDescriptor\"H\n\rAudioAnalyzer\x12\x37\n\ndescriptor\x18\x01 \x01(\x0b\x32#.proto.grpc.AudioAnalyzerDescriptor\"J\n\x11\x41udioOutputStream\x12\x35\n\ndescriptor\x18\x01 \x01(\x0b\x32!.proto.grpc.AudioOutputDescriptorb\x06proto3'
+  serialized_pb=b'\n\x1cproto/grpc/descriptors.proto\x12\nproto.grpc\"S\n\x14\x41udioInputDescriptor\x12\x0f\n\x07\x62\x61\x63kend\x18\x01 \x01(\t\x12\x0e\n\x06\x64\x65vice\x18\x02 \x01(\t\x12\x0c\n\x04host\x18\x03 \x01(\t\x12\x0c\n\x04\x66ile\x18\x04 \x01(\t\"X\n\x17\x41udioAnalyzerDescriptor\x12\x0c\n\x04name\x18\x01 \x01(\t\x12/\n\x05input\x18\n \x01(\x0b\x32 .proto.grpc.AudioInputDescriptor\"w\n\x15\x41udioOutputDescriptor\x12\x0f\n\x07\x62\x61\x63kend\x18\x01 \x01(\t\x12\x0e\n\x06\x64\x65vice\x18\x02 \x01(\t\x12\x0c\n\x04host\x18\x03 \x01(\t\x12/\n\x05input\x18\n \x01(\x0b\x32 .proto.grpc.AudioInputDescriptor\"H\n\x10\x41udioInputStream\x12\x34\n\ndescriptor\x18\x01 \x01(\x0b\x32 .proto.grpc.AudioInputDescriptor\"H\n\rAudioAnalyzer\x12\x37\n\ndescriptor\x18\x01 \x01(\x0b\x32#.proto.grpc.AudioAnalyzerDescriptor\"J\n\x11\x41udioOutputStream\x12\x35\n\ndescriptor\x18\x01 \x01(\x0b\x32!.proto.grpc.AudioOutputDescriptorb\x06proto3'
 )
 
 
@@ -54,6 +54,13 @@ _AUDIOINPUTDESCRIPTOR = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='file', full_name='proto.grpc.AudioInputDescriptor.file', index=3,
+      number=4, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -67,7 +74,7 @@ _AUDIOINPUTDESCRIPTOR = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=44,
-  serialized_end=113,
+  serialized_end=127,
 )
 
 
@@ -105,8 +112,8 @@ _AUDIOANALYZERDESCRIPTOR = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=115,
-  serialized_end=203,
+  serialized_start=129,
+  serialized_end=217,
 )
 
 
@@ -158,8 +165,8 @@ _AUDIOOUTPUTDESCRIPTOR = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=205,
-  serialized_end=324,
+  serialized_start=219,
+  serialized_end=338,
 )
 
 
@@ -190,8 +197,8 @@ _AUDIOINPUTSTREAM = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=326,
-  serialized_end=398,
+  serialized_start=340,
+  serialized_end=412,
 )
 
 
@@ -222,8 +229,8 @@ _AUDIOANALYZER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=400,
-  serialized_end=472,
+  serialized_start=414,
+  serialized_end=486,
 )
 
 
@@ -254,8 +261,8 @@ _AUDIOOUTPUTSTREAM = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=474,
-  serialized_end=548,
+  serialized_start=488,
+  serialized_end=562,
 )
 
 _AUDIOANALYZERDESCRIPTOR.fields_by_name['input'].message_type = _AUDIOINPUTDESCRIPTOR

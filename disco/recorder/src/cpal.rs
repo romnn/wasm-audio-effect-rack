@@ -42,6 +42,27 @@ pub struct CpalAudioInput<T> {
 }
 
 #[derive()]
+pub struct CpalAudioFile<T> {
+    /// audio backend configuration
+    // pub config: AudioInputConfig,
+    /// audio host backend used
+    pub host: cpal::Host,
+    pub path: PathBuf,
+    pub looped: bool,
+    /// audio input device to stream from
+    // pub input_device: Option<cpal::Device>,
+    // pub input_device: cpal::Device,
+    /// input configuration
+    // pub input_config: cpal::SupportedStreamConfig,
+    /// output device that is used to stream audio files
+    // pub output_device: Option<cpal::Device>,
+    pub output_device: cpal::Device,
+    /// output configuration
+    pub output_config: cpal::SupportedStreamConfig,
+    phantom: PhantomData<T>,
+}
+
+#[derive()]
 pub struct CpalAudioOutput<T> {
     /// audio backend configuration
     pub config: AudioOutputConfig,
@@ -89,7 +110,7 @@ pub trait CpalAudioBackend {
     }
 
     fn get_source_from_file(
-        path: PathBuf,
+        path: &PathBuf,
     ) -> Result<(Box<dyn rodio::Source<Item = f32> + Send>, u32, u16)> {
         let file = BufReader::new(File::open(path)?);
         let source = Decoder::new_looped(file)?.convert_samples();
@@ -238,6 +259,43 @@ impl<T> CpalAudioInput<T>
 where
     T: Sample,
 {
+    // fn from_input(config: AudioInputConfig) -> Result<&'static dyn AudioInput<T>> {
+    // pub fn new(config: AudioInputConfig) -> Result<Box<dyn AudioInput<T>>> {
+    pub fn new(config: AudioInputConfig) -> Result<Self> {
+        let host = Self::get_host(&config.backend_config)?;
+        let input_device = Self::get_input_device(&host, &config.input_device)?;
+        let input_config = input_device.default_input_config()?;
+        let output_device = Self::get_output_device(&host, &config.output_device)?;
+        let output_config = output_device.default_output_config()?;
+        let output_device = if let Some(device) = &config.output_device {
+            host.output_devices()?
+                .find(|x| x.name().map(|y| y == *device).unwrap_or(false))
+        } else {
+            host.default_output_device()
+        }
+        .ok_or(cpal::BackendSpecificError {
+            description: format!(
+                "unable to find or use selected output device: \"{}\"",
+                config
+                    .output_device
+                    .as_ref()
+                    .unwrap_or(&"default".to_string())
+            )
+            .to_string(),
+        })?;
+        // Ok(Box::new(CpalAudioInput {
+        Ok(CpalAudioInput {
+            config,
+            host,
+            input_device,
+            input_config,
+            output_device,
+            output_config,
+            phantom: PhantomData,
+            // }))
+        })
+    }
+
     fn build_input_stream<S>(
         input_device: &cpal::Device,
         config: &cpal::StreamConfig,
@@ -270,44 +328,12 @@ impl<T> AudioInput<T> for CpalAudioInput<T>
 where
     T: Sample,
 {
-    fn new(config: AudioInputConfig) -> Result<Self> {
-        let host = Self::get_host(&config.backend_config)?;
-        let input_device = Self::get_input_device(&host, &config.input_device)?;
-        let input_config = input_device.default_input_config()?;
-        let output_device = Self::get_output_device(&host, &config.output_device)?;
-        let output_config = output_device.default_output_config()?;
-        let output_device = if let Some(device) = &config.output_device {
-            host.output_devices()?
-                .find(|x| x.name().map(|y| y == *device).unwrap_or(false))
-        } else {
-            host.default_output_device()
-        }
-        .ok_or(cpal::BackendSpecificError {
-            description: format!(
-                "unable to find or use selected output device: \"{}\"",
-                config
-                    .output_device
-                    .as_ref()
-                    .unwrap_or(&"default".to_string())
-            )
-            .to_string(),
-        })?;
-        Ok(Self {
-            config,
-            host,
-            input_device,
-            input_config,
-            output_device,
-            output_config,
-            phantom: PhantomData,
-        })
-    }
-
     fn descriptor(&self) -> Result<proto::grpc::AudioInputDescriptor> {
         Ok(proto::grpc::AudioInputDescriptor {
             backend: "cpal".to_string(),
             device: self.input_device.name()?,
             host: self.host.id().name().to_string(),
+            file: "".to_string(),
         })
     }
 
@@ -315,7 +341,7 @@ where
         AudioStreamInfo::from(self.input_config.clone())
     }
 
-    fn stream_from_input(&self, callback: AudioInputCallback<T>) -> Result<()> {
+    fn stream(&self, callback: AudioInputCallback<T>) -> Result<()> {
         let (input_stream, _sample_rate, _nchannels) = match self.input_config.sample_format() {
             cpal::SampleFormat::F32 => Self::build_input_stream::<f32>(
                 &self.input_device,
@@ -344,5 +370,123 @@ where
     }
 }
 
+impl<T> CpalAudioFile<T>
+where
+    T: Sample,
+{
+    // pub fn new(path: PathBuf, looped: bool) -> Result<&'static dyn AudioInput<T>> {
+    pub fn new(path: PathBuf, looped: bool) -> Result<Self> {
+        let config = AudioOutputConfig::default();
+        let host = Self::get_host(&config.backend_config)?;
+        let output_device = Self::get_output_device(&host, &config.output_device)?;
+        let output_config = output_device.default_output_config()?;
+        let output_device = if let Some(device) = &config.output_device {
+            host.output_devices()?
+                .find(|x| x.name().map(|y| y == *device).unwrap_or(false))
+        } else {
+            host.default_output_device()
+        }
+        .ok_or(cpal::BackendSpecificError {
+            description: format!(
+                "unable to find or use selected output device: \"{}\"",
+                config
+                    .output_device
+                    .as_ref()
+                    .unwrap_or(&"default".to_string())
+            )
+            .to_string(),
+        })?;
+
+        Ok(Self {
+            // config,
+            host,
+            path,
+            looped,
+            // input_device,
+            // input_config,
+            output_device,
+            output_config,
+            phantom: PhantomData,
+        })
+    }
+}
+
+impl<T> AudioInput<T> for CpalAudioFile<T>
+where
+    T: Sample,
+{
+    fn descriptor(&self) -> Result<proto::grpc::AudioInputDescriptor> {
+        Ok(proto::grpc::AudioInputDescriptor {
+            backend: "cpal".to_string(),
+            device: self.output_device.name()?,
+            host: self.host.id().name().to_string(),
+            file: self
+                .path
+                .to_str().unwrap().to_string()
+                // .into_os_string()
+                // .into_string()
+                // .map(|f| f.to_owned())
+                // .unwrap()
+                // .map_err(|err| err.into())?,
+        })
+    }
+
+    fn input_stream_params(&self) -> AudioStreamInfo {
+        AudioStreamInfo::from(self.output_config.clone())
+    }
+
+    fn stream(&self, callback: AudioInputCallback<T>) -> Result<()> {
+        let (mut source, _sample_rate, _nchannels) = Self::get_source_from_file(&self.path)?;
+
+        let output_callback = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+            // let mut input_fell_behind = false;
+            for sample in data {
+                *sample = match source.next() {
+                    Some(s) => NumCast::from(s).unwrap(),
+                    None => {
+                        // input_fell_behind = true;
+                        0.0
+                    }
+                };
+            }
+            // if input_fell_behind {
+            //     eprintln!("input stream fell behind: try increasing latency");
+            // }
+        };
+        let output_stream = self.output_device.build_output_stream(
+            &self.output_config.clone().into(),
+            output_callback,
+            |err| eprintln!("an error occurred on output stream: {}", err),
+        )?;
+
+        // let (input_stream, _sample_rate, _nchannels) = match self.input_config.sample_format() {
+        //     cpal::SampleFormat::F32 => Self::build_input_stream::<f32>(
+        //         &self.input_device,
+        //         &self.input_config.clone().into(),
+        //         callback,
+        //     ),
+        //     cpal::SampleFormat::I16 => Self::build_input_stream::<i16>(
+        //         &self.input_device,
+        //         &self.input_config.clone().into(),
+        //         callback,
+        //     ),
+        //     cpal::SampleFormat::U16 => Self::build_input_stream::<u16>(
+        //         &self.input_device,
+        //         &self.input_config.clone().into(),
+        //         callback,
+        //     ),
+        // }?;
+
+        output_stream.play()?;
+
+        // todo: await and block here until we receive a stop signal
+        // 12 hours for now
+        std::thread::sleep(std::time::Duration::from_secs(12 * 60 * 60));
+        drop(output_stream);
+        Ok(())
+    }
+}
+
 impl<T> CpalAudioBackend for CpalAudioInput<T> {}
+impl<T> CpalAudioBackend for CpalAudioFile<T> {}
 impl<T> CpalAudioBackend for CpalAudioOutput<T> {}

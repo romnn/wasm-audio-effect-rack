@@ -1,23 +1,11 @@
-import {ParameterControls} from "@disco/controls";
-import {
-  VisualizationParameters,
-  VisualizationStartConfig
-} from "@disco/core/grpc";
-import * as pb from "google-protobuf";
-import {Any} from "google-protobuf/google/protobuf/any_pb";
+import {ParameterControls} from '@disco/controls';
+import {VisualizationParameters, VisualizationStartConfig} from '@disco/core/grpc';
+import * as pb from 'google-protobuf';
+import {Any} from 'google-protobuf/google/protobuf/any_pb';
 import clone from 'just-clone';
 
-import {
-  Input,
-  InputContainer,
-  Parameterizer,
-  ParameterizerClass,
-  Parameters,
-  StartConfig,
-  StartConfigContainer,
-  Temporary
-} from "../parameterizer";
-import Stats from "../stats";
+import {Input, InputContainer, Parameterizer, ParameterizerClass, Parameters, StartConfig, StartConfigContainer, Temporary} from '../parameterizer';
+import Stats from '../stats';
 
 export interface UpdateParameterOptions {
   animated?: boolean;
@@ -45,7 +33,6 @@ export interface Visualization<C extends StartConfig> {
 export abstract class BaseVisualization<
     C extends StartConfig, P extends Parameters,
                                      PC extends ParameterControls<P>> {
-
   public abstract name: string;
   protected debug = false;
   protected statsVisible = false;
@@ -56,13 +43,19 @@ export abstract class BaseVisualization<
   protected config!: C;
   protected parameters!: P;
 
-  public get isDebug() { return this.debug }
+  public get isDebug() {
+    return this.debug
+  }
 
-  public getConfig() { return this.config }
-  public getConfigTypeName() { return `disco.${this.name}.config` }
+  public getConfig() {
+    return this.config
+  }
+  public getConfigTypeName() {
+    return `disco.${this.name}.config`
+  }
 
   public toggleStats(enabled: boolean) {
-    console.log("stats", this.stats);
+    console.log('stats', this.stats);
     this.stats?.setVisible(enabled);
   }
 
@@ -70,7 +63,9 @@ export abstract class BaseVisualization<
     this.controls?.setVisible(enabled);
   }
 
-  public setDebug(enabled: boolean) { this.debug = enabled; }
+  public setDebug(enabled: boolean) {
+    this.debug = enabled;
+  }
 
   public updateUI() {
     this.controls?.update();
@@ -87,10 +82,9 @@ export abstract class BaseVisualization<
 export interface ParameterizedVisualization<
     C extends StartConfig, T extends Temporary, P extends Parameters> extends
     Visualization<C> {
-  parameterize<I extends Input>(frame: number, input: I|null,
-                                parameterizer: Parameterizer<C, I, T, P>,
-                                options?: UpdateParameterOptions):
-      [ P|undefined, T|undefined ];
+  parameterize<I extends Input>(
+      frame: number, input: I|null, parameterizer: Parameterizer<C, I, T, P>,
+      options?: UpdateParameterOptions): [P|undefined, T|undefined];
   updateParameters(parameters: P, options?: UpdateParameterOptions): void;
 
   getParametersTypeName(): string;
@@ -102,12 +96,14 @@ export interface ParameterizedVisualization<
 export abstract class BaseParameterizedVisualization<
     C extends StartConfig, T extends Temporary, P extends Parameters, PC extends
         ParameterControls<P>> extends BaseVisualization<C, P, PC> {
-
   protected parameters!: P;
   protected previous: P[] = [];
   protected temp!: T;
 
-  public getTemp = (): T => { return this.temp; }
+  public getTemp = ():
+      T => {
+        return this.temp;
+      }
 
   public getParametersTypeName() {
     return `disco.${this.name}.parameters`
@@ -119,11 +115,14 @@ export abstract class BaseParameterizedVisualization<
         this.controls?.update();
       }
 
-  public getParameters = (): P => { return this.parameters; }
+  public getParameters = ():
+      P => {
+        return this.parameters;
+      }
 
   parameterize<I extends Input>(
       frame: number, input: I|null, parameterizer: Parameterizer<C, I, T, P>,
-      options?: UpdateParameterOptions): [ P|undefined, any|undefined ] {
+      options?: UpdateParameterOptions): [P|undefined, any|undefined] {
     const [parameters, temp] = parameterizer.parameterize(
         frame, this.config, this.previous, this.parameters, this.temp, input);
     this.temp = clone(temp);
@@ -132,7 +131,7 @@ export abstract class BaseParameterizedVisualization<
     }
     this.previous.push(parameters.cloneMessage());
     this.updateParameters(parameters.cloneMessage(), options);
-    return [ parameters, temp ];
+    return [parameters, temp];
   }
 }
 
@@ -140,13 +139,16 @@ export interface GenericVisualizationController<C extends StartConfig,
                                                           I extends Input> {
   frame: number;
   start(): void;
+  record(): void;
   pause(): void;
+  receiveUpdate(): void;
+  animateFrame(): void;
   init(container: HTMLElement): void;
   configure(config: C): void;
   getConfig(): C;
   toggleStats(enabled: boolean): void;
   toggleControls(enabled: boolean): void;
-  getParameterizerNames(): {idx: number; name : string}[];
+  getParameterizerNames(): {idx: number; name: string}[];
   parameterize(input: I|null): void;
   useParameterizerAtIndex(idx: number): void;
   useParameterizerNamed(name: string): void;
@@ -183,44 +185,51 @@ export abstract class BaseVisualizationController<
 
   protected debug = false;
   protected running = false;
-  protected animating = false;
-  public get isRunning(): boolean { return this.running }
+  public get isRunning(): boolean {
+    return this.running
+  }
 
   public abstract visualization: V;
   public abstract parameterizers: ParameterizerClass<C, I, any, P>[];
   public abstract parameterizer: Parameterizer<C, I, any, P>|null;
 
-  public start() { this.running = true; }
-  public pause() { this.running = false; }
+  public record() {}
+
+  public start() {
+    this.running = true;
+    this.animate();
+  }
+
+  public pause() {
+    this.running = false;
+  }
 
   public setDebug(enabled: boolean) {
     this.debug = enabled;
-    if (this.parameterizer)
-      this.parameterizer.debug = enabled;
+    if (this.parameterizer) this.parameterizer.debug = enabled;
   }
 
-  protected animate = () => {
-    requestAnimationFrame(this.animate);
-    if (this.running) {
-      this.visualization.renderFrame(this.frame);
-      // call the parameterizer so that it has a change to animate in between
-      // receiving updates
-      this.parameterize(null);
-      // todo: eventually update the parameters when we have such a request
-      this.visualization.updateUI();
-      this.frame++;
-    }
-  };
+  public receiveUpdate =
+      () => {
+        // this.visualization.renderFrame(this.frame);
+        // this.visualization.updateUI();
+        // this.frame++;
+      }
+
+  public animateFrame =
+      () => {
+        // this.visualization.renderFrame(this.frame);
+        // this.visualization.updateUI();
+        // this.frame++;
+      }
 
   public init = (container: HTMLElement):
       void => {
         this.visualization.init(container);
         this.visualization.setDebug(this.debug);
-        if (this.parameterizer)
-          this.parameterizer.debug = this.debug;
-        if (!this.animating) {
-          this.animate();
-          this.animating = true
+        if (this.parameterizer) this.parameterizer.debug = this.debug;
+        if (!this.running) {
+          this.start();
         }
       }
 
@@ -228,10 +237,11 @@ export abstract class BaseVisualizationController<
       void => {
         const innerClass =
             Object.getPrototypeOf(this.visualization.getConfig());
-        console.log("innerClass", innerClass);
-        const inner = new Any().unpack(innerClass.deserializeBinary,
-                                       this.visualization.getConfigTypeName());
-        console.log("inner", inner);
+        console.log('innerClass', innerClass);
+        const inner = new Any().unpack(
+            innerClass.deserializeBinary,
+            this.visualization.getConfigTypeName());
+        console.log('inner', inner);
 
         if (inner && inner instanceof innerClass) {
           this.visualization.configure(inner as C);
@@ -241,24 +251,30 @@ export abstract class BaseVisualizationController<
   public getConfig = ():
       StartConfigContainer => {
         const inner = new Any();
-        inner.pack(this.visualization.getConfig().serializeBinary(),
-                   this.visualization.getConfigTypeName());
+        inner.pack(
+            this.visualization.getConfig().serializeBinary(),
+            this.visualization.getConfigTypeName());
         const config = new VisualizationStartConfig();
         config.setConfig(inner);
         return config;
       }
 
   public getParameterizerNames = ():
-      {idx: number; name : string}[] => {
-        return this.parameterizers.map(
-            (p, idx) => { return {idx, name : p.name}; });
+      {idx: number; name: string}[] => {
+        return this.parameterizers.map((p, idx) => {
+          return {idx, name: p.name};
+        });
       }
 
-  public toggleStats =
-      (enabled: boolean): void => { this.visualization.toggleStats(enabled); }
+  public toggleStats = (enabled: boolean):
+      void => {
+        this.visualization.toggleStats(enabled);
+      }
 
   public toggleControls = (enabled: boolean):
-      void => { this.visualization.toggleControls(enabled); }
+      void => {
+        this.visualization.toggleControls(enabled);
+      }
 
   public parameterize = (input: InputContainer|null):
       void => {
@@ -266,10 +282,22 @@ export abstract class BaseVisualizationController<
           if (input)
             // signal that this is really new data
             this.parameterizer.update(this.frame);
-          this.visualization.parameterize(this.frame, input, this.parameterizer,
-                                          undefined)
+          this.visualization.parameterize(
+              this.frame, input, this.parameterizer, undefined)
         }
       }
+
+  protected animate = () => {
+    if (this.running) {
+      requestAnimationFrame(this.animate);
+      this.visualization.renderFrame(this.frame);
+      // call the parameterizer
+      // allows for smooth interpolation without received update
+      this.parameterize(null);
+      this.visualization.updateUI();
+      this.frame++;
+    }
+  };
 
   useParameterizerAtIndex = (idx: number):
       void => {
@@ -281,8 +309,7 @@ export abstract class BaseVisualizationController<
   useParameterizerNamed = (name: string):
       void => {
         let parameterizer = this.parameterizers.find(p => p.name === name);
-        if (parameterizer)
-          this.useParameterizer(parameterizer);
+        if (parameterizer) this.useParameterizer(parameterizer);
       }
 
   useParameterizer =

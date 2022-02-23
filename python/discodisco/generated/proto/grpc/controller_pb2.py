@@ -24,7 +24,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x1bproto/grpc/controller.proto\x12\nproto.grpc\x1a#proto/audio/analysis/analysis.proto\x1a\x1bproto/grpc/connection.proto\x1a\x18proto/grpc/session.proto\x1a\x1cproto/grpc/descriptors.proto\x1a\x17proto/grpc/remote.proto\"\x14\n\x12GetSessionsRequest\"v\n\x10\x43ontrollerUpdate\x12*\n\theartbeat\x18\x01 \x01(\x0b\x32\x15.proto.grpc.HeartbeatH\x00\x12,\n\nassignment\x18\x02 \x01(\x0b\x32\x16.proto.grpc.AssignmentH\x00\x42\x08\n\x06update\"\x96\x01\n\x1fSubscribeToAudioAnalyzerRequest\x12+\n\x0binstance_id\x18\x01 \x01(\x0b\x32\x16.proto.grpc.InstanceId\x12\x46\n\x19\x61udio_analyzer_descriptor\x18\n \x01(\x0b\x32#.proto.grpc.AudioAnalyzerDescriptor\"\x91\x01\n#ConnectLightsToAudioAnalyzerRequest\x12\"\n\x06lights\x18\x01 \x01(\x0b\x32\x12.proto.grpc.Lights\x12\x46\n\x19\x61udio_analyzer_descriptor\x18\n \x01(\x0b\x32#.proto.grpc.AudioAnalyzerDescriptor\"\x1c\n\x1a\x41\x64\x64\x41udioInputStreamRequest\"\x8c\x01\n\x17\x41\x64\x64\x41udioAnalyzerRequest\x12\x35\n\x08\x61nalyzer\x18\x01 \x01(\x0b\x32#.proto.audio.analysis.AudioAnalyzer\x12:\n\x10input_descriptor\x18\n \x01(\x0b\x32 .proto.grpc.AudioInputDescriptor\"Y\n\x1b\x41\x64\x64\x41udioOutputStreamRequest\x12:\n\x10input_descriptor\x18\x01 \x01(\x0b\x32 .proto.grpc.AudioInputDescriptor\"D\n\x18\x43ontrollerConnectRequest\x12(\n\x08instance\x18\x01 \x01(\x0b\x32\x16.proto.grpc.InstanceId\"\x1d\n\x1b\x43ontrollerDisconnectRequest2\xf3\x05\n\x10RemoteController\x12Q\n\x07\x43onnect\x12$.proto.grpc.ControllerConnectRequest\x1a\x1c.proto.grpc.ControllerUpdate\"\x00\x30\x01\x12J\n\nDisconnect\x12\'.proto.grpc.ControllerDisconnectRequest\x1a\x11.proto.grpc.Empty\"\x00\x12]\n\x13\x41\x64\x64\x41udioInputStream\x12&.proto.grpc.AddAudioInputStreamRequest\x1a\x1c.proto.grpc.AudioInputStream\"\x00\x12T\n\x10\x41\x64\x64\x41udioAnalyzer\x12#.proto.grpc.AddAudioAnalyzerRequest\x1a\x19.proto.grpc.AudioAnalyzer\"\x00\x12`\n\x14\x41\x64\x64\x41udioOutputStream\x12\'.proto.grpc.AddAudioOutputStreamRequest\x1a\x1d.proto.grpc.AudioOutputStream\"\x00\x12l\n\x18SubscribeToAudioAnalyzer\x12+.proto.grpc.SubscribeToAudioAnalyzerRequest\x1a!.proto.grpc.InstanceSubscriptions\"\x00\x12t\n\x1c\x43onnectLightsToAudioAnalyzer\x12/.proto.grpc.ConnectLightsToAudioAnalyzerRequest\x1a!.proto.grpc.InstanceSubscriptions\"\x00\x12\x45\n\x0bGetSessions\x12\x1e.proto.grpc.GetSessionsRequest\x1a\x14.proto.grpc.Sessions\"\x00\x62\x06proto3'
+  serialized_pb=b'\n\x1bproto/grpc/controller.proto\x12\nproto.grpc\x1a#proto/audio/analysis/analysis.proto\x1a\x1bproto/grpc/connection.proto\x1a\x18proto/grpc/session.proto\x1a\x1cproto/grpc/descriptors.proto\x1a\x17proto/grpc/remote.proto\"\x14\n\x12GetSessionsRequest\"v\n\x10\x43ontrollerUpdate\x12*\n\theartbeat\x18\x01 \x01(\x0b\x32\x15.proto.grpc.HeartbeatH\x00\x12,\n\nassignment\x18\x02 \x01(\x0b\x32\x16.proto.grpc.AssignmentH\x00\x42\x08\n\x06update\"(\n\x15RecordingFrameRequest\x12\x0f\n\x07seq_num\x18\x01 \x01(\x04\"\x96\x01\n\x1fSubscribeToAudioAnalyzerRequest\x12+\n\x0binstance_id\x18\x01 \x01(\x0b\x32\x16.proto.grpc.InstanceId\x12\x46\n\x19\x61udio_analyzer_descriptor\x18\n \x01(\x0b\x32#.proto.grpc.AudioAnalyzerDescriptor\"\x91\x01\n#ConnectLightsToAudioAnalyzerRequest\x12\"\n\x06lights\x18\x01 \x01(\x0b\x32\x12.proto.grpc.Lights\x12\x46\n\x19\x61udio_analyzer_descriptor\x18\n \x01(\x0b\x32#.proto.grpc.AudioAnalyzerDescriptor\"\xc9\x01\n\x1a\x41\x64\x64\x41udioInputStreamRequest\x12\x36\n\x06\x64\x65vice\x18\x01 \x01(\x0b\x32$.proto.grpc.DeviceInputStreamRequestH\x00\x12\x32\n\x04\x66ile\x18\x02 \x01(\x0b\x32\".proto.grpc.FileInputStreamRequestH\x00\x12\x36\n\x06stream\x18\x03 \x01(\x0b\x32$.proto.grpc.StreamInputStreamRequestH\x00\x42\x07\n\x05input\"*\n\x18\x44\x65viceInputStreamRequest\x12\x0e\n\x06\x64\x65vice\x18\x01 \x01(\t\";\n\x16\x46ileInputStreamRequest\x12\x11\n\tfile_path\x18\x01 \x01(\t\x12\x0e\n\x06looped\x18\n \x01(\x08\".\n\x18StreamInputStreamRequest\x12\x12\n\nstream_url\x18\x01 \x01(\t\"\x8c\x01\n\x17\x41\x64\x64\x41udioAnalyzerRequest\x12\x35\n\x08\x61nalyzer\x18\x01 \x01(\x0b\x32#.proto.audio.analysis.AudioAnalyzer\x12:\n\x10input_descriptor\x18\n \x01(\x0b\x32 .proto.grpc.AudioInputDescriptor\"Y\n\x1b\x41\x64\x64\x41udioOutputStreamRequest\x12:\n\x10input_descriptor\x18\x01 \x01(\x0b\x32 .proto.grpc.AudioInputDescriptor\"D\n\x18\x43ontrollerConnectRequest\x12(\n\x08instance\x18\x01 \x01(\x0b\x32\x16.proto.grpc.InstanceId\"\x1d\n\x1b\x43ontrollerDisconnectRequest2\xdc\x06\n\x10RemoteController\x12Q\n\x07\x43onnect\x12$.proto.grpc.ControllerConnectRequest\x1a\x1c.proto.grpc.ControllerUpdate\"\x00\x30\x01\x12J\n\nDisconnect\x12\'.proto.grpc.ControllerDisconnectRequest\x1a\x11.proto.grpc.Empty\"\x00\x12]\n\x13\x41\x64\x64\x41udioInputStream\x12&.proto.grpc.AddAudioInputStreamRequest\x1a\x1c.proto.grpc.AudioInputStream\"\x00\x12T\n\x10\x41\x64\x64\x41udioAnalyzer\x12#.proto.grpc.AddAudioAnalyzerRequest\x1a\x19.proto.grpc.AudioAnalyzer\"\x00\x12`\n\x14\x41\x64\x64\x41udioOutputStream\x12\'.proto.grpc.AddAudioOutputStreamRequest\x1a\x1d.proto.grpc.AudioOutputStream\"\x00\x12l\n\x18SubscribeToAudioAnalyzer\x12+.proto.grpc.SubscribeToAudioAnalyzerRequest\x1a!.proto.grpc.InstanceSubscriptions\"\x00\x12t\n\x1c\x43onnectLightsToAudioAnalyzer\x12/.proto.grpc.ConnectLightsToAudioAnalyzerRequest\x1a!.proto.grpc.InstanceSubscriptions\"\x00\x12\x45\n\x0bGetSessions\x12\x1e.proto.grpc.GetSessionsRequest\x1a\x14.proto.grpc.Sessions\"\x00\x12g\n\x15RequestRecordingFrame\x12!.proto.grpc.RecordingFrameRequest\x1a).proto.audio.analysis.AudioAnalysisResult\"\x00\x62\x06proto3'
   ,
   dependencies=[proto_dot_audio_dot_analysis_dot_analysis__pb2.DESCRIPTOR,proto_dot_grpc_dot_connection__pb2.DESCRIPTOR,proto_dot_grpc_dot_session__pb2.DESCRIPTOR,proto_dot_grpc_dot_descriptors__pb2.DESCRIPTOR,proto_dot_grpc_dot_remote__pb2.DESCRIPTOR,])
 
@@ -100,6 +100,38 @@ _CONTROLLERUPDATE = _descriptor.Descriptor(
 )
 
 
+_RECORDINGFRAMEREQUEST = _descriptor.Descriptor(
+  name='RecordingFrameRequest',
+  full_name='proto.grpc.RecordingFrameRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='seq_num', full_name='proto.grpc.RecordingFrameRequest.seq_num', index=0,
+      number=1, type=4, cpp_type=4, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=332,
+  serialized_end=372,
+)
+
+
 _SUBSCRIBETOAUDIOANALYZERREQUEST = _descriptor.Descriptor(
   name='SubscribeToAudioAnalyzerRequest',
   full_name='proto.grpc.SubscribeToAudioAnalyzerRequest',
@@ -134,8 +166,8 @@ _SUBSCRIBETOAUDIOANALYZERREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=333,
-  serialized_end=483,
+  serialized_start=375,
+  serialized_end=525,
 )
 
 
@@ -173,8 +205,8 @@ _CONNECTLIGHTSTOAUDIOANALYZERREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=486,
-  serialized_end=631,
+  serialized_start=528,
+  serialized_end=673,
 )
 
 
@@ -186,6 +218,64 @@ _ADDAUDIOINPUTSTREAMREQUEST = _descriptor.Descriptor(
   containing_type=None,
   create_key=_descriptor._internal_create_key,
   fields=[
+    _descriptor.FieldDescriptor(
+      name='device', full_name='proto.grpc.AddAudioInputStreamRequest.device', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='file', full_name='proto.grpc.AddAudioInputStreamRequest.file', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='stream', full_name='proto.grpc.AddAudioInputStreamRequest.stream', index=2,
+      number=3, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+    _descriptor.OneofDescriptor(
+      name='input', full_name='proto.grpc.AddAudioInputStreamRequest.input',
+      index=0, containing_type=None,
+      create_key=_descriptor._internal_create_key,
+    fields=[]),
+  ],
+  serialized_start=676,
+  serialized_end=877,
+)
+
+
+_DEVICEINPUTSTREAMREQUEST = _descriptor.Descriptor(
+  name='DeviceInputStreamRequest',
+  full_name='proto.grpc.DeviceInputStreamRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='device', full_name='proto.grpc.DeviceInputStreamRequest.device', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -198,8 +288,79 @@ _ADDAUDIOINPUTSTREAMREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=633,
-  serialized_end=661,
+  serialized_start=879,
+  serialized_end=921,
+)
+
+
+_FILEINPUTSTREAMREQUEST = _descriptor.Descriptor(
+  name='FileInputStreamRequest',
+  full_name='proto.grpc.FileInputStreamRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='file_path', full_name='proto.grpc.FileInputStreamRequest.file_path', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='looped', full_name='proto.grpc.FileInputStreamRequest.looped', index=1,
+      number=10, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=923,
+  serialized_end=982,
+)
+
+
+_STREAMINPUTSTREAMREQUEST = _descriptor.Descriptor(
+  name='StreamInputStreamRequest',
+  full_name='proto.grpc.StreamInputStreamRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='stream_url', full_name='proto.grpc.StreamInputStreamRequest.stream_url', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=984,
+  serialized_end=1030,
 )
 
 
@@ -237,8 +398,8 @@ _ADDAUDIOANALYZERREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=664,
-  serialized_end=804,
+  serialized_start=1033,
+  serialized_end=1173,
 )
 
 
@@ -269,8 +430,8 @@ _ADDAUDIOOUTPUTSTREAMREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=806,
-  serialized_end=895,
+  serialized_start=1175,
+  serialized_end=1264,
 )
 
 
@@ -301,8 +462,8 @@ _CONTROLLERCONNECTREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=897,
-  serialized_end=965,
+  serialized_start=1266,
+  serialized_end=1334,
 )
 
 
@@ -326,8 +487,8 @@ _CONTROLLERDISCONNECTREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=967,
-  serialized_end=996,
+  serialized_start=1336,
+  serialized_end=1365,
 )
 
 _CONTROLLERUPDATE.fields_by_name['heartbeat'].message_type = proto_dot_grpc_dot_connection__pb2._HEARTBEAT
@@ -342,15 +503,31 @@ _SUBSCRIBETOAUDIOANALYZERREQUEST.fields_by_name['instance_id'].message_type = pr
 _SUBSCRIBETOAUDIOANALYZERREQUEST.fields_by_name['audio_analyzer_descriptor'].message_type = proto_dot_grpc_dot_descriptors__pb2._AUDIOANALYZERDESCRIPTOR
 _CONNECTLIGHTSTOAUDIOANALYZERREQUEST.fields_by_name['lights'].message_type = proto_dot_grpc_dot_remote__pb2._LIGHTS
 _CONNECTLIGHTSTOAUDIOANALYZERREQUEST.fields_by_name['audio_analyzer_descriptor'].message_type = proto_dot_grpc_dot_descriptors__pb2._AUDIOANALYZERDESCRIPTOR
+_ADDAUDIOINPUTSTREAMREQUEST.fields_by_name['device'].message_type = _DEVICEINPUTSTREAMREQUEST
+_ADDAUDIOINPUTSTREAMREQUEST.fields_by_name['file'].message_type = _FILEINPUTSTREAMREQUEST
+_ADDAUDIOINPUTSTREAMREQUEST.fields_by_name['stream'].message_type = _STREAMINPUTSTREAMREQUEST
+_ADDAUDIOINPUTSTREAMREQUEST.oneofs_by_name['input'].fields.append(
+  _ADDAUDIOINPUTSTREAMREQUEST.fields_by_name['device'])
+_ADDAUDIOINPUTSTREAMREQUEST.fields_by_name['device'].containing_oneof = _ADDAUDIOINPUTSTREAMREQUEST.oneofs_by_name['input']
+_ADDAUDIOINPUTSTREAMREQUEST.oneofs_by_name['input'].fields.append(
+  _ADDAUDIOINPUTSTREAMREQUEST.fields_by_name['file'])
+_ADDAUDIOINPUTSTREAMREQUEST.fields_by_name['file'].containing_oneof = _ADDAUDIOINPUTSTREAMREQUEST.oneofs_by_name['input']
+_ADDAUDIOINPUTSTREAMREQUEST.oneofs_by_name['input'].fields.append(
+  _ADDAUDIOINPUTSTREAMREQUEST.fields_by_name['stream'])
+_ADDAUDIOINPUTSTREAMREQUEST.fields_by_name['stream'].containing_oneof = _ADDAUDIOINPUTSTREAMREQUEST.oneofs_by_name['input']
 _ADDAUDIOANALYZERREQUEST.fields_by_name['analyzer'].message_type = proto_dot_audio_dot_analysis_dot_analysis__pb2._AUDIOANALYZER
 _ADDAUDIOANALYZERREQUEST.fields_by_name['input_descriptor'].message_type = proto_dot_grpc_dot_descriptors__pb2._AUDIOINPUTDESCRIPTOR
 _ADDAUDIOOUTPUTSTREAMREQUEST.fields_by_name['input_descriptor'].message_type = proto_dot_grpc_dot_descriptors__pb2._AUDIOINPUTDESCRIPTOR
 _CONTROLLERCONNECTREQUEST.fields_by_name['instance'].message_type = proto_dot_grpc_dot_session__pb2._INSTANCEID
 DESCRIPTOR.message_types_by_name['GetSessionsRequest'] = _GETSESSIONSREQUEST
 DESCRIPTOR.message_types_by_name['ControllerUpdate'] = _CONTROLLERUPDATE
+DESCRIPTOR.message_types_by_name['RecordingFrameRequest'] = _RECORDINGFRAMEREQUEST
 DESCRIPTOR.message_types_by_name['SubscribeToAudioAnalyzerRequest'] = _SUBSCRIBETOAUDIOANALYZERREQUEST
 DESCRIPTOR.message_types_by_name['ConnectLightsToAudioAnalyzerRequest'] = _CONNECTLIGHTSTOAUDIOANALYZERREQUEST
 DESCRIPTOR.message_types_by_name['AddAudioInputStreamRequest'] = _ADDAUDIOINPUTSTREAMREQUEST
+DESCRIPTOR.message_types_by_name['DeviceInputStreamRequest'] = _DEVICEINPUTSTREAMREQUEST
+DESCRIPTOR.message_types_by_name['FileInputStreamRequest'] = _FILEINPUTSTREAMREQUEST
+DESCRIPTOR.message_types_by_name['StreamInputStreamRequest'] = _STREAMINPUTSTREAMREQUEST
 DESCRIPTOR.message_types_by_name['AddAudioAnalyzerRequest'] = _ADDAUDIOANALYZERREQUEST
 DESCRIPTOR.message_types_by_name['AddAudioOutputStreamRequest'] = _ADDAUDIOOUTPUTSTREAMREQUEST
 DESCRIPTOR.message_types_by_name['ControllerConnectRequest'] = _CONTROLLERCONNECTREQUEST
@@ -370,6 +547,13 @@ ControllerUpdate = _reflection.GeneratedProtocolMessageType('ControllerUpdate', 
   # @@protoc_insertion_point(class_scope:proto.grpc.ControllerUpdate)
   })
 _sym_db.RegisterMessage(ControllerUpdate)
+
+RecordingFrameRequest = _reflection.GeneratedProtocolMessageType('RecordingFrameRequest', (_message.Message,), {
+  'DESCRIPTOR' : _RECORDINGFRAMEREQUEST,
+  '__module__' : 'proto.grpc.controller_pb2'
+  # @@protoc_insertion_point(class_scope:proto.grpc.RecordingFrameRequest)
+  })
+_sym_db.RegisterMessage(RecordingFrameRequest)
 
 SubscribeToAudioAnalyzerRequest = _reflection.GeneratedProtocolMessageType('SubscribeToAudioAnalyzerRequest', (_message.Message,), {
   'DESCRIPTOR' : _SUBSCRIBETOAUDIOANALYZERREQUEST,
@@ -391,6 +575,27 @@ AddAudioInputStreamRequest = _reflection.GeneratedProtocolMessageType('AddAudioI
   # @@protoc_insertion_point(class_scope:proto.grpc.AddAudioInputStreamRequest)
   })
 _sym_db.RegisterMessage(AddAudioInputStreamRequest)
+
+DeviceInputStreamRequest = _reflection.GeneratedProtocolMessageType('DeviceInputStreamRequest', (_message.Message,), {
+  'DESCRIPTOR' : _DEVICEINPUTSTREAMREQUEST,
+  '__module__' : 'proto.grpc.controller_pb2'
+  # @@protoc_insertion_point(class_scope:proto.grpc.DeviceInputStreamRequest)
+  })
+_sym_db.RegisterMessage(DeviceInputStreamRequest)
+
+FileInputStreamRequest = _reflection.GeneratedProtocolMessageType('FileInputStreamRequest', (_message.Message,), {
+  'DESCRIPTOR' : _FILEINPUTSTREAMREQUEST,
+  '__module__' : 'proto.grpc.controller_pb2'
+  # @@protoc_insertion_point(class_scope:proto.grpc.FileInputStreamRequest)
+  })
+_sym_db.RegisterMessage(FileInputStreamRequest)
+
+StreamInputStreamRequest = _reflection.GeneratedProtocolMessageType('StreamInputStreamRequest', (_message.Message,), {
+  'DESCRIPTOR' : _STREAMINPUTSTREAMREQUEST,
+  '__module__' : 'proto.grpc.controller_pb2'
+  # @@protoc_insertion_point(class_scope:proto.grpc.StreamInputStreamRequest)
+  })
+_sym_db.RegisterMessage(StreamInputStreamRequest)
 
 AddAudioAnalyzerRequest = _reflection.GeneratedProtocolMessageType('AddAudioAnalyzerRequest', (_message.Message,), {
   'DESCRIPTOR' : _ADDAUDIOANALYZERREQUEST,
@@ -429,8 +634,8 @@ _REMOTECONTROLLER = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=999,
-  serialized_end=1754,
+  serialized_start=1368,
+  serialized_end=2228,
   methods=[
   _descriptor.MethodDescriptor(
     name='Connect',
@@ -509,6 +714,16 @@ _REMOTECONTROLLER = _descriptor.ServiceDescriptor(
     containing_service=None,
     input_type=_GETSESSIONSREQUEST,
     output_type=proto_dot_grpc_dot_session__pb2._SESSIONS,
+    serialized_options=None,
+    create_key=_descriptor._internal_create_key,
+  ),
+  _descriptor.MethodDescriptor(
+    name='RequestRecordingFrame',
+    full_name='proto.grpc.RemoteController.RequestRecordingFrame',
+    index=8,
+    containing_service=None,
+    input_type=_RECORDINGFRAMEREQUEST,
+    output_type=proto_dot_audio_dot_analysis_dot_analysis__pb2._AUDIOANALYSISRESULT,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,
   ),

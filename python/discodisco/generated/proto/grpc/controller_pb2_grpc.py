@@ -2,6 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
+from proto.audio.analysis import analysis_pb2 as proto_dot_audio_dot_analysis_dot_analysis__pb2
 from proto.grpc import controller_pb2 as proto_dot_grpc_dot_controller__pb2
 from proto.grpc import descriptors_pb2 as proto_dot_grpc_dot_descriptors__pb2
 from proto.grpc import remote_pb2 as proto_dot_grpc_dot_remote__pb2
@@ -56,6 +57,11 @@ class RemoteControllerStub(object):
                 '/proto.grpc.RemoteController/GetSessions',
                 request_serializer=proto_dot_grpc_dot_controller__pb2.GetSessionsRequest.SerializeToString,
                 response_deserializer=proto_dot_grpc_dot_session__pb2.Sessions.FromString,
+                )
+        self.RequestRecordingFrame = channel.unary_unary(
+                '/proto.grpc.RemoteController/RequestRecordingFrame',
+                request_serializer=proto_dot_grpc_dot_controller__pb2.RecordingFrameRequest.SerializeToString,
+                response_deserializer=proto_dot_audio_dot_analysis_dot_analysis__pb2.AudioAnalysisResult.FromString,
                 )
 
 
@@ -113,6 +119,13 @@ class RemoteControllerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def RequestRecordingFrame(self, request, context):
+        """recording
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_RemoteControllerServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -155,6 +168,11 @@ def add_RemoteControllerServicer_to_server(servicer, server):
                     servicer.GetSessions,
                     request_deserializer=proto_dot_grpc_dot_controller__pb2.GetSessionsRequest.FromString,
                     response_serializer=proto_dot_grpc_dot_session__pb2.Sessions.SerializeToString,
+            ),
+            'RequestRecordingFrame': grpc.unary_unary_rpc_method_handler(
+                    servicer.RequestRecordingFrame,
+                    request_deserializer=proto_dot_grpc_dot_controller__pb2.RecordingFrameRequest.FromString,
+                    response_serializer=proto_dot_audio_dot_analysis_dot_analysis__pb2.AudioAnalysisResult.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -299,5 +317,22 @@ class RemoteController(object):
         return grpc.experimental.unary_unary(request, target, '/proto.grpc.RemoteController/GetSessions',
             proto_dot_grpc_dot_controller__pb2.GetSessionsRequest.SerializeToString,
             proto_dot_grpc_dot_session__pb2.Sessions.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def RequestRecordingFrame(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/proto.grpc.RemoteController/RequestRecordingFrame',
+            proto_dot_grpc_dot_controller__pb2.RecordingFrameRequest.SerializeToString,
+            proto_dot_audio_dot_analysis_dot_analysis__pb2.AudioAnalysisResult.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

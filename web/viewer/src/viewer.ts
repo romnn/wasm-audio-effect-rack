@@ -4,7 +4,7 @@ import {
 } from "@disco/core/grpc";
 import {
   RemoteViewerClient,
-  ViewerConnectRequest,
+  ViewerSubscribeRequest,
   ViewerDisconnectRequest,
   ViewerUpdate,
 } from "@disco/core/grpc/viewer";
@@ -50,7 +50,7 @@ export default class RemoteViewer extends RemoteClient<RemoteViewerClient> {
       }
 
   public connect = async(callback?: () => void): Promise<void> => {
-    const req = new ViewerConnectRequest();
+    const req = new ViewerSubscribeRequest();
     this.updateStream = this.client.connect(req, undefined);
     this.updateStream.on("error", (err: Error) => {
       if (this.onError) {

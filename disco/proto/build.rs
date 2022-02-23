@@ -16,7 +16,7 @@ fn main() {
         .type_attribute("proto.grpc.AudioOutputDescriptor", "#[derive(Hash, Eq)]")
         .type_attribute("proto.grpc.AudioAnalyzerDescriptor", "#[derive(Hash, Eq)]")
         .build_server(true)
-        .build_client(false)
+        .build_client(true)
         .compile(
             &[
                 "../../proto/grpc/viewer.proto",
